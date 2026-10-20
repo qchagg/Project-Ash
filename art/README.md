@@ -9,6 +9,10 @@ Upload new art into this folder (GitHub's "Add file → Upload files" works, inc
 - **Format:** PNG or WebP, no text or frames baked in. The game draws frames, element glyphs and augment auras itself.
 - **Naming:** the hero's key, lowercase: `kaede.png`, `brann.png`, `sorrel.png`, `ilse.png`; enemies `golem`, `blade`, `caller`, `seer`.
 
+## Living cards
+
+A 3★ card breathes and a 4★ card comes alive and breaks out of its frame. Each needs a short portrait loop: an MP4 of the head and shoulders on a flat background, about 5 seconds. `tools/living-card.sh loop.mp4 <hero> art/<hero>` turns it into a transparent animated cutout, a breathing loop and a still cutout. Ilse's are in `art/ilse/`.
+
 ## Element palette
 
 Fire `#ff7b47` · Water `#43b8de` · Earth `#c4925f` · Wind `#8ad46f`. Character art should lean toward its element; Brann is now Earth and the Basalt Golem is the Earth enemy.
