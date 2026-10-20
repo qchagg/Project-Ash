@@ -1,0 +1,1726 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Ashgrid Combat Sandbox</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
+<style>
+/* Layout: battlefield column (enemy grid / queue strip as the front line / ally grid) beside a command column; stacks on phones */
+:root{
+  --ink:#0e1117; --panel:#161b24; --raise:#1f2632; --line:#2c3544; --fg:#ece6d8; --muted:#9aa2b1;
+  --brass:#d9a845; --flame:#ff7b47; --tide:#43b8de; --gale:#8ad46f; --earth:#c4925f; --hurt:#ff5f6d; --mend:#79e3b1;
+  --f-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --f-body:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--ink);color:var(--fg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.wrap{max-width:1060px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass)}
+header h1{font-family:var(--f-display);font-weight:800;font-size:clamp(40px,8vw,60px);letter-spacing:.02em;line-height:.9;margin:4px 0 0;text-transform:uppercase}
+header p{margin:8px 0 0;color:var(--muted);max-width:62ch}
+.legend{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.pill{padding:2px 8px;border-radius:999px;color:var(--ink);font-weight:500}
+.layout{display:grid;gap:20px;grid-template-columns:1fr}
+@media (min-width:900px){.layout{grid-template-columns:minmax(0,452px) minmax(0,1fr);align-items:start}}
+.field{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+.side-head{width:min(100%,440px);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.side-head .mono{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:min(100%,440px)}
+.el-fire{--el:var(--flame)} .el-water{--el:var(--tide)} .el-wind{--el:var(--gale)} .el-earth{--el:var(--earth)}
+.e-fire{color:var(--flame)} .e-water{color:var(--tide)} .e-wind{color:var(--gale)} .e-earth{color:var(--earth)}
+.bg-fire{background:var(--flame)} .bg-water{background:var(--tide)} .bg-wind{background:var(--gale)} .bg-earth{background:var(--earth)}
+.tile{position:relative;aspect-ratio:1;max-width:100%;min-width:0;border-radius:6px;border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px;cursor:pointer;overflow:visible}
+.tile.empty{background:transparent;border-style:dashed}
+.tile.unit{border-color:color-mix(in srgb,var(--el) 50%,var(--line))}
+.tile.sel{outline:2px solid var(--brass);outline-offset:2px}
+.tile.valid{box-shadow:inset 0 0 0 2px var(--brass);cursor:crosshair}
+.tile.aoe{background:color-mix(in srgb,var(--brass) 26%,var(--panel))}
+.tile.aoe.mend{background:color-mix(in srgb,var(--mend) 22%,var(--panel))}
+.tile .movehere{font-family:var(--f-mono);font-size:10px;color:var(--brass);letter-spacing:.08em;text-transform:uppercase}
+.glyph{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:20px;color:var(--ink);background:var(--el)}
+.glyph.pic{background-color:var(--raise);background-repeat:no-repeat;box-shadow:0 0 0 2px var(--el)}
+.tile .glyph.pic{width:46px;height:46px}
+.hero-head .glyph.pic{width:96px;height:128px;border-radius:8px;box-shadow:0 0 0 2px var(--el),0 6px 18px rgba(0,0,0,.45)}
+.hero-head{align-items:flex-end}
+.rbtn .glyph.pic{box-shadow:0 0 0 1.5px var(--el)}
+.tname{font-size:12px;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.hp{width:86%;height:5px;border-radius:3px;background:var(--line);overflow:hidden}
+.hp i{display:block;height:100%;background:var(--mend)}
+.hp i.low{background:var(--hurt)}
+.hpnum{font-family:var(--f-mono);font-size:10px;color:var(--muted);line-height:1;font-variant-numeric:tabular-nums}
+.tags{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;min-height:13px}
+.tag{font-family:var(--f-mono);font-size:9.5px;line-height:13px;padding:0 4px;border-radius:3px;background:var(--raise);color:var(--muted)}
+.tag.stun{color:var(--brass)} .tag.burn{color:var(--flame)} .tag.shd{color:var(--tide)} .tag.grd{color:var(--fg)}
+.tag.stack{color:var(--brass);background:color-mix(in srgb,var(--brass) 16%,var(--raise))} .tag.mark{color:var(--gale)}
+.tag.trap{color:var(--flame);background:transparent;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--flame) 70%,transparent)}
+.order{position:absolute;top:4px;left:4px;width:18px;height:18px;border-radius:50%;background:var(--brass);color:var(--ink);font-family:var(--f-mono);font-size:11px;display:grid;place-items:center}
+.edge{position:absolute;top:4px;right:4px;font-family:var(--f-mono);font-size:9.5px;line-height:14px;padding:0 4px;border-radius:3px}
+.edge.up{background:var(--gale);color:var(--ink)} .edge.down{background:var(--raise);color:var(--muted)}
+.tile.ko{cursor:default}
+.tile.ko .kotxt{font-family:var(--f-display);font-weight:800;font-size:18px;color:var(--line);letter-spacing:.06em}
+.tile.ko .tname{color:var(--line)}
+/* Units as cards: the art fills the tile, a dark plate along the bottom carries name, HP and statuses. */
+.tile.card{padding:0;gap:0;justify-content:flex-end;overflow:hidden;border:2px solid color-mix(in srgb,var(--el) 75%,var(--line));background:var(--panel);isolation:isolate}
+.card-art{position:absolute;inset:0;z-index:-1;background-repeat:no-repeat;background-color:var(--raise);transition:filter .3s}
+.card-art.blank{display:grid;place-items:center;padding-bottom:30%;background:radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--el) 55%,var(--panel)),var(--panel) 72%);font-family:var(--f-display);font-weight:800;font-size:clamp(28px,7vw,44px);color:var(--ink)}
+.card-plate{width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;padding:16px 5px 5px;background:linear-gradient(to top,rgba(9,11,16,.94) 58%,rgba(9,11,16,0))}
+.card.side-E .card-plate{background:linear-gradient(to top,rgba(34,10,14,.94) 58%,rgba(34,10,14,0))}
+.card .tname{color:var(--fg);text-shadow:0 1px 2px var(--ink)}
+.card .hp{width:92%}
+.card .hpnum small{color:var(--line);font-size:9px}
+.card .tags{min-height:0;margin-bottom:1px}
+.card-el{position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:4px;display:grid;place-items:center;background:var(--el);color:var(--ink);font-family:var(--f-mono);font-size:10px;font-weight:500;box-shadow:0 1px 3px var(--ink)}
+.card .edge{top:24px}
+.card.sel{border-color:var(--brass)}
+.tile.card.ko{cursor:default;border-color:var(--line)}
+.card.ko .card-art{filter:grayscale(1) brightness(.4)}
+.card.ko.shattered .card-art{filter:grayscale(1) brightness(.2) contrast(1.4)}
+.card.ko .kotxt{position:absolute;top:34%;left:0;right:0;text-align:center;color:var(--fg);opacity:.85}
+.card.ko .tname{color:var(--muted)}
+.card .movehere{position:absolute;top:8px;left:0;right:0;text-align:center}
+/* The art layer covers the tile's own inset shadow, so card highlights are drawn on top instead. */
+.tile.card.valid::after,.tile.card.aoe::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:4px}
+.tile.card.valid::after{box-shadow:inset 0 0 0 3px var(--brass)}
+.tile.card.aoe::after{background:color-mix(in srgb,var(--brass) 30%,transparent)}
+.tile.card.aoe.mend::after{background:color-mix(in srgb,var(--mend) 26%,transparent)}
+.float{position:absolute;left:50%;top:28%;transform:translateX(-50%);font-family:var(--f-display);font-weight:800;font-size:21px;pointer-events:none;white-space:nowrap;z-index:5;animation:rise .62s ease-out forwards;text-shadow:0 1px 0 var(--ink),0 0 6px var(--ink)}
+.float.hurt{color:var(--fg)} .float.crit{color:var(--gale);font-size:24px} .float.resist{color:var(--muted)} .float.mend{color:var(--mend)} .float.shield{color:var(--tide);font-size:16px} .float.burn{color:var(--flame);font-size:16px} .float.blocked{color:var(--tide);font-size:16px} .float.stun{color:var(--brass);font-size:15px}
+@keyframes rise{from{opacity:1;transform:translate(-50%,6px)}to{opacity:0;transform:translate(-50%,-28px)}}
+.flash{animation:flash .45s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 3px var(--fg)}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}.float{animation:fade .5s forwards}@keyframes fade{from{opacity:1}to{opacity:0}}}
+.strip{width:min(100%,440px);border-block:1px solid color-mix(in srgb,var(--brass) 55%,transparent);padding-block:10px;display:flex;flex-direction:column;gap:8px}
+.strip-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.round{font-family:var(--f-display);font-weight:800;font-size:24px;line-height:1;text-transform:uppercase;letter-spacing:.03em}
+.round small{display:block;font-family:var(--f-mono);font-weight:500;font-size:10.5px;letter-spacing:.12em;color:var(--muted);margin-top:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;align-items:center}
+.chips .empty-hint{font-size:13px;color:var(--muted)}
+.chip{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;padding:4px 9px 4px 4px;border-radius:999px;border:1px solid var(--line);background:var(--raise);cursor:pointer;max-width:100%}
+.chip .n{width:18px;height:18px;border-radius:50%;background:var(--brass);color:var(--ink);font-family:var(--f-mono);font-size:11px;display:grid;place-items:center;flex:none}
+.chip .lk{font-family:var(--f-mono);font-size:10.5px;color:var(--gale)}
+.chip .x{color:var(--muted)}
+.btn{font-weight:600;padding:9px 14px;border-radius:6px;border:1px solid var(--line);background:var(--raise);cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--brass);color:var(--ink);border-color:var(--brass)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.command{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+.roster{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.rbtn{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:999px;border:1px solid var(--line);background:var(--raise);cursor:pointer;font-size:13px}
+.rbtn .glyph{width:22px;height:22px;font-size:13px}
+.rbtn.on{border-color:var(--brass)}
+.rbtn.done{opacity:.6}
+.rbtn:disabled{opacity:.35;cursor:not-allowed}
+.rbtn.off{opacity:.5}
+.hero-head{display:flex;gap:12px;align-items:center}
+.hero-head .glyph{width:48px;height:48px;font-size:28px}
+.hero-head h2{font-family:var(--f-display);font-weight:800;font-size:30px;line-height:1;margin:2px 0 0;text-transform:uppercase;letter-spacing:.02em}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
+.stats div{background:var(--raise);border-radius:5px;padding:6px 8px}
+.stats dt{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;color:var(--muted)}
+.stats dd{margin:0;font-family:var(--f-mono);font-size:14px;font-variant-numeric:tabular-nums}
+.warn{margin:0 0 12px;color:var(--brass);font-size:14px}
+.passive{margin:0 0 12px;font-size:13.5px;color:var(--muted)}
+.passive b{color:var(--brass);font-weight:600}
+.actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.act{text-align:left;display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:6px;border:1px solid var(--line);background:var(--raise);cursor:pointer;min-width:0}
+.act.skill{border-color:color-mix(in srgb,var(--el) 40%,var(--line))}
+.act.on{border-color:var(--brass);box-shadow:inset 0 0 0 1px var(--brass)}
+.act:disabled{opacity:.42;cursor:not-allowed}
+.act-top{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.act-name{font-weight:600;font-size:14px}
+.act-cd{font-family:var(--f-mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.act-cd.ready{color:var(--gale)}
+.act-mid{display:flex;gap:8px;align-items:center}
+.act-meta{font-family:var(--f-mono);font-size:10.5px;color:var(--muted);line-height:1.35}
+.act-desc{font-size:12.5px;color:var(--muted);line-height:1.35}
+.mini{display:grid;grid-template-columns:repeat(3,7px);gap:2px;flex:none}
+.mini i{width:7px;height:7px;border-radius:1px;background:var(--line)}
+.mini i.on{background:var(--brass)}
+.hint{margin:12px 0 0;font-size:13px;color:var(--muted)}
+.result h2{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1;margin:4px 0 8px;text-transform:uppercase}
+.result p{margin:0 0 14px;color:var(--muted)}
+.result.lose .eyebrow{color:var(--hurt)}
+.sec-title{font-family:var(--f-display);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.03em;margin:0 0 10px}
+.log{list-style:none;margin:0;padding:0;max-height:240px;overflow:auto;display:flex;flex-direction:column;gap:5px;font-size:13px}
+.log li{line-height:1.4}
+.log li.sys{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;color:var(--brass);text-transform:uppercase;margin-top:4px}
+.log .chain{font-family:var(--f-mono);font-size:11px;color:var(--gale)}
+.log .dim{color:var(--muted)}
+details summary{cursor:pointer;font-family:var(--f-display);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.03em;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:" +";color:var(--brass)}
+details[open] summary::after{content:" –"}
+.knob{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin-top:14px}
+.knob label{font-weight:600;font-size:14px}
+.knob output{font-family:var(--f-mono);font-size:13px;color:var(--brass);font-variant-numeric:tabular-nums}
+.knob input{grid-column:1/-1;width:100%;accent-color:var(--brass)}
+.knob p{grid-column:1/-1;margin:0;font-size:12.5px;color:var(--muted)}
+.sub{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);margin:20px 0 0}
+.tune-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.tune-foot span{font-size:12.5px;color:var(--muted)}
+.notes ul{margin:12px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:8px;color:var(--muted);font-size:14px;max-width:65ch}
+.notes b{color:var(--fg)}
+.squad-note{margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+.lvl{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:10px}
+.lvl button{text-align:left;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--raise);cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.lvl button[aria-pressed="true"]{border-color:var(--brass);box-shadow:inset 0 0 0 1px var(--brass)}
+.lvl b{font-size:13.5px} .lvl span{font-size:12px;color:var(--muted)}
+.btn.sm{padding:5px 10px;font-size:13px}
+/* Card shapes: tall tiles crop the square portraits to cover, centered on each face focus. */
+body[data-shape="poker"] .grid .tile{aspect-ratio:5/7}
+body[data-shape="tall"] .grid .tile{aspect-ratio:9/16}
+body[data-shape="poker"] .grid .card-art:not(.blank),body[data-shape="tall"] .grid .card-art:not(.blank){background-size:cover!important}
+/* Element glyphs: solid silhouettes in currentColor, so they recolor with their container. */
+.sigil{width:13px;height:13px;fill:currentColor;flex:none;overflow:visible}
+.sigil .gust{fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+.pill{display:inline-flex;align-items:center;gap:4px}
+.pill .sigil{width:12px;height:12px}
+.el-word{font-family:var(--f-mono);font-size:11px}
+/* Star frames on hero cards: bronze, silver, gold, then a prismatic 4★. Enemies keep the element border. */
+.tile.card.star-1{border-color:#a8744a}
+.tile.card.star-2{border-color:#c7ced6}
+.tile.card.star-3{border-color:#e8bd52;box-shadow:0 0 10px rgba(232,189,82,.35)}
+.tile.card.star-4{border-color:transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,conic-gradient(from 210deg,var(--flame),var(--brass),var(--gale),var(--tide),#b48cff,var(--flame)) border-box}
+.tile.mini-card{width:54px;aspect-ratio:3/4;flex:none;cursor:default}
+.tile.mini-card .card-art.blank{font-size:22px;padding-bottom:0}
+/* Augment auras: one layer over the card art per leading spirit family. Each element moves its own way, so they
+   read apart without color: fire rises, water ripples, wind streaks sideways, earth settles. lvl-1..3 = strength. */
+.aura{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.aura::before,.aura::after{content:"";position:absolute;inset:0;mix-blend-mode:screen}
+.aura.lvl-1{opacity:.72} .aura.lvl-2{opacity:.87} .aura.lvl-3{opacity:1}
+.aura-fire{background:radial-gradient(ellipse 75% 70% at 50% 42%,rgba(255,100,30,0) 55%,rgba(255,100,30,.6) 100%);box-shadow:inset 0 0 0 1.5px rgba(255,180,110,.95),inset 0 0 20px rgba(255,110,40,.8)}
+.aura-fire::before{background-image:radial-gradient(circle,rgba(255,226,170,1) 0 1.6px,transparent 2.3px),radial-gradient(circle,rgba(255,150,70,.95) 0 1.2px,transparent 1.9px);
+  background-size:23px 31px,17px 23px;background-position:0 0,9px 11px;animation:aura-rise 2.4s linear infinite;
+  -webkit-mask-image:linear-gradient(to top,#000 20%,transparent 95%);mask-image:linear-gradient(to top,#000 20%,transparent 95%)}
+@keyframes aura-rise{to{background-position:0 -31px,9px -12px}}
+.aura-water{background:radial-gradient(ellipse 75% 70% at 50% 42%,rgba(67,184,222,0) 55%,rgba(67,184,222,.6) 100%);box-shadow:inset 0 0 0 1.5px rgba(205,242,255,.95),inset 0 0 20px rgba(120,210,255,.8)}
+.aura-water::before{background:repeating-radial-gradient(circle at 50% 75%,rgba(215,245,255,.5) 0 1.2px,transparent 1.8px 11px);animation:aura-ripple 3.2s ease-in-out infinite;transform-origin:50% 75%}
+@keyframes aura-ripple{0%,100%{transform:scale(.92);opacity:.85}50%{transform:scale(1.1);opacity:.3}}
+.aura-wind{background:radial-gradient(ellipse 75% 70% at 50% 42%,rgba(138,212,111,0) 55%,rgba(138,212,111,.5) 100%);box-shadow:inset 0 0 0 1.5px rgba(200,250,180,.95),inset 0 0 18px rgba(138,212,111,.7)}
+.aura-wind::before{left:-60px;background:repeating-linear-gradient(100deg,transparent 0 21px,rgba(235,255,225,.5) 21px 23px,transparent 23px 53px);animation:aura-streak 1.5s linear infinite}
+@keyframes aura-streak{to{transform:translateX(53.8px)}}
+.aura-earth{background:radial-gradient(ellipse 75% 70% at 50% 42%,rgba(196,146,95,0) 55%,rgba(150,100,55,.85) 100%);box-shadow:inset 0 0 0 1.5px rgba(235,200,150,.95),inset 0 0 22px rgba(170,115,60,.95)}
+.aura-earth::before{background-image:radial-gradient(circle,rgba(240,210,170,.9) 0 1.5px,transparent 2.1px),radial-gradient(circle,rgba(210,170,120,.8) 0 1px,transparent 1.6px);
+  background-size:31px 41px,19px 27px;background-position:4px 0,13px 9px;animation:aura-settle 8s linear infinite;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 5%,#000 70%);mask-image:linear-gradient(to bottom,transparent 5%,#000 70%)}
+@keyframes aura-settle{to{background-position:4px 41px,13px 36px}}
+.aura-void{mix-blend-mode:screen;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.34) 44%,rgba(180,140,255,.4) 50%,transparent 64%);background-size:260% 100%;animation:aura-sweep 4.5s ease-in-out infinite}
+@keyframes aura-sweep{0%{background-position:120% 0}60%,100%{background-position:-60% 0}}
+@media (prefers-reduced-motion:reduce){.aura,.aura::before,.aura::after{animation:none!important}}
+.crow{border:1px solid var(--line);border-radius:8px;background:var(--raise);padding:10px;display:flex;flex-direction:column;gap:6px;margin-top:10px;min-width:0}
+.crow.on{border-color:color-mix(in srgb,var(--el) 65%,var(--line))}
+.ctop{display:flex;align-items:center;gap:10px}
+.cid{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline}
+.cid b{font-size:15px}
+.stars{color:var(--brass);letter-spacing:.06em}
+.cmeta{width:100%;font-family:var(--f-mono);font-size:10.5px;color:var(--muted)}
+.cstats{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums}
+.cskill{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px}
+.cs-name{font-weight:600}
+.cs-tags{font-family:var(--f-mono);font-size:10px;color:var(--muted)}
+.aug{font-family:var(--f-mono);font-size:11px;line-height:1.5;padding:1px 8px;border-radius:999px;border:1px solid var(--gale);background:transparent;color:var(--gale);cursor:pointer}
+.aug.set{border-color:var(--brass);color:var(--brass);cursor:default}
+#squad select{font:inherit;font-size:12.5px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 6px;max-width:100%;min-width:0}
+.cact{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.cmerge{display:flex;flex-wrap:wrap;gap:6px;min-width:0;flex:1}
+.cmerge select{flex:1}
+.augcard{padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--raise);display:flex;flex-direction:column;gap:2px}
+.augcard b{font-size:13.5px} .augcard span{font-size:12px;color:var(--muted)}
+.augcard.none{opacity:.5}
+.checks{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.checks li{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:baseline}
+.checks .v{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em}
+.checks .pass .v{color:var(--gale)} .checks .fail .v{color:var(--hurt)}
+.checks small{display:block;color:var(--muted);font-family:var(--f-mono);font-size:11px}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Combat prototype · v0.1</div>
+    <h1>Ashgrid</h1>
+    <p>Queue your heroes in the order you want them to fire, then watch the round resolve. Skill chains come from Seven Knights. Grid positions, lanes and range shapes come from Enchanted Arms.</p>
+    <div class="legend" id="legend"></div>
+  </header>
+
+  <div class="layout">
+    <section class="field" aria-label="Battlefield">
+      <div class="side-head"><span class="eyebrow">Enemy formation · back row on top</span><span class="mono" id="foeCount"></span></div>
+      <div class="grid" id="gridE" role="grid" aria-label="Enemy formation"></div>
+      <div class="strip">
+        <div class="strip-top">
+          <div class="round" id="roundLbl"></div>
+          <button class="btn primary" id="runBtn" type="button">Run round</button>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="grid" id="gridP" role="grid" aria-label="Your formation"></div>
+      <div class="side-head"><span class="eyebrow">Your formation · front row on top</span><span class="mono" id="heroCount"></span></div>
+    </section>
+
+    <section class="command">
+      <div class="card" id="panel"></div>
+
+      <div class="card">
+        <h2 class="sec-title">Battle log</h2>
+        <ol class="log" id="log" aria-live="polite"></ol>
+      </div>
+
+      <details class="card" open>
+        <summary>Cards</summary>
+        <div id="squad"></div>
+      </details>
+
+      <details class="card" open>
+        <summary>Tuning</summary>
+        <div class="knob">
+          <label for="kElem">Element edge</label><output id="oElem"></output>
+          <input type="range" id="kElem" min="100" max="200" step="5" value="150">
+          <p>Damage multiplier when your element beats theirs. The reverse matchup takes the inverse.</p>
+        </div>
+        <div class="knob">
+          <label for="kChain">Chain bonus per link</label><output id="oChain"></output>
+          <input type="range" id="kChain" min="0" max="25" step="1" value="10">
+          <p>Each skill queued back to back adds this much damage to the next damaging skill. Basic attacks, moves and guards break the chain.</p>
+        </div>
+        <div class="knob">
+          <label for="kFall">Ranged falloff per row</label><output id="oFall"></output>
+          <input type="range" id="kFall" min="0" max="25" step="1" value="10">
+          <p>Ranged damage drops for each row deeper the target stands. Melee hits at full strength but can only reach the front-most enemy in a lane.</p>
+        </div>
+        <p class="sub">Grid and elements</p>
+        <div id="gridSize"></div>
+        <p class="sub">Rules · v0.2 proposals and Ashfall</p>
+        <div id="rules"></div>
+        <div class="tune-foot"><span>Changes apply from the next action.</span><button class="btn" id="resetBtn" type="button">Restart battle</button></div>
+      </details>
+
+      <details class="card">
+        <summary>Acceptance checks</summary>
+        <p class="squad-note">Runs the engine and rule checks in scratch fights, logs pass or fail here and in the console, then restarts the battle.</p>
+        <div class="tune-foot"><span id="checkSum">Not run yet.</span><button class="btn" id="checkBtn" type="button">Run checks</button></div>
+        <ol class="checks" id="checks"></ol>
+      </details>
+
+      <details class="card notes">
+        <summary>What this prototype tests</summary>
+        <ul>
+          <li><b>Queue order is the skill expression.</b> Like Seven Knights, you choose who fires first. Stun with Brann or Sorrel before the enemy phase and that enemy loses its turn.</li>
+          <li><b>Position is a resource.</b> Like Enchanted Arms, each side has its own grid (4×4 by default; 3×3 and 4 wide × 3 deep under Tuning). Tanks in front block melee, and deep rows soak less ranged damage. Repositioning costs a turn.</li>
+          <li><b>Shapes matter.</b> Lane, row, cross and full-grid attacks reward stacking enemies and punish you for clumping.</li>
+          <li><b>Systems before characters.</b> The engine supports tile effects, round-scoped team buffs, chain-neutral moves, per-unit stacks and skills that ignore falloff. No hero uses them yet; the checks run them on a neutral test unit. The v0.2 rule proposals sit behind toggles under Tuning.</li>
+          <li><b>Four elements.</b> Water douses Fire, Fire consumes Wind, Wind erodes Earth, Earth dams Water; opposites are neutral. Badges use minimal solid glyphs: flame, drop, peaks, gusts. Augments are bound spirits (Salamander, Undine, Gnome, Sylph): they rename the skill and give the card an aura, and a 4★ gets a prismatic frame. The v0.1 triangle stays under Tuning for the reference fights.</li>
+          <li><b>Cards, not pulls.</b> Every copy of a hero is a card with its own rolled stats. Two cards of the same star level merge into one a star higher, up to 3★; an Ashcrown takes a 3★ to 4★. A card holds one augment per star. Augments swap freely until a merge sets them, and fodder augments that don't fit go back to the loose pile.</li>
+          <li><b>Not yet in:</b> gear, speed-based initiative for your side, a real level-up flow, the run map. Those sit on top once the core loop feels right.</li>
+        </ul>
+      </details>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const ELEMS = {fire:{label:'Fire', spirit:'Salamander'}, water:{label:'Water', spirit:'Undine'}, earth:{label:'Earth', spirit:'Gnome'}, wind:{label:'Wind', spirit:'Sylph'}};
+// four: Water douses Fire, Fire consumes Wind, Wind erodes Earth, Earth dams Water; opposites (Fire–Earth, Wind–Water) are neutral.
+// triangle: the v0.1 cycle, kept so the recorded reference fights still replay. Earth units fall back to their legacyElem.
+const BEATS = {four:{water:'fire', fire:'wind', wind:'earth', earth:'water'}, triangle:{fire:'wind', wind:'water', water:'fire'}};
+const ELEM = {mode:'four'};
+// Minimal solid glyphs on a 24px grid: a notched flame, a symmetric drop, two peaks, two curled gusts (the only stroked one).
+const SIGIL = {
+  fire:'<path d="M12 2.5c.6 3.4 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4.2 2.4-5.6.3 1.8 1 2.8 2.1 3.3-.3-3 .2-6 1-8.7Z"/>',
+  water:'<path d="M12 2.8s6 6.9 6 11.2a6 6 0 0 1-12 0C6 9.7 12 2.8 12 2.8Z"/>',
+  earth:'<path d="M2.5 19.5 9.5 6l4 7.6 2.2-3.6 5.8 9.5Z"/>',
+  wind:'<path class="gust" d="M3.5 9.5h9.5a3 3 0 1 0-3-3M3.5 14h13a3 3 0 1 1-3 3"/>',
+};
+const sigil = (el, cls='') => `<svg class="sigil ${cls}" viewBox="0 0 24 24" aria-hidden="true">${SIGIL[el]}</svg>`;
+const T = {elem:1.5, chain:0.10, fall:0.10};
+// Grid size per side. 4×4 is the working default; 3×3 is the v0.1 layout the baseline fight was recorded on.
+const GRID = {rows:4, cols:4};
+const GRID_SIZES = [{rows:4, cols:4}, {rows:3, cols:4}, {rows:3, cols:3}];
+const rowName = r => (GRID.rows===4 ? ['Front','Mid','Deep','Back'] : ['Front','Mid','Back'])[r];
+const PNAME = {single:'Single', pierce:'Lane', sweep:'Row', cross:'Cross', all:'Full grid'};
+const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let DELAY = reduced ? 180 : 580;
+
+const HEROES = [
+  {key:'kaede', name:'Kaede', title:'Ember Vixen', elem:'fire', range:'ranged', maxHp:820, atk:150, def:40, spd:92, r:1, c:1,
+    portrait:{src:'portraits/kaede.webp', x:58, y:48, zoom:2.0}, skills:[
+    {name:'Foxfire Lance', kind:'dmg', range:'ranged', pattern:'pierce', power:1.25, cd:2, fx:{burn:2}, desc:'Spears an entire lane, front to back. Burns for 2 rounds.'},
+    {name:'Ninefold Blaze', kind:'dmg', range:'ranged', pattern:'all', power:0.7, cd:4, fx:{burn:1}, desc:'Nine tails of fire hit every enemy tile.'}]},
+  {key:'brann', name:'Brann', title:'Harbor Wall', elem:'earth', legacyElem:'water', range:'melee', maxHp:1400, atk:100, def:95, spd:70, r:0, c:1,
+    portrait:{src:'portraits/brann.webp', x:54, y:44, zoom:2.0}, skills:[
+    {name:'Rockfall', kind:'dmg', range:'melee', pattern:'single', power:1.4, cd:3, fx:{stun:1}, desc:'Heavy blow to an exposed enemy. Stuns it for its next action.'},
+    {name:'Breakwater', kind:'shield', pattern:'all', power:1.9, cd:4, desc:'Shields every ally. Shields hold until broken.'}]},
+  {key:'sorrel', name:'Sorrel', title:'Gale Archer', elem:'wind', range:'ranged', maxHp:900, atk:135, def:45, spd:105, r:1, c:0,
+    portrait:{src:'portraits/sorrel.webp', x:52, y:44, zoom:2.0}, skills:[
+    {name:'Crosswind', kind:'dmg', range:'ranged', pattern:'cross', power:1.0, cd:2, desc:'Hits a tile and its four neighbors.'},
+    {name:'Pinning Shot', kind:'dmg', range:'ranged', pattern:'single', power:1.7, cd:3, fx:{stun:1}, desc:'Precise shot that pins one target in place.'}]},
+  {key:'ilse', name:'Ilse', title:'Tide Chantress', elem:'water', range:'ranged', maxHp:850, atk:95, def:50, spd:88, r:2, c:2,
+    portrait:{src:'portraits/ilse.webp', x:40, y:36, zoom:2.1}, skills:[
+    {name:'Riptide', kind:'dmg', range:'ranged', pattern:'sweep', power:0.95, cd:2, desc:'Washes across a full row.'},
+    {name:'Rain of Renewal', kind:'heal', pattern:'all', power:1.6, cd:3, fx:{cleanse:true}, desc:'Heals every ally and clears burns.'}]},
+];
+
+/* v0.2 rule proposals (design tracker, "Rules we adopt"). All start off, so the v0.1 fight stays the reference. */
+const pct = x => Math.round(x*100)+'%';
+const RULES = {
+  sightline:{on:false, name:'Sightline', perRow:0.05, desc:r=>`Ranged falloff also counts the attacker's depth: −${pct(r.perRow)} for each row it stands behind its own front row.`},
+  screening:{on:false, name:'Screening', perUnit:0.25, floor:0.5, desc:r=>`Lane attacks lose ${pct(r.perUnit)} for each unit already hit in that lane, down to ${pct(r.floor)}.`},
+  kindred:{on:false, name:'Kindred', mult:0.85, desc:r=>`Hitting a target of your own element deals ×${r.mult}.`},
+  focus:{on:false, name:'Focus', perLink:0.05, desc:r=>`A chain link that hits the same target as the previous link gets +${pct(r.perLink)} more per focused link.`},
+  shatter:{on:false, name:'Shatter', overshoot:0.5, desc:r=>`A killing blow that overshoots by ${pct(r.overshoot)} of max HP shatters the target: counted for rewards, and it can never be revived.`},
+  lastStand:{on:false, name:'Last Stand', rounds:2, reviveHp:0.25, desc:r=>`A hero at 0 HP stays downed for ${r.rounds} rounds. A heal that covers their tile revives them at ${pct(r.reviveHp)} HP; otherwise they fall for the run.`},
+  // Ashfall is the tracker's turn limit, not a v0.2 proposal; it shares the toggle list so it can be tested with the rest.
+  ashfall:{on:false, name:'Ashfall', from:8, desc:r=>`From round ${r.from}, every unit takes the Burn tick each round. A unit already Burning ticks once, not twice; cleansing can't stop it.`},
+};
+const rule = k => RULES[k].on ? RULES[k] : null;
+
+const ROSTER = [...HEROES];
+const MAX_SQUAD = 4;
+const DEFAULT_SQUAD = ['kaede','brann','sorrel','ilse'];
+let SQUAD = [...DEFAULT_SQUAD];   // card uids on the field; a starter card's uid is its hero key
+const PICKS = new Set();   // chosen level-ups, as 'hero:upgrade'
+
+/* ---------- cards: each copy of a hero is a card with its own rolled stats, a star level and augments ---------- */
+// Augments slot into a skill whose tags they fit. Numbers add up; durations take the higher value.
+// Each augment is a bound elemental spirit (Paracelsus's four): its family sets the card's aura, its prefix renames the skill.
+const AUGS = {
+  keen:{name:'Keen', fam:'fire', prefix:'Searing', fits:['damage'], desc:'+15% damage. Stacks.'},
+  kindling:{name:'Kindling', fam:'fire', prefix:'Kindled', fits:['damage'], desc:'Hits also Burn for 1 round. Does not stack.'},
+  wellspring:{name:'Wellspring', fam:'water', prefix:'Brimming', fits:['heal'], desc:'+20% healing. Stacks.'},
+  lingering:{name:'Lingering', fam:'water', prefix:'Lingering', fits:['debuff'], desc:'Stun and Burn last 1 round longer. Does not stack; stun caps at 2.'},
+  bulwark:{name:'Bulwark', fam:'earth', prefix:'Bedrock', fits:['shield'], desc:'+20% shield. Stacks.'},
+  hasten:{name:'Hasten', fam:'wind', prefix:'Swift', fits:['any'], desc:'Cooldown −1. Stacks, never below 1.'},
+};
+// The family with the most augments wins; a tie goes to the one slotted first. Strength 1–3 follows that family's count.
+function aura(augs){
+  const n = {}; for(const a of augs) n[AUGS[a.aug||a].fam] = (n[AUGS[a.aug||a].fam]||0) + 1;
+  const fam = Object.keys(n).reduce((best,f)=>!best || n[f]>n[best] ? f : best, null);
+  return fam ? {fam, lvl:Math.min(3, n[fam])} : null;
+}
+const auraHTML = (augs, crowned) => {
+  const a = aura(augs);
+  return (a ? `<span class="aura aura-${a.fam} lvl-${a.lvl}" aria-hidden="true"></span>` : '') + (crowned ? '<span class="aura aura-void" aria-hidden="true"></span>' : '');
+};
+// best: a merge keeps the higher of each stat and every star adds starBonus. sum: the two cards' stats add up.
+const MERGE = {mode:'best', starBonus:0.10};
+const STUN_CAP = 2;
+const STATS = ['maxHp','atk','def','spd'];
+function skillTags(s){
+  const t = [];
+  if(s.kind==='dmg') t.push('damage');
+  if(s.kind==='heal') t.push('heal');
+  if(s.kind==='shield') t.push('shield');
+  if(s.fx && (s.fx.stun || s.fx.burn)) t.push('debuff');
+  return t;
+}
+const fits = (aug, s) => AUGS[aug].fits.some(f=>f==='any' || skillTags(s).includes(f));
+function applyAugs(skills, augs){
+  return skills.map((s0,i)=>{
+    const s = structuredClone(s0), n = k => augs.filter(a=>a.skill===i && a.aug===k).length;
+    if(s.kind==='dmg') s.power *= 1 + 0.15*n('keen');
+    if(s.kind==='heal') s.power *= 1 + 0.20*n('wellspring');
+    if(s.kind==='shield') s.power *= 1 + 0.20*n('bulwark');
+    s.power = Math.round(s.power*1000)/1000;
+    s.cd = Math.max(1, s.cd - n('hasten'));
+    if(n('kindling')) s.fx = {...s.fx, burn:Math.max((s.fx && s.fx.burn) || 0, 1)};
+    if(n('lingering') && s.fx){
+      if(s.fx.stun) s.fx.stun = Math.min(STUN_CAP, s.fx.stun+1);
+      if(s.fx.burn) s.fx.burn += 1;
+    }
+    s.augs = augs.filter(a=>a.skill===i).map(a=>a.aug);
+    if(s.augs.length){
+      // The skill takes the prefix of its leading family's first augment: Foxfire Lance + Kindling = Kindled Foxfire Lance.
+      const lead = aura(s.augs).fam;
+      s.baseName = s.name; s.name = AUGS[s.augs.find(k=>AUGS[k].fam===lead)].prefix+' '+s.name;
+    }
+    return s;
+  });
+}
+// Seeded, so the starting collection rolls the same every time.
+let seed = 7, cardSeq = 0;
+const rand = () => { seed = (seed*16807) % 2147483647; return (seed-1)/2147483646; };
+const heroDef = k => HEROES.find(h=>h.key===k);
+function newCard(heroKey, rolled){
+  const h = heroDef(heroKey), roll = x => rolled ? x*(0.85 + rand()*0.30) : x;
+  return {uid: rolled ? heroKey+'-'+(++cardSeq) : heroKey, hero:heroKey, stars:1, bonus:true,
+    base:{maxHp:Math.round(roll(h.maxHp)/10)*10, atk:Math.round(roll(h.atk)), def:Math.round(roll(h.def)), spd:Math.round(roll(h.spd))}, augs:[]};
+}
+function cardStats(c){
+  const m = c.bonus ? 1 + MERGE.starBonus*(c.stars-1) : 1;
+  return Object.fromEntries(STATS.map(k=>[k, Math.round(c.base[k]*m)]));
+}
+let CARDS = [], LOOSE = [], CROWNS = 0;
+function newCollection(){
+  seed = 7; cardSeq = 0;
+  CARDS = [...HEROES.map(h=>newCard(h.key,false)), ...['kaede','kaede','ilse','ilse','brann','sorrel'].map(k=>newCard(k,true))];
+  LOOSE = Object.keys(AUGS);
+  CROWNS = 1; SQUAD = [...DEFAULT_SQUAD];
+}
+const cardBy = uid => CARDS.find(c=>c.uid===uid);
+function cardUnit(uid){
+  const c = cardBy(uid); if(!c) return null;
+  const h = heroDef(c.hero);
+  return mk({...h, key:c.uid, ...cardStats(c), stars:c.stars, augs:c.augs.map(a=>a.aug), skills:applyAugs(h.skills, c.augs)}, 'P');
+}
+// A card holds as many augments as it has stars. Free augments swap in and out; a merge sets them for good.
+function slotAug(uid, i, aug){
+  const c = cardBy(uid), k = LOOSE.indexOf(aug);
+  if(!c || k<0 || c.augs.length>=c.stars || !fits(aug, heroDef(c.hero).skills[i])) return false;
+  LOOSE.splice(k,1); c.augs.push({aug, skill:i, locked:false}); return true;
+}
+function unslotAug(uid, j){
+  const c = cardBy(uid), a = c && c.augs[j];
+  if(!a || a.locked) return false;
+  c.augs.splice(j,1); LOOSE.push(a.aug); return true;
+}
+// Two cards of the same star level, up to 2★, make one card a star higher. The base keeps its hero and skills.
+// Fodder augments that fit a base skill fill free slots; the rest go loose. Everything left on the card is then set.
+function mergeCards(baseId, fodderId){
+  const b = cardBy(baseId), f = cardBy(fodderId);
+  if(!b || !f || b===f) return {ok:false, msg:'Pick two different cards.'};
+  if(b.stars!==f.stars) return {ok:false, msg:'Only cards of the same star level merge.'};
+  if(b.stars>=3) return {ok:false, msg:'3★ is as far as merging goes. An Ashcrown takes a 3★ to 4★.'};
+  const before = cardStats(b), fs = cardStats(f);
+  if(MERGE.mode==='sum'){ b.base = Object.fromEntries(STATS.map(k=>[k, before[k]+fs[k]])); b.bonus = false; }
+  else b.base = Object.fromEntries(STATS.map(k=>[k, Math.max(b.base[k], f.base[k])]));
+  b.stars++;
+  const skills = heroDef(b.hero).skills, carried = [], loose = [];
+  for(const a of f.augs){
+    const i = (f.hero===b.hero) ? a.skill : skills.findIndex(s=>fits(a.aug,s));
+    if(i>=0 && fits(a.aug, skills[i]) && b.augs.length<b.stars){ b.augs.push({aug:a.aug, skill:i}); carried.push(AUGS[a.aug].name); }
+    else { LOOSE.push(a.aug); loose.push(AUGS[a.aug].name); }
+  }
+  b.augs.forEach(a=>a.locked = true);
+  CARDS = CARDS.filter(c=>c!==f);
+  SQUAD = SQUAD.filter(u=>u!==f.uid); if(!SQUAD.length) SQUAD = [b.uid];
+  return {ok:true, before, after:cardStats(b), carried, loose};
+}
+function crownCard(uid){
+  const c = cardBy(uid);
+  if(!c || c.stars!==3 || CROWNS<1) return false;
+  CROWNS--; c.stars = 4; return true;
+}
+function toggleField(uid){
+  const c = cardBy(uid);
+  if(SQUAD.includes(uid)){ if(SQUAD.length===1) return 'Keep at least one card on the field.'; SQUAD = SQUAD.filter(x=>x!==uid); return; }
+  if(SQUAD.some(u=>cardBy(u).hero===c.hero)) return `Only one ${heroDef(c.hero).name} can take the field. Bench the other copy first.`;
+  if(SQUAD.length>=MAX_SQUAD) return `The field is full at ${MAX_SQUAD}. Bench a card first.`;
+  SQUAD.push(uid);
+}
+newCollection();
+
+const FOES = [
+  {key:'golem', name:'Basalt Golem', short:'Golem', elem:'earth', legacyElem:'fire', range:'melee', maxHp:1500, atk:115, def:85, spd:60, r:0, c:1,
+    portrait:{src:'portraits/golem.webp', x:46, y:42, zoom:2.0}, skills:[
+    {name:'Magma Fist', kind:'dmg', range:'melee', pattern:'single', power:1.5, cd:3, fx:{burn:2}},
+    {name:'Quake', kind:'dmg', range:'melee', pattern:'sweep', power:0.8, cd:3}]},
+  {key:'blade', name:'Galeblade', short:'Galeblade', elem:'wind', range:'melee', maxHp:950, atk:145, def:40, spd:110, r:0, c:0,
+    portrait:{src:'portraits/blade.webp', x:42, y:44, zoom:2.0}, skills:[
+    {name:'Gust Step', kind:'dmg', range:'melee', pattern:'single', power:1.6, cd:4, fx:{stun:1}},
+    {name:'Cyclone Cut', kind:'dmg', range:'melee', pattern:'sweep', power:1.0, cd:2}]},
+  {key:'caller', name:'Tidecaller', short:'Tidecaller', elem:'water', range:'ranged', maxHp:900, atk:125, def:45, spd:85, r:1, c:2,
+    portrait:{src:'portraits/caller.webp', x:40, y:44, zoom:2.0}, skills:[
+    {name:'Mend', kind:'heal', pattern:'all', power:1.2, cd:4},
+    {name:'Tidal Pillar', kind:'dmg', range:'ranged', pattern:'pierce', power:1.15, cd:3}]},
+  {key:'seer', name:'Ashen Seer', short:'Seer', elem:'fire', range:'ranged', maxHp:800, atk:135, def:35, spd:95, r:2, c:1,
+    portrait:{src:'portraits/seer.webp', x:50, y:40, zoom:2.0}, skills:[
+    {name:'Ember Rain', kind:'dmg', range:'ranged', pattern:'all', power:0.55, cd:4, fx:{burn:1}},
+    {name:'Flare', kind:'dmg', range:'ranged', pattern:'single', power:1.6, cd:2}]},
+];
+
+let S;
+function mk(d, side){
+  const u = {...d, elem:(ELEM.mode==='triangle' && d.legacyElem) || d.elem, side, id:side+'-'+d.key, hp:d.maxHp, skills:structuredClone(d.skills), cd:d.skills.map(()=>0), st:{stun:0,burn:0,shield:0,guard:false}, alive:true,
+    stacks:{}, marks:[], rf:{moved:false, damaged:false}};
+  for(const [k,def] of Object.entries(d.stacks||{})) u.stacks[k] = {...def, clearOn:[...def.clearOn], n:0};
+  if(side==='P') for(const lu of d.levelUps||[]) if(PICKS.has(d.key+':'+lu.key)) lu.apply(u);
+  return u;
+}
+function freshState(units){
+  return {round:1, phase:'plan', units, queue:[], sel:{id:units.find(u=>u.side==='P').id, act:null}, log:[], floats:[], flash:[], result:null, dealt:0, taken:0,
+    buffs:[], tiles:[], trace:[], fxSeq:0, shatters:{P:0, E:0}};
+}
+/* ---------- formation ---------- */
+const gridKey = () => GRID.cols+'x'+GRID.rows;
+// Enemy starting tiles per grid size; a size not listed uses each foe's own r, c (the v0.1 layout).
+const FOE_START = {'4x4': {golem:[0,1], blade:[0,2], caller:[2,0], seer:[3,3]}};
+const FORMATION = {};   // the player's last formation per grid size: {heroKey:[r,c]}, carried into the next battle
+// Saved tiles win; a unit without one keeps its default; any clash or out-of-bounds tile moves to the first free tile.
+function placeUnits(units, pos){
+  const taken = new Set(), key = (r,c) => r+','+c;
+  for(const u of units){
+    const p = pos[u.key];
+    let [r,c] = (p && inB(p[0],p[1])) ? p : [u.r,u.c];
+    if(!inB(r,c) || taken.has(key(r,c))) [r,c] = allTiles().find(([a,b])=>!taken.has(key(a,b)));
+    u.r = r; u.c = c; taken.add(key(r,c));
+  }
+}
+function reset(opts={}){
+  // pristine: the four starter heroes straight from their definitions, so the reference fights ignore the collection.
+  const heroes = opts.pristine ? ROSTER.filter(d=>DEFAULT_SQUAD.includes(d.key)).map(d=>mk(d,'P')) : SQUAD.map(cardUnit).filter(Boolean);
+  const foes = FOES.map(d=>mk(d,'E'));
+  if(!opts.defaultFormation) placeUnits(heroes, FORMATION[gridKey()] || {});
+  placeUnits(foes, FOE_START[gridKey()] || {});
+  S = freshState([...heroes, ...foes]);
+  if(opts.skipFormation) return startBattle(true);
+  S.phase = 'form'; S.sel.pick = false;
+  addLog('Formation', 'sys');
+  addLog('Drag heroes to any tile on your grid, or tap a hero and then a tile. Dropping onto a hero swaps the two. Start the battle when you are set.');
+  render();
+}
+function placeHero(id,r,c){
+  const u = unitById(id); if(!u || u.side!=='P' || !inB(r,c)) return;
+  const other = at('P',r,c);
+  if(other && other!==u){ other.r = u.r; other.c = u.c; }
+  u.r = r; u.c = c;
+  S.sel = {id, act:null, pick:false};
+  S.flash.push(tk('P',r,c));
+  render(); spawnFx();
+}
+function startBattle(quiet){
+  FORMATION[gridKey()] = Object.fromEntries(S.units.filter(u=>u.side==='P').map(u=>[u.key,[u.r,u.c]]));
+  S.phase = 'plan'; S.sel = {id:S.units.find(u=>u.side==='P').id, act:null};
+  if(quiet) return;
+  addLog('Round 1', 'sys');
+  addLog('Tap a hero, pick an action, then tap a highlighted tile. Heroes you leave unqueued use a basic attack after the queue.');
+  render();
+}
+
+const opp = s => s==='P' ? 'E' : 'P';
+const inB = (r,c) => r>=0 && r<GRID.rows && c>=0 && c<GRID.cols;
+const at = (side,r,c) => S.units.find(u=>u.alive && u.side===side && u.r===r && u.c===c);
+const deadAt = (side,r,c) => S.units.find(u=>!u.alive && u.side===side && u.r===r && u.c===c);
+const downedAt = (side,r,c) => S.units.find(u=>!u.alive && u.downed>0 && u.side===side && u.r===r && u.c===c);
+const living = side => S.units.filter(u=>u.alive && u.side===side);
+const unitById = id => S.units.find(u=>u.id===id);
+const allTiles = () => { const t=[]; for(let i=0;i<GRID.rows;i++) for(let j=0;j<GRID.cols;j++) t.push([i,j]); return t; };
+const range = n => Array.from({length:n}, (_,i)=>i);
+const tk = (side,r,c) => side+'-'+r+'-'+c;
+const lane = (r,c) => 'ABCD'[c]+'·'+rowName(r);
+const nameOf = u => u.short || u.name;
+const tagName = u => `<b class="e-${u.elem}">${nameOf(u)}</b>`;
+// A unit's badge: its portrait when it has one ({src, x, y: face focus in %, zoom}), otherwise its initial.
+// The large panel badge shows more of the picture, so it uses a gentler zoom.
+function glyph(u, big){
+  const p = u.portrait;
+  if(!p) return `<span class="glyph">${u.name[0]}</span>`;
+  // The panel badge is a tall card, so it sizes by height; the small round badges size by width.
+  const size = big ? `auto ${Math.round(Math.max(1, p.zoom*0.7)*100)}%` : `${Math.round(p.zoom*100)}%`;
+  return `<span class="glyph pic" role="img" aria-label="${u.name}" style="background-image:url('${p.src}');background-size:${size};background-position:${p.x}% ${p.y}%"></span>`;
+}
+function exposed(side,r,c){ for(let k=0;k<r;k++) if(at(side,k,c)) return false; return true; }
+const beats = (a,b) => BEATS[ELEM.mode][a]===b;
+const elemMult = (a,b) => beats(a,b) ? T.elem : beats(b,a) ? 1/T.elem : 1;
+const wait = ms => ms>0 ? new Promise(res=>setTimeout(res,ms)) : Promise.resolve();
+
+/* ---------- team buffs (round-scoped flags for one side) ---------- */
+// While planning, a buff already in the queue counts, so targeting matches what will happen when the queue resolves.
+function teamFlag(side, flag){
+  if(S.buffs.some(b=>b.side===side && b.flags[flag])) return true;
+  if(S.phase!=='plan') return false;
+  return S.queue.some(q=>{ const u = unitById(q.id); if(!u || u.side!==side) return false; const a = act(u,q.key); return !!(a.teamBuff && a.teamBuff.flags[flag]); });
+}
+
+/* ---------- per-unit stacks and marks ---------- */
+function clearStacks(u, reason){ for(const s of Object.values(u.stacks)) if(s.clearOn.includes(reason)) s.n = 0; }
+function gainStacks(u){ for(const s of Object.values(u.stacks)) if(s.gain==='stillUnhit' && !u.rf.moved && !u.rf.damaged) s.n = Math.min(s.max, s.n+1); }
+const stackBonus = u => Object.values(u.stacks).reduce((m,s)=>m*(1+s.perStack*s.n), 1);
+function spendStacks(u){ for(const s of Object.values(u.stacks)) s.n = 0; }
+const markApplies = (m,a) => !m.only || m.only===a.key;
+const markBonus = (u,a) => u.marks.filter(m=>markApplies(m,a)).reduce((x,m)=>x*(1+m.dmgBonus), 1);
+function spendMarks(u,a){ u.marks = u.marks.filter(m=>!markApplies(m,a)); }
+function onDamaged(u){ u.rf.damaged = true; clearStacks(u,'damaged'); }
+
+// Area shapes grow with the grid so they keep about the same share of it. Only a side longer than 3 scales,
+// so 3×3 plays exactly as v0.1. A lane gains the lane to its right (left at the edge), a row gains the row
+// behind it (in front at the back), and a cross reaches 2 tiles out instead of 1.
+const SHAPES = {scaled:true};
+// Card shape on the battlefield: square tiles, 5:7 playing cards, or 9:16 phone-tall cards. Set on <body> for the CSS.
+const CARD_SHAPES = [['square','Square','1:1, the current tiles'],['poker','5:7','A standard playing card'],['tall','9:16','Phone-screen tall']];
+const CARD = {shape:'square'};
+const wideLanes = () => SHAPES.scaled && GRID.cols>3;
+const deepRows = () => SHAPES.scaled && GRID.rows>3;
+const crossReach = () => SHAPES.scaled && (GRID.rows>3 || GRID.cols>3) ? 2 : 1;
+const partner = (i,n) => i+1<n ? i+1 : i-1;
+function shapeName(p){
+  if(p==='pierce' && wideLanes()) return '2 lanes';
+  if(p==='sweep' && deepRows()) return '2 rows';
+  if(p==='cross' && crossReach()>1) return 'Wide cross';
+  return PNAME[p];
+}
+function pattern(p,r,c){
+  let t;
+  if(p==='single') t=[[r,c]];
+  else if(p==='pierce') t=(wideLanes() ? [c, partner(c,GRID.cols)] : [c]).flatMap(cc=>range(GRID.rows).map(i=>[i,cc]));
+  else if(p==='sweep') t=(deepRows() ? [r, partner(r,GRID.rows)] : [r]).flatMap(rr=>range(GRID.cols).map(j=>[rr,j]));
+  else if(p==='cross'){ t=[[r,c]]; for(let d=1; d<=crossReach(); d++) t.push([r-d,c],[r+d,c],[r,c-d],[r,c+d]); }
+  else t = allTiles();
+  return t.filter(([a,b])=>inB(a,b));
+}
+function areaOf(a,r,c){
+  if(a.kind==='move') return [[r,c]];
+  if(a.kind==='tile') return (a.wide ? [[r,c],[r+1,c]] : [[r,c]]).filter(([x,y])=>inB(x,y));
+  return pattern(a.pattern,r,c);
+}
+function act(u,key){
+  if(key==='basic') return {name:u.range==='melee'?'Strike':'Bolt', kind:'dmg', range:u.range, pattern:'single', power:1, cd:0, desc:'Basic attack on one target. Breaks the chain.', ...(u.basic||{}), key, isSkill:false};
+  if(key==='move') return {key, name:'Reposition', kind:'move', isSkill:false, desc:'Step to an adjacent empty tile. Uses this hero’s turn.'};
+  if(key==='guard') return {key, name:'Guard', kind:'guard', isSkill:false, desc:'Take half damage until the round ends.'};
+  const i = +key.slice(1);
+  return {...u.skills[i], key, isSkill:true, idx:i, range:u.skills[i].range || 'ranged'};
+}
+// Skills add a chain link, other actions break it, and anything flagged breaksChain:false passes through untouched.
+const nextChain = (chain,a) => a.breaksChain===false ? chain : a.isSkill ? chain+1 : 0;
+function targets(u,a){
+  if(a.kind==='move'){
+    const cand = a.reach==='any' ? allTiles() : [[u.r-1,u.c],[u.r+1,u.c],[u.r,u.c-1],[u.r,u.c+1]];
+    return {side:u.side, tiles:cand.filter(([r,c])=>inB(r,c) && !at(u.side,r,c) && !downedAt(u.side,r,c))};
+  }
+  if(a.kind==='tile') return {side:opp(u.side), tiles:allTiles()};
+  const side = (a.kind==='dmg' || a.kind==='buff') ? opp(u.side) : u.side;
+  let us = living(side);
+  if(a.kind==='dmg' && a.range==='melee' && !teamFlag(u.side,'meleeReachAll')) us = us.filter(t=>exposed(side,t.r,t.c));
+  return {side, tiles:us.map(t=>[t.r,t.c])};
+}
+function pick(u,a){
+  const {side,tiles} = targets(u,a);
+  if(!tiles.length) return null;
+  if(a.pattern==='all') return [1,1];
+  let best=null, bs=-1e9;
+  for(const [r,c] of tiles){
+    const t = at(side,r,c);
+    let s;
+    if(a.kind==='dmg'){
+      const hits = pattern(a.pattern,r,c).filter(([rr,cc])=>at(side,rr,cc)).length;
+      s = hits*1000 + (elemMult(u.elem,t.elem)>1 ? 400 : 0) - (t.hp/t.maxHp)*300;
+    } else s = t ? -t.hp/t.maxHp : 0;
+    if(s>bs){ bs=s; best=[r,c]; }
+  }
+  return best;
+}
+
+function float(t,txt,cls){ S.floats.push({key:tk(t.side,t.r,t.c), txt, cls}); }
+function addLog(html, cls){ S.log.unshift({html, cls:cls||''}); if(S.log.length>80) S.log.pop(); }
+
+// A unit reaching 0 HP: Shatter can mark the kill; Last Stand leaves an unshattered hero downed instead of gone.
+function fallUnit(t, overshoot, by){
+  t.hp = 0; t.alive = false;
+  const sh = rule('shatter');
+  if(sh && by && overshoot >= sh.overshoot*t.maxHp){ t.shattered = true; S.shatters[by]++; }
+  const ls = rule('lastStand');
+  if(ls && t.side==='P' && !t.shattered) t.downed = ls.rounds;
+}
+
+function hurt(u,t,a,chain,bonus=1,screen=1){
+  const elem = a.elem || u.elem;
+  const em = elemMult(elem, t.elem);
+  const kin = (rule('kindred') && elem===t.elem) ? RULES.kindred.mult : 1;
+  const flat = a.ignoresFalloff || teamFlag(u.side,'ignoresFalloff');
+  const sight = rule('sightline') ? RULES.sightline.perRow*u.r : 0;
+  const depth = (a.range==='ranged' && !flat) ? Math.max(0, 1 - T.fall*t.r - sight) : 1;
+  const raw = u.atk*a.power*em*chain*depth*(t.st.guard ? 0.5 : 1)*bonus*kin*screen;
+  const d = Math.max(1, Math.round(raw*100/(100+t.def)));
+  const absorbed = Math.min(t.st.shield, d);
+  t.st.shield -= absorbed;
+  const dealt = d - absorbed;
+  const hpBefore = t.hp;
+  t.hp -= dealt;
+  if(dealt>0) onDamaged(t);
+  if(u.side==='P') S.dealt += dealt; else S.taken += dealt;
+  float(t, dealt===0 ? 'blocked' : '-'+dealt, dealt===0 ? 'blocked' : em>1 ? 'crit' : em<1 ? 'resist' : 'hurt');
+  if(t.hp<=0) fallUnit(t, dealt - hpBefore, u.side);
+  else {
+    if(a.fx && a.fx.stun){ t.st.stun = Math.max(t.st.stun, a.fx.stun); }
+    if(a.fx && a.fx.burn){ t.st.burn = Math.max(t.st.burn, a.fx.burn); }
+  }
+  let note = `${nameOf(t)} ${dealt}`;
+  if(absorbed) note += ` <span class="dim">(${absorbed} shielded)</span>`;
+  if(em>1) note += ' <span class="chain">weak</span>';
+  if(em<1) note += ' <span class="dim">resists</span>';
+  if(kin<1) note += ' <span class="dim">kindred</span>';
+  if(t.shattered) note += ' <b>SHATTERED</b>';
+  else if(t.downed) note += ' <b>downed</b>';
+  else if(!t.alive) note += ' <b>KO</b>';
+  else if(a.fx && a.fx.stun) note += ' <span class="dim">stunned</span>';
+  else if(a.fx && a.fx.burn && a.isSkill===false) note += ' <span class="dim">burning</span>';
+  return note;
+}
+
+/* ---------- tile effects (a board layer separate from units) ---------- */
+// Each effect: {kind, label, side, r, c, owner, rounds, triggers:['onAct'|'onEnter'], once, payload:{power, elem, fx}}.
+function effectsAt(side,r,c){ return S.tiles.filter(e=>e.side===side && e.r===r && e.c===c); }
+async function triggerTiles(trigger, u){
+  for(const e of effectsAt(u.side,u.r,u.c).filter(x=>x.triggers.includes(trigger))){
+    if(!u.alive) break;
+    if(e.once) S.tiles = S.tiles.filter(x=>x!==e);
+    const src = unitById(e.owner), p = e.payload;
+    S.flash.push(tk(u.side,u.r,u.c));
+    const note = p.power ? hurt(src, u, {name:e.name, kind:'dmg', range:'ranged', pattern:'single', power:p.power, elem:p.elem, fx:p.fx, ignoresFalloff:true, isSkill:false}, 1) : nameOf(u);
+    addLog(`${tagName(u)} ${trigger==='onEnter'?'steps onto':'sets off'} ${tagName(src)}’s ${e.name}: ${note}`);
+    await step();
+  }
+  return u.alive;
+}
+async function moveUnit(u,r,c,a){
+  u.r=r; u.c=c; u.rf.moved = true;
+  if(!a.keepsStacks) clearStacks(u,'moved');
+  S.flash.push(tk(u.side,r,c));
+  await triggerTiles('onEnter', u);
+}
+
+function step(){ render(); spawnFx(); return wait(DELAY); }
+
+// ctx (queue only) carries the chain's focus state: the previous link's primary target and how many links in a row hit it.
+async function perform(u,a,r,c,links,ctx){
+  const nm = tagName(u);
+  if(!(await triggerTiles('onAct', u))) return;
+  if(a.kind==='guard'){ u.st.guard = true; S.flash.push(tk(u.side,u.r,u.c)); addLog(`${nm} raises a guard.`); return step(); }
+  if(a.kind==='move'){
+    if(targets(u,a).tiles.some(([rr,cc])=>rr===r && cc===c)){
+      addLog(a.isSkill ? `${nm} → ${a.name}: <span class="dim">lands on ${lane(r,c)}${a.breaksChain===false?', chain held':''}</span>` : `${nm} moves to ${lane(r,c)}.`);
+      if(a.isSkill) u.cd[a.idx] = a.cd;
+      if(a.mark) u.marks.push({...a.mark, until:S.round + a.mark.rounds - 1});
+      S.trace.push({id:u.id, key:a.key, chainMult:1, bonus:1});
+      await moveUnit(u,r,c,a);
+    }
+    else addLog(`${nm} can’t reach ${lane(r,c)}.`);
+    return step();
+  }
+  if(a.kind==='tile'){
+    const side = opp(u.side), area = areaOf(a,r,c), group = ++S.fxSeq;
+    S.tiles = S.tiles.filter(e=>!(e.owner===u.id && e.kind===a.effect.kind));
+    for(const [rr,cc] of area){ S.tiles.push({...structuredClone(a.effect), name:a.name, group, side, r:rr, c:cc, owner:u.id}); S.flash.push(tk(side,rr,cc)); }
+    u.cd[a.idx] = a.cd;
+    S.trace.push({id:u.id, key:a.key, chainMult:1, bonus:1});
+    addLog(`${nm} → ${a.name}: <span class="dim">trap set on ${area.map(([rr,cc])=>lane(rr,cc)).join(' and ')}</span>`);
+    return step();
+  }
+  if(a.kind==='buff'){
+    const b = a.teamBuff;
+    S.buffs = S.buffs.filter(x=>!(x.side===u.side && x.name===b.name));
+    S.buffs.push({name:b.name, side:u.side, flags:{...b.flags}, until:S.round + b.rounds - 1});
+    u.cd[a.idx] = a.cd;
+    for(const t of living(opp(u.side))) S.flash.push(tk(t.side,t.r,t.c));
+    S.trace.push({id:u.id, key:a.key, chainMult:1, bonus:1});
+    addLog(`${nm} → ${a.name}: <span class="dim">enemy grid lit ${b.rounds>1?'through next round':'until round end'}</span>`);
+    return step();
+  }
+  const side = a.kind==='dmg' ? opp(u.side) : u.side;
+  if(a.pattern!=='all'){
+    const ok = targets(u,a).tiles.some(([rr,cc])=>rr===r && cc===c);
+    if(!ok){
+      const p = pick(u,a);
+      if(!p){ addLog(`${nm}’s ${a.name} has no target.`); return step(); }
+      [r,c] = p;
+    }
+  }
+  const hit = pattern(a.pattern,r,c).map(([rr,cc])=>at(side,rr,cc)).filter(Boolean);
+  let focused = 0;
+  if(ctx && a.kind==='dmg' && a.isSkill){
+    const primary = at(side,r,c);
+    focused = (primary && ctx.prev===primary.id) ? ctx.n+1 : 0;
+    ctx.prev = primary ? primary.id : null; ctx.n = focused;
+  }
+  const focusAdd = rule('focus') ? RULES.focus.perLink*focused : 0;
+  const chainMult = (a.kind==='dmg' && a.isSkill) ? 1 + T.chain*links + focusAdd : 1;
+  const bonus = (a.kind==='dmg' && hit.length) ? stackBonus(u)*markBonus(u,a) : 1;
+  const sc = (a.kind==='dmg' && a.pattern==='pierce') ? rule('screening') : null;
+  const revived = [];
+  if(a.kind==='heal' && rule('lastStand')){
+    for(const [rr,cc] of pattern(a.pattern,r,c)){
+      const d = downedAt(side,rr,cc); if(!d) continue;
+      d.alive = true; d.downed = 0; d.hp = Math.max(1, Math.round(d.maxHp*RULES.lastStand.reviveHp));
+      d.st = {stun:0, burn:0, shield:0, guard:false};
+      float(d, 'revived', 'mend'); S.flash.push(tk(side,d.r,d.c)); revived.push(nameOf(d));
+    }
+  }
+  const notes = [];
+  hit.forEach((t,k)=>{
+    S.flash.push(tk(side,t.r,t.c));
+    // Screening counts only the units already hit in this unit's own lane.
+    const ahead = sc ? hit.slice(0,k).filter(x=>x.c===t.c).length : 0;
+    if(a.kind==='dmg') notes.push(hurt(u,t,a,chainMult,bonus, sc ? Math.max(sc.floor, 1 - sc.perUnit*ahead) : 1));
+    else if(a.kind==='heal'){
+      const before = t.hp; t.hp = Math.min(t.maxHp, t.hp + Math.round(u.atk*a.power));
+      if(a.fx && a.fx.cleanse) t.st.burn = 0;
+      float(t, '+'+(t.hp-before), 'mend');
+    } else if(a.kind==='shield'){
+      const amt = Math.round(u.def*a.power); t.st.shield += amt; float(t, '+'+amt, 'shield');
+    }
+  });
+  if(a.kind==='dmg' && hit.length){ spendStacks(u); spendMarks(u,a); }
+  if(a.isSkill) u.cd[a.idx] = a.cd;
+  S.trace.push({id:u.id, key:a.key, chainMult, bonus, focused});
+  const chainTxt = (chainMult>1 ? ` <span class="chain">chain ×${chainMult.toFixed(2)}</span>` : '') + (focusAdd ? ' <span class="chain">focus</span>' : '');
+  const bonusTxt = bonus>1 ? ` <span class="chain">focus ×${bonus.toFixed(2)}</span>` : '';
+  let tail = '';
+  if(a.kind==='dmg') tail = notes.join(', ');
+  else if(a.kind==='heal') tail = `<span class="dim">heals ${hit.length} allies${revived.length ? `, revives ${revived.join(', ')}` : ''}</span>`;
+  else tail = `<span class="dim">shields ${hit.length} allies</span>`;
+  addLog(`${nm} → ${a.name}${chainTxt}${bonusTxt}: ${tail}`);
+  return step();
+}
+
+async function stunnedSkip(u){
+  u.st.stun--; S.flash.push(tk(u.side,u.r,u.c)); float(u,'stunned','stun');
+  addLog(`${tagName(u)} is stunned and loses the turn.`);
+  return step();
+}
+
+async function enemyTurn(u){
+  if(u.st.stun>0) return stunnedSkip(u);
+  let a = null;
+  for(let i=0;i<u.skills.length;i++){
+    if(u.cd[i]>0) continue;
+    const s = act(u,'s'+i);
+    if(s.kind==='heal' && !living(u.side).some(t=>t.hp/t.maxHp<0.6)) continue;
+    if(s.kind==='dmg' && !targets(u,s).tiles.length) continue;
+    a = s; break;
+  }
+  if(!a) a = act(u,'basic');
+  const p = pick(u,a);
+  if(!p){ addLog(`${tagName(u)} can’t find a target.`); return step(); }
+  return perform(u,a,p[0],p[1],0);
+}
+
+function over(){
+  if(!living('E').length){ S.result='win'; return true; }
+  if(!living('P').length){ S.result='lose'; return true; }
+  return false;
+}
+function finish(){
+  S.phase='over';
+  addLog(S.result==='win' ? `Victory on round ${S.round}` : `Defeat on round ${S.round}`, 'sys');
+  render();
+}
+
+async function runQueue(){
+  let chain = 0;
+  const queued = new Set();
+  const ctx = {prev:null, n:0};
+  for(const q of S.queue){
+    queued.add(q.id);
+    const u = S.units.find(x=>x.id===q.id);
+    if(!u || !u.alive) continue;
+    if(u.st.stun>0){ await stunnedSkip(u); chain=0; ctx.prev=null; ctx.n=0; continue; }
+    const a = act(u,q.key);
+    await perform(u,a,q.r,q.c,a.isSkill ? chain : 0, ctx);
+    chain = nextChain(chain,a);
+    if(a.breaksChain!==false && !(a.isSkill && a.kind==='dmg')){ ctx.prev=null; ctx.n=0; }
+    if(over()) return {queued, done:true};
+  }
+  return {queued, done:false};
+}
+async function endOfRound(){
+  const burned = [];
+  const ash = !!rule('ashfall') && S.round >= RULES.ashfall.from;
+  for(const u of S.units.filter(x=>x.alive)){
+    if(u.st.burn>0 || ash){
+      const d = Math.max(1, Math.round(u.maxHp*0.06));
+      u.hp -= d; if(u.st.burn>0) u.st.burn--;
+      onDamaged(u);
+      if(u.side==='P') S.taken += d; else S.dealt += d;
+      float(u,'-'+d+' burn','burn'); S.flash.push(tk(u.side,u.r,u.c));
+      burned.push(`${nameOf(u)} ${d}`);
+      if(u.hp<=0) fallUnit(u, 0, null);
+    }
+    u.st.guard = false;
+    u.cd = u.cd.map(v=>Math.max(0,v-1));
+  }
+  if(burned.length){ addLog(`<span class="e-fire">${ash ? 'Ashfall' : 'Burn'}</span>: ${burned.join(', ')}`); await step(); }
+  for(const u of S.units.filter(x=>x.alive)){
+    gainStacks(u);
+    u.rf = {moved:false, damaged:false};
+    u.marks = u.marks.filter(m=>m.until>S.round);
+  }
+  const fell = [];
+  for(const u of S.units.filter(x=>!x.alive && x.downed>0)){
+    if(--u.downed===0){ u.fallen = true; fell.push(nameOf(u)); }
+  }
+  if(fell.length) addLog(`<b>${fell.join(', ')}</b> <span class="dim">fell for the run: not revived in time.</span>`);
+  S.buffs = S.buffs.filter(b=>b.until>S.round);
+  for(const e of S.tiles) e.rounds--;
+  const gone = S.tiles.filter(e=>e.rounds<=0);
+  S.tiles = S.tiles.filter(e=>e.rounds>0);
+  if(gone.length) addLog(`<span class="dim">${gone[0].name} on ${gone.map(e=>lane(e.r,e.c)).join(' and ')} fizzles out.</span>`);
+}
+
+async function runRound(){
+  if(S.phase!=='plan') return;
+  S.phase='run'; S.sel.act=null;
+  addLog(`Round ${S.round} · resolving`, 'sys');
+  render();
+  const {queued, done} = await runQueue();
+  if(done) return finish();
+  const rest = living('P').filter(u=>!queued.has(u.id)).sort((a,b)=>b.spd-a.spd);
+  for(const u of rest){
+    if(!u.alive) continue;
+    if(u.st.stun>0){ await stunnedSkip(u); continue; }
+    const a = act(u,'basic'); const p = pick(u,a);
+    if(p) await perform(u,a,p[0],p[1],0);
+    if(over()) return finish();
+  }
+  for(const u of living('E').sort((a,b)=>b.spd-a.spd)){
+    if(!u.alive) continue;
+    await enemyTurn(u);
+    if(over()) return finish();
+  }
+  await endOfRound();
+  if(over()) return finish();
+  S.round++; S.queue=[]; S.phase='plan';
+  const first = living('P').find(u=>u.st.stun===0) || living('P')[0];
+  S.sel = {id:first.id, act:null};
+  addLog(`Round ${S.round}`, 'sys');
+  render();
+}
+
+/* ---------- planning input ---------- */
+const selUnit = () => S.units.find(u=>u.id===S.sel.id && u.alive);
+function enqueue(id,key,r,c){
+  S.queue = S.queue.filter(q=>q.id!==id);
+  S.queue.push({id,key,r,c});
+  S.sel.act = null;
+  const next = living('P').find(u=>u.st.stun===0 && !S.queue.some(q=>q.id===u.id));
+  if(next) S.sel.id = next.id;
+  render();
+}
+function onTile(side,r,c){
+  if(S.phase==='form'){
+    if(side!=='P') return;
+    const t = at('P',r,c), u = selUnit();
+    if(S.sel.pick && u && t!==u) return placeHero(u.id,r,c);
+    if(t){ S.sel = {id:t.id, act:null, pick:!(S.sel.pick && t===u)}; render(); }
+    return;
+  }
+  if(S.phase!=='plan') return;
+  const u = selUnit();
+  if(S.sel.act && u){
+    const a = act(u,S.sel.act); const tg = targets(u,a);
+    if(tg.side===side && tg.tiles.some(([rr,cc])=>rr===r && cc===c)){ enqueue(u.id,S.sel.act,r,c); return; }
+  }
+  const t = at(side,r,c);
+  if(t && side==='P'){ S.sel = {id:t.id, act:null}; render(); }
+}
+function onAction(key){
+  if(S.phase!=='plan') return;
+  const u = selUnit(); if(!u || u.st.stun>0) return;
+  const a = act(u,key);
+  if(a.isSkill && u.cd[a.idx]>0) return;
+  if(a.kind==='guard' || a.pattern==='all'){ enqueue(u.id,key,u.r,u.c); return; }
+  S.sel.act = S.sel.act===key ? null : key;
+  render();
+}
+function onHover(side,r,c){
+  document.querySelectorAll('.tile.aoe').forEach(e=>e.classList.remove('aoe','mend'));
+  if(S.phase!=='plan' || side==null) return;
+  const u = selUnit(); if(!u || !S.sel.act) return;
+  const a = act(u,S.sel.act); const tg = targets(u,a);
+  if(tg.side!==side || !tg.tiles.some(([rr,cc])=>rr===r && cc===c)) return;
+  for(const [rr,cc] of areaOf(a,r,c)){
+    const el = document.querySelector(`[data-tile="${tk(side,rr,cc)}"]`);
+    if(el){ el.classList.add('aoe'); if(a.kind!=='dmg' && a.kind!=='tile') el.classList.add('mend'); }
+  }
+}
+
+/* ---------- rendering ---------- */
+function fxTags(side,r,c){ return effectsAt(side,r,c).map(e=>`<span class="tag trap">${e.label} ${e.rounds}</span>`).join(''); }
+function tileHTML(side,r,c,validSet,u,a){
+  const key = tk(side,r,c);
+  const t = at(side,r,c);
+  const valid = validSet.has(r+','+c);
+  const vtxt = S.phase==='form' ? 'Place' : a && a.kind==='tile' ? 'Place here' : 'Move here';
+  const fx = fxTags(side,r,c);
+  const fxAria = effectsAt(side,r,c).length ? ', trapped' : '';
+  if(!t){
+    const d = deadAt(side,r,c);
+    if(d){
+      const state = d.downed ? 'DOWN' : d.shattered ? 'SHATTER' : 'KO';
+      const words = d.downed ? `downed, ${d.downed} rounds to revive` : d.shattered ? 'shattered' : 'knocked out';
+      const tags = (d.downed ? `<span class="tag burn">${d.downed} RD</span>` : '') + fx;
+      return `<button type="button" class="tile card ko el-${d.elem} side-${side} ${d.shattered?'shattered':''} ${valid?'valid':''}" data-tile="${key}" data-side="${side}" data-r="${r}" data-c="${c}" aria-label="${nameOf(d)} ${words}, ${lane(r,c)}${fxAria}">
+        ${cardArt(d)}<span class="kotxt">${state}</span>${valid?`<span class="movehere">${vtxt}</span>`:''}
+        <span class="card-plate"><span class="tname">${nameOf(d)}</span>${tags?`<span class="tags">${tags}</span>`:''}</span></button>`;
+    }
+    const fxRow = fx ? `<span class="tags">${fx}</span>` : '';
+    return `<button type="button" class="tile empty ${valid?'valid':''}" data-tile="${key}" data-side="${side}" data-r="${r}" data-c="${c}" aria-label="Empty tile, ${lane(r,c)}${fxAria}">${fxRow}${valid?`<span class="movehere">${vtxt}</span>`:''}</button>`;
+  }
+  const pct = Math.max(0, t.hp/t.maxHp*100);
+  const tags = [];
+  if(t.st.stun) tags.push('<span class="tag stun">STUN</span>');
+  if(t.st.burn) tags.push(`<span class="tag burn">BRN ${t.st.burn}</span>`);
+  if(t.st.shield) tags.push(`<span class="tag shd">SHD ${t.st.shield}</span>`);
+  if(t.st.guard) tags.push('<span class="tag grd">GRD</span>');
+  for(const s of Object.values(t.stacks)) tags.push(`<span class="tag stack" title="${s.name}">${s.label} ${s.n}/${s.max}</span>`);
+  for(const m of t.marks) tags.push(`<span class="tag mark" title="${m.name}">${m.label}</span>`);
+  if(fx) tags.push(fx);
+  let extra = '';
+  if(side==='P'){
+    const qi = S.queue.findIndex(q=>q.id===t.id);
+    if(qi>=0) extra += `<span class="order" aria-hidden="true">${qi+1}</span>`;
+  }
+  if(side==='E' && a && a.kind==='dmg' && u){
+    const m = elemMult(u.elem,t.elem);
+    if(m>1) extra += '<span class="edge up">WEAK</span>';
+    else if(m<1) extra += '<span class="edge down">RESIST</span>';
+    else if(rule('kindred') && (a.elem||u.elem)===t.elem) extra += '<span class="edge down">KIN</span>';
+  }
+  const sel = side==='P' && S.sel.id===t.id && (S.phase==='plan' || S.phase==='form');
+  const drag = side==='P' && S.phase==='form' ? ' draggable="true"' : '';
+  const stackAria = Object.values(t.stacks).map(s=>`, ${s.name} ${s.n} of ${s.max}`).join('');
+  return `<button type="button" class="tile unit card el-${t.elem} side-${side} ${t.stars?'star-'+t.stars:''} ${sel?'sel':''} ${valid?'valid':''}"${drag} data-tile="${key}" data-side="${side}" data-r="${r}" data-c="${c}" aria-label="${t.name}, ${ELEMS[t.elem].label}, ${t.hp} of ${t.maxHp} HP, ${lane(r,c)}${stackAria}${fxAria}">
+    ${cardArt(t)}${auraHTML(t.augs||[], t.stars===4)}${extra}<span class="card-el" aria-hidden="true">${sigil(t.elem)}</span>
+    <span class="card-plate">${tags.length?`<span class="tags">${tags.join('')}</span>`:''}
+      <span class="tname">${nameOf(t)}</span>
+      <span class="hp"><i class="${pct<35?'low':''}" style="width:${pct}%"></i></span>
+      <span class="hpnum">${t.hp}<small>/${t.maxHp}</small></span></span></button>`;
+}
+// A card's art layer: the portrait framed tighter than the panel shows it, or the unit's initial on an element wash.
+function cardArt(u){
+  const p = u.portrait;
+  if(!p) return `<span class="card-art blank" aria-hidden="true">${u.name[0]}</span>`;
+  const zoom = Math.max(1, p.zoom*0.62);
+  return `<span class="card-art" aria-hidden="true" style="background-image:url('${p.src}');background-size:${Math.round(zoom*100)}%;background-position:${p.x}% ${p.y}%"></span>`;
+}
+function renderGrids(){
+  const u = selUnit();
+  const a = (S.phase==='plan' && u && S.sel.act) ? act(u,S.sel.act) : null;
+  const tg = a ? targets(u,a) : null;
+  const placing = S.phase==='form' && S.sel.pick && u;
+  for(const side of ['E','P']){
+    const validSet = placing
+      ? new Set(side==='P' ? allTiles().filter(([r,c])=>!(r===u.r && c===u.c)).map(([r,c])=>r+','+c) : [])
+      : new Set(tg && tg.side===side ? tg.tiles.map(([r,c])=>r+','+c) : []);
+    const rows = side==='E' ? range(GRID.rows).reverse() : range(GRID.rows);
+    let html = '';
+    for(const r of rows) for(let c=0;c<GRID.cols;c++) html += tileHTML(side,r,c,validSet,u,a);
+    const el = $(side==='E' ? '#gridE' : '#gridP');
+    el.style.gridTemplateColumns = `repeat(${GRID.cols},minmax(0,1fr))`;
+    el.innerHTML = html;
+  }
+  const lit = S.buffs.filter(b=>b.side==='P').map(b=>b.name.toLowerCase());
+  $('#foeCount').textContent = `${living('E').length}/${S.units.filter(x=>x.side==='E').length} standing${lit.length?' · '+lit.join(', ')+' lit':''}`;
+  $('#heroCount').textContent = `${living('P').length}/${S.units.filter(x=>x.side==='P').length} standing`;
+}
+function renderStrip(){
+  const phaseTxt = S.phase==='form' ? 'Set your formation' : S.phase==='plan' ? 'Plan your queue' : S.phase==='run' ? 'Resolving' : 'Battle over';
+  $('#roundLbl').innerHTML = `${S.phase==='form' ? 'Formation' : 'Round '+S.round}<small>${phaseTxt}</small>`;
+  const btn = $('#runBtn');
+  btn.disabled = S.phase==='run';
+  btn.textContent = S.phase==='form' ? 'Start battle' : S.phase==='over' ? 'New battle' : S.phase==='run' ? 'Running…' : 'Run round';
+  if(!S.queue.length){
+    $('#chips').innerHTML = `<span class="empty-hint">${S.phase==='plan' ? 'Nothing queued. Everyone will basic attack.' : S.phase==='form' ? 'Your formation is kept for the next battle on this grid size.' : ''}</span>`;
+    return;
+  }
+  let chain = 0;
+  $('#chips').innerHTML = S.queue.map((q,i)=>{
+    const u = S.units.find(x=>x.id===q.id); const a = act(u,q.key);
+    const links = a.isSkill ? chain : 0; chain = nextChain(chain,a);
+    const lk = (a.isSkill && a.kind==='dmg' && links>0 && T.chain>0) ? `<span class="lk">+${Math.round(T.chain*links*100)}%</span>` : '';
+    const where = (a.kind==='guard' || a.pattern==='all') ? '' : ` → ${lane(q.r,q.c)}`;
+    return `<button type="button" class="chip" data-i="${i}" ${S.phase!=='plan'?'disabled':''} aria-label="Remove ${u.name} ${a.name} from queue"><span class="n">${i+1}</span><span><b class="e-${u.elem}">${u.name}</b> ${a.name}${where}</span>${lk}<span class="x" aria-hidden="true">×</span></button>`;
+  }).join('');
+}
+function mini(a){
+  let on;
+  if(a.kind==='move') on = a.reach==='any' ? allTiles() : [[0,1],[1,0],[1,2],[2,1]];
+  else if(a.kind==='guard') on=[[1,1]];
+  else if(a.kind==='tile') on = areaOf(a,1,1);
+  else on = pattern(a.pattern,1,1);
+  let h='';
+  for(let r=0;r<3;r++) for(let c=0;c<3;c++) h += `<i class="${on.some(([a1,b1])=>a1===r&&b1===c)?'on':''}"></i>`;
+  return `<span class="mini" aria-hidden="true">${h}</span>`;
+}
+function actBtn(u,k,stunned){
+  const a = act(u,k);
+  const left = a.isSkill ? u.cd[a.idx] : 0;
+  const dis = S.phase!=='plan' || stunned || left>0;
+  let meta = '';
+  const pw = +(+a.power).toFixed(2);
+  if(a.kind==='dmg') meta = `${a.range==='melee'?'Melee':'Ranged'} · ${shapeName(a.pattern)}<br>${pw}× ATK${a.ignoresFalloff?' · no falloff':''}${a.isSkill?` · CD ${a.cd}`:''}`;
+  else if(a.kind==='heal') meta = `All allies<br>${pw}× ATK · CD ${a.cd}`;
+  else if(a.kind==='shield') meta = `All allies<br>${pw}× DEF · CD ${a.cd}`;
+  if(a.augs && a.augs.length) meta += `<br><span class="e-wind">${a.augs.map(k=>AUGS[k].name).join(' · ')}</span>`;
+  else if(a.kind==='move') meta = a.reach==='any' ? `Any empty tile<br>Keeps chain · CD ${a.cd}` : 'Adjacent tile';
+  else if(a.kind==='tile') meta = `Any enemy tile${a.wide?' + behind':''}<br>${a.effect.payload.power}× ATK · CD ${a.cd}`;
+  else if(a.kind==='buff') meta = `Enemy grid<br>Team buff · CD ${a.cd}`;
+  else meta = 'Self';
+  const cdTxt = a.isSkill ? (left ? `<span class="act-cd">${left} rd</span>` : '<span class="act-cd ready">Ready</span>') : '';
+  return `<button type="button" class="act ${a.isSkill?'skill':''} ${S.sel.act===k?'on':''}" data-key="${k}" ${dis?'disabled':''}>
+    <span class="act-top"><span class="act-name">${a.name}</span>${cdTxt}</span>
+    <span class="act-mid">${mini(a)}<span class="act-meta">${meta}</span></span>
+    <span class="act-desc">${a.desc}</span></button>`;
+}
+function renderPanel(){
+  const el = $('#panel');
+  if(S.phase==='over'){
+    const win = S.result==='win';
+    el.innerHTML = `<div class="result ${S.result}"><div class="eyebrow">${win?'Victory':'Defeat'}</div>
+      <h2>${win?`Cleared in ${S.round} rounds`:`Wiped on round ${S.round}`}</h2>
+      <p>Your team dealt ${S.dealt.toLocaleString()} damage and took ${S.taken.toLocaleString()}.${rule('shatter') ? ` You shattered ${S.shatters.P} and lost ${S.shatters.E} to shatters.` : ''}${rule('lastStand') ? ` ${S.units.filter(x=>x.side==='P' && (x.fallen || x.shattered)).length} heroes fell for the run.` : ''} Adjust the tuning and run it again to feel the difference.</p>
+      <button type="button" class="btn primary" id="againBtn">Run it back</button></div>`;
+    return;
+  }
+  const u = selUnit() || living('P')[0];
+  if(u) S.sel.id = u.id;
+  const roster = S.units.filter(x=>x.side==='P').map(x=>{
+    const done = S.queue.some(q=>q.id===x.id);
+    return `<button type="button" class="rbtn el-${x.elem} ${x.id===S.sel.id?'on':''} ${done?'done':''}" data-id="${x.id}" ${!x.alive||(S.phase!=='plan'&&S.phase!=='form')?'disabled':''}>${glyph(x)}${x.name}${!x.alive?(x.downed?' · down':' · KO'):x.st.stun?' · stunned':done?' · queued':''}</button>`;
+  }).join('');
+  const stunned = u.st.stun>0;
+  let hint;
+  if(S.phase==='form') hint = S.sel.pick
+    ? `Tap any tile on your grid to place ${u.name} there. Tapping a hero swaps the two; tapping ${u.name} again cancels.`
+    : `Drag a hero to any tile on your ${GRID.cols}×${GRID.rows} grid, or tap a hero and then a tile. Front-row heroes block melee in their lane; deeper rows soak ranged falloff. <button type="button" class="btn" id="defaultFormBtn" style="margin-top:8px">Default formation</button>`;
+  else if(S.phase==='run') hint = 'Resolving the round. Queued heroes act first, then unqueued heroes, then enemies by speed.';
+  else if(S.sel.act){
+    const a = act(u,S.sel.act);
+    if(a.kind==='move') hint = a.reach==='any' ? 'Tap any highlighted empty tile in your formation.' : 'Tap a highlighted empty tile in your formation.';
+    else if(a.kind==='tile') hint = 'Tap any enemy tile, occupied or empty.';
+    else if(a.kind==='dmg') hint = a.range==='melee' ? (teamFlag(u.side,'meleeReachAll') ? 'A team buff is queued ahead: melee can reach any enemy this round.' : 'Tap a highlighted enemy. Melee only reaches the front-most enemy in each lane.') : 'Tap any highlighted enemy. Hover to preview the area.';
+    else hint = 'Tap a highlighted ally.';
+  } else hint = `Queued actions fire in order. Each skill in an unbroken run adds ${Math.round(T.chain*100)}% to the next damaging skill.`;
+  const passive = Object.values(u.stacks).map(s=>`<p class="passive"><b>${s.name} ${s.n}/${s.max}</b> · next damaging action +${Math.round(s.perStack*s.n*100)}%. Gains a stack each round she ends unmoved and unhit; a hit or a normal move clears it.</p>`).join('')
+    + u.marks.map(m=>`<p class="passive"><b>${m.name}</b> · next ${m.only==='basic'?'basic attack':'damaging action'} +${Math.round(m.dmgBonus*100)}% (until end of round ${m.until}).</p>`).join('');
+  const stars = u.stars ? ` · ${'★'.repeat(u.stars)}` : '';
+  el.innerHTML = `<div class="roster">${roster}</div>
+    <div class="hero-head el-${u.elem}">${glyph(u, true)}<div><div class="eyebrow">${u.title} · <span class="e-${u.elem}">${ELEMS[u.elem].label}</span> · ${u.range} · ${lane(u.r,u.c)}${stars}</div><h2>${u.name}</h2></div></div>
+    <dl class="stats"><div><dt>HP</dt><dd>${u.hp}</dd></div><div><dt>ATK</dt><dd>${u.atk}</dd></div><div><dt>DEF</dt><dd>${u.def}</dd></div><div><dt>SPD</dt><dd>${u.spd}</dd></div></dl>
+    ${stunned?'<p class="warn">Stunned. This hero skips the next action.</p>':''}${passive}
+    <div class="actions el-${u.elem}">${[...u.skills.map((_,i)=>'s'+i),'basic','move','guard'].map(k=>actBtn(u,k,stunned)).join('')}</div>
+    <p class="hint">${hint}</p>`;
+}
+const starTxt = n => '★'.repeat(n);
+function cardRow(c, lc){
+  const h = heroDef(c.hero), st = cardStats(c), on = SQUAD.includes(c.uid), free = c.augs.length < c.stars;
+  const skills = h.skills.map((s,i)=>{
+    const chips = c.augs.map((a,j)=>a.skill!==i ? '' : a.locked
+      ? `<span class="aug set" title="${AUGS[a.aug].desc}">${AUGS[a.aug].name} · set</span>`
+      : `<button type="button" class="aug" data-act="unslot" data-uid="${c.uid}" data-j="${j}" title="${AUGS[a.aug].desc}" aria-label="Unslot ${AUGS[a.aug].name} from ${s.name}">${AUGS[a.aug].name} ×</button>`).join('');
+    const opts = Object.keys(lc).filter(k=>fits(k,s));
+    const add = free && opts.length ? `<select class="augsel" data-uid="${c.uid}" data-i="${i}" aria-label="Slot an augment into ${s.name}"><option value="">+ augment</option>${opts.map(k=>`<option value="${k}">${AUGS[k].name} (${lc[k]})</option>`).join('')}</select>` : '';
+    return `<div class="cskill"><span class="cs-name">${s.name}</span><span class="cs-tags">${skillTags(s).join(' · ')}</span>${chips}${add}</div>`;
+  }).join('');
+  // Same-hero copies first; nothing is preselected, so a card is never fed by accident.
+  const mates = c.stars<3 ? CARDS.filter(x=>x!==c && x.stars===c.stars).sort((a,b)=>(a.hero!==c.hero)-(b.hero!==c.hero)) : [];
+  const merge = mates.length ? `<span class="cmerge"><select data-mergefor="${c.uid}" aria-label="Card to merge into ${h.name}"><option value="">Feed a card…</option>${mates.map(x=>{ const xs = cardStats(x);
+      return `<option value="${x.uid}">${heroDef(x.hero).name} ${starTxt(x.stars)} · ATK ${xs.atk} · HP ${xs.maxHp}${x.augs.length?` · ${x.augs.length} aug`:''}</option>`; }).join('')}</select>
+    <button type="button" class="btn sm" data-act="merge" data-uid="${c.uid}">Merge into ${h.name}</button></span>` : '';
+  const crown = c.stars===3 ? `<button type="button" class="btn sm" data-act="crown" data-uid="${c.uid}" ${CROWNS<1?'disabled':''}>Ashcrown → 4★</button>` : '';
+  return `<div class="crow el-${h.elem} ${on?'on':''}">
+    <div class="ctop"><span class="mini-card tile card el-${h.elem} star-${c.stars}" aria-hidden="true">${cardArt(h)}${auraHTML(c.augs, c.stars===4)}<span class="card-el">${sigil(h.elem)}</span></span><div class="cid"><b>${h.name}</b><span class="e-${h.elem} el-word">${ELEMS[h.elem].label}</span><span class="stars">${starTxt(c.stars)}</span><span class="cmeta">card ${c.uid} · augment slots ${c.augs.length}/${c.stars}</span></div>
+      <button type="button" class="btn sm ${on?'primary':''}" data-act="field" data-uid="${c.uid}" aria-pressed="${on}">${on?'On field':'Benched'}</button></div>
+    <div class="cstats">HP ${st.maxHp} · ATK ${st.atk} · DEF ${st.def} · SPD ${st.spd}</div>
+    ${skills}${merge||crown ? `<div class="cact">${merge}${crown}</div>` : ''}</div>`;
+}
+function renderSquad(msg){
+  const lc = {}; LOOSE.forEach(k=>lc[k] = (lc[k]||0)+1);
+  const order = c => (SQUAD.includes(c.uid) ? 0 : 100) + HEROES.findIndex(h=>h.key===c.hero)*10 - c.stars;
+  const rows = [...CARDS].sort((a,b)=>order(a)-order(b)).map(c=>cardRow(c, lc)).join('');
+  const inv = Object.entries(AUGS).map(([k,a])=>`<div class="augcard ${lc[k]?'':'none'}"><b>${a.name} ×${lc[k]||0}</b><span>${a.desc} Fits ${a.fits.join(', ')} skills.</span></div>`).join('');
+  $('#squad').innerHTML = `<p class="squad-note">${msg || `Up to ${MAX_SQUAD} cards take the field, one copy per hero. Changing a card restarts the battle.`}</p>
+    ${rows}
+    <p class="sub">Loose augments · Ashcrowns ${CROWNS}</p><div class="lvl">${inv}</div>
+    <p class="sub">Merge stats</p>
+    <div class="lvl"><button type="button" data-act="mode" data-mode="best" aria-pressed="${MERGE.mode==='best'}"><b>Best of each, +${Math.round(MERGE.starBonus*100)}% per star${MERGE.mode==='best'?' · on':''}</b><span>The merged card keeps the higher value of each stat.</span></button>
+      <button type="button" data-act="mode" data-mode="sum" aria-pressed="${MERGE.mode==='sum'}"><b>Sum${MERGE.mode==='sum'?' · on':''}</b><span>Stats add up: (10 ATK, 10 HP) + (40 ATK, 1 HP) = (50 ATK, 11 HP).</span></button></div>
+    <div class="tune-foot"><span>Test tools, not game features.</span><span class="cact"><button type="button" class="btn sm" data-act="recruit">Recruit a 1★</button><button type="button" class="btn sm" data-act="findaug">Find an augment</button><button type="button" class="btn sm" data-act="crownplus">+1 Ashcrown</button><button type="button" class="btn sm" data-act="resetcards">Reset cards</button></span></div>`;
+}
+function renderLog(){
+  $('#log').innerHTML = S.log.map(l=>`<li class="${l.cls}">${l.html}</li>`).join('');
+}
+function render(){ renderGrids(); renderStrip(); renderPanel(); renderLog(); }
+function spawnFx(){
+  for(const k of S.flash){ const el = document.querySelector(`[data-tile="${k}"]`); if(el){ el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } }
+  for(const f of S.floats){ const el = document.querySelector(`[data-tile="${f.key}"]`); if(el){ const s=document.createElement('span'); s.className='float '+f.cls; s.textContent=f.txt; el.appendChild(s); setTimeout(()=>s.remove(),700); } }
+  S.flash=[]; S.floats=[];
+}
+
+/* ---------- acceptance checks ---------- */
+// HP after each round of a fixed fight with the starter four, recorded from the original v0.1 build.
+const BASELINE = ["P-kaede:584,P-brann:1039,P-sorrel:777,P-ilse:773,E-golem:1031,E-blade:778,E-caller:900,E-seer:641","P-kaede:667,P-brann:1191,P-sorrel:367,P-ilse:850,E-golem:884,E-blade:608,E-caller:568,E-seer:531","P-kaede:667,P-brann:1191,P-sorrel:273,P-ilse:850,E-golem:690,E-blade:586,E-caller:718,E-seer:522","P-kaede:574,P-brann:1186,P-sorrel:0,P-ilse:850,E-golem:409,E-blade:425,E-caller:592,E-seer:474","P-kaede:356,P-brann:840,P-sorrel:0,P-ilse:799,E-golem:57,E-blade:378,E-caller:592,E-seer:315","P-kaede:248,P-brann:880,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:208,E-caller:495,E-seer:205","P-kaede:248,P-brann:768,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:100,E-caller:645,E-seer:0","P-kaede:248,P-brann:768,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:586,E-seer:0","P-kaede:169,P-brann:768,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:323,E-seer:0","P-kaede:321,P-brann:920,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:120,E-seer:0","P-kaede:321,P-brann:920,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:0,E-seer:0"];
+// The same fight on 4×4 with the spread enemy start, first 15 rounds, recorded 2026-10-18 with every rule off.
+const REFERENCE_4X4 = ["P-kaede:584,P-brann:1039,P-sorrel:777,P-ilse:773,E-golem:1222,E-blade:520,E-caller:900,E-seer:800","P-kaede:667,P-brann:1191,P-sorrel:367,P-ilse:850,E-golem:1075,E-blade:350,E-caller:598,E-seer:698","P-kaede:661,P-brann:1191,P-sorrel:273,P-ilse:850,E-golem:922,E-blade:0,E-caller:598,E-seer:698","P-kaede:661,P-brann:1191,P-sorrel:72,P-ilse:850,E-golem:800,E-blade:0,E-caller:636,E-seer:800","P-kaede:425,P-brann:1107,P-sorrel:0,P-ilse:799,E-golem:440,E-blade:0,E-caller:513,E-seer:800","P-kaede:317,P-brann:1259,P-sorrel:0,P-ilse:850,E-golem:212,E-blade:0,E-caller:420,E-seer:698","P-kaede:109,P-brann:1259,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:420,E-seer:614","P-kaede:109,P-brann:1259,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:515,E-seer:690","P-kaede:0,P-brann:1175,P-sorrel:0,P-ilse:799,E-golem:0,E-blade:0,E-caller:392,E-seer:502","P-kaede:0,P-brann:1327,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:338,E-seer:346","P-kaede:0,P-brann:1258,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:338,E-seer:165","P-kaede:0,P-brann:1258,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:488,E-seer:241","P-kaede:0,P-brann:1258,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:488,E-seer:8","P-kaede:0,P-brann:1397,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:488,E-seer:0","P-kaede:0,P-brann:1333,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:369,E-seer:0"];
+// The fixed fight: each round, every hero queues its first ready skill on the AI's preferred target.
+async function scriptedFight(){
+  reset({skipFormation:true, defaultFormation:true, pristine:true});
+  const snap = [];
+  for(let i=0;i<15 && S.phase==='plan';i++){
+    for(const u of living('P')){
+      if(u.st.stun) continue;
+      const idx = u.skills.findIndex((s,j)=>u.cd[j]===0);
+      if(idx<0) continue;
+      const key = 's'+idx, a = act(u,key);
+      if(a.pattern==='all') enqueue(u.id,key,u.r,u.c);
+      else { const p = pick(u,a); if(p) enqueue(u.id,key,p[0],p[1]); }
+    }
+    await runRound();
+    snap.push(S.units.map(u=>u.id+':'+u.hp).join(','));
+  }
+  return snap;
+}
+const POST = {key:'post', name:'Training Post', short:'Post', elem:'fire', range:'melee', maxHp:6000, atk:100, def:40, spd:50, skills:[]};
+// A neutral test unit carrying one of each general engine system, so the checks exercise the engine without a real character.
+const PROBE = {key:'probe', name:'Probe', elem:'fire', range:'ranged', maxHp:720, atk:155, def:38, spd:95, r:2, c:1,
+  basic:{name:'Probe shot', ignoresFalloff:true},
+  stacks:{steady:{label:'STK', name:'Steady', max:2, perStack:0.25, gain:'stillUnhit', clearOn:['damaged','moved']}},
+  skills:[
+    {name:'Probe leap', kind:'move', reach:'any', breaksChain:false, keepsStacks:true, cd:3, mark:{name:'Mark', label:'MRK', dmgBonus:0.2, only:'basic', rounds:2}, desc:''},
+    {name:'Probe trap', kind:'tile', pattern:'single', cd:3, effect:{kind:'trap', label:'TRP', rounds:3, triggers:['onAct','onEnter'], once:true, payload:{power:0.6, elem:'fire', fx:{burn:2}}}, desc:''},
+    {name:'Probe beacon', kind:'buff', pattern:'all', cd:5, teamBuff:{name:'Beacon', rounds:1, flags:{ignoresFalloff:true, meleeReachAll:true}}, desc:''},
+  ]};
+function scenario(heroes, posts){
+  const defs = [...ROSTER, PROBE];
+  const units = heroes.map(([key,r,c])=>{ const u = mk(defs.find(d=>d.key===key),'P'); u.r=r; u.c=c; return u; });
+  posts.forEach(([r,c],i)=>{ const u = mk(POST,'E'); u.id='E-post'+i; u.short='Post '+(i+1); u.r=r; u.c=c; units.push(u); });
+  S = freshState(units);
+  return id => unitById(id);
+}
+const lost = u => u.maxHp - u.hp;
+const near = (x,y) => Math.abs(x-y)<=1;
+async function nextRound(){ await endOfRound(); S.round++; }
+async function hit(u,t,key='basic'){ const before = t.hp; await perform(u,act(u,key),t.r,t.c,0); return before - t.hp; }
+function baseShot(){ const g = scenario([['probe',2,1]],[[0,1]]); S.phase='run'; return hit(g('P-probe'), g('E-post0')); }
+// Runs fn with only the named rules switched on, then puts every rule back as it was.
+async function withRules(on, fn){
+  const saved = Object.fromEntries(Object.entries(RULES).map(([k,r])=>[k,r.on]));
+  for(const k in RULES) RULES[k].on = !!on[k];
+  try { return await fn(); } finally { for(const k in RULES) RULES[k].on = saved[k]; }
+}
+
+const CHECKS = [
+  ['Engine · ignoresFalloff: same damage to the back row as the front', ()=>withRules({}, async()=>{
+    const g = scenario([['probe',2,1],['sorrel',1,0]],[[0,0],[2,2]]); S.phase='run';
+    const p = g('P-probe'), front = g('E-post0'), back = g('E-post1');
+    const f = await hit(p,front), b = await hit(p,back);
+    const sf = await hit(g('P-sorrel'),front), sb = await hit(g('P-sorrel'),back);
+    return [f===b && f>0 && sb<sf, `probe front ${f}, back ${b} · Sorrel's Bolt front ${sf}, back ${sb}`];
+  })],
+  ['Engine · stacks: two still, unhit rounds give +50%, then reset', ()=>withRules({}, async()=>{
+    const d0 = await baseShot();
+    const g = scenario([['probe',2,1]],[[0,1]]); const p = g('P-probe');
+    await nextRound(); await nextRound();
+    const n = p.stacks.steady.n;
+    S.phase='run'; const d2 = await hit(p, g('E-post0'));
+    return [n===2 && near(d2, d0*1.5) && p.stacks.steady.n===0, `stacks ${n}, base ${d0}, stacked ${d2} (×${(d2/d0).toFixed(2)}), after ${p.stacks.steady.n}`];
+  })],
+  ['Engine · stacks: one hit clears them', ()=>withRules({}, async()=>{
+    const g = scenario([['probe',2,1]],[[0,1]]); const p = g('P-probe');
+    await nextRound(); await nextRound();
+    const n = p.stacks.steady.n;
+    S.phase='run'; await perform(g('E-post0'), act(g('E-post0'),'basic'), p.r, p.c, 0);
+    return [n===2 && lost(p)>0 && p.stacks.steady.n===0, `stacks ${n} → ${p.stacks.steady.n} after taking ${lost(p)}`];
+  })],
+  ['Engine · team buff: melee reaches the back row; without it, the front-most', ()=>withRules({}, async()=>{
+    let g = scenario([['probe',2,1],['brann',0,1]],[[0,1],[2,1]]);
+    const reach = () => targets(g('P-brann'), act(g('P-brann'),'s0')).tiles.some(([r,c])=>r===2&&c===1);
+    const canPlan = reach();
+    S.queue = [{id:'P-probe', key:'s2', r:1, c:1}];
+    const canWith = reach();
+    S.queue.push({id:'P-brann', key:'s0', r:2, c:1});
+    S.phase='run'; await runQueue();
+    const withB = [lost(g('E-post0')), lost(g('E-post1'))];
+    g = scenario([['probe',2,1],['brann',0,1]],[[0,1],[2,1]]);
+    S.queue = [{id:'P-brann', key:'s0', r:2, c:1}];
+    S.phase='run'; await runQueue();
+    const without = [lost(g('E-post0')), lost(g('E-post1'))];
+    return [!canPlan && canWith && withB[0]===0 && withB[1]>0 && without[0]>0 && without[1]===0,
+      `targetable while planning ${canPlan} → ${canWith} · with buff front/back ${withB.join('/')} · without ${without.join('/')}`];
+  })],
+  ['Engine · a team-buff skill counts as a chain link', ()=>withRules({}, async()=>{
+    scenario([['probe',2,1],['kaede',1,1]],[[0,1]]);
+    S.queue = [{id:'P-probe', key:'s2', r:1, c:1},{id:'P-kaede', key:'s0', r:0, c:1}];
+    S.phase='run'; await runQueue();
+    const k = S.trace.find(x=>x.id==='P-kaede');
+    return [Math.abs(k.chainMult-(1+T.chain))<1e-9, `Kaede's Foxfire Lance chain ×${k.chainMult.toFixed(2)}`];
+  })],
+  ['Engine · chain-neutral move: far tile, chain and stacks kept, mark boosts next basic', ()=>withRules({}, async()=>{
+    const d0 = await baseShot();
+    const run = async key=>{
+      const g = scenario([['probe',2,1],['kaede',1,1],['ilse',2,2]],[[0,1]]);
+      g('P-probe').stacks.steady.n = 2;
+      const to = key==='s0' ? [0,0] : [2,0];
+      S.queue = [{id:'P-kaede', key:'s0', r:0, c:1},{id:'P-probe', key, r:to[0], c:to[1]},{id:'P-ilse', key:'s0', r:0, c:1}];
+      S.phase='run'; await runQueue();
+      return {g, ilse:S.trace.find(x=>x.id==='P-ilse').chainMult};
+    };
+    const {g, ilse} = await run('s0');
+    const p = g('P-probe'), pos = [p.r,p.c], kept = p.stacks.steady.n;
+    await nextRound(); S.phase='run';
+    const d = await hit(p, g('E-post0'));
+    const plain = (await run('move')).ilse;
+    const ok = pos[0]===0 && pos[1]===0 && Math.abs(ilse-(1+T.chain))<1e-9 && Math.abs(plain-1)<1e-9 && kept===2 && near(d, d0*1.5*1.2) && p.marks.length===0;
+    return [ok, `landed ${lane(...pos)}, Ilse chain ×${ilse.toFixed(2)} (×${plain.toFixed(2)} after a normal move), stacks kept ${kept}, next shot ×${(d/d0).toFixed(2)}`];
+  })],
+  ['Engine · tile effect onAct: damage and Burn when the unit acts, then gone', ()=>withRules({}, async()=>{
+    const g = scenario([['probe',2,1]],[[0,1]]); const post = g('E-post0');
+    S.queue = [{id:'P-probe', key:'s1', r:0, c:1}];
+    S.phase='run'; await runQueue();
+    const placed = S.tiles.length;
+    await enemyTurn(post);
+    return [placed===1 && lost(post)>0 && post.st.burn===2 && S.tiles.length===0 && lost(g('P-probe'))>0,
+      `placed ${placed}, post took ${lost(post)}, burn ${post.st.burn}, left ${S.tiles.length}, post still attacked: ${lost(g('P-probe'))>0}`];
+  })],
+  ['Engine · tile effect onEnter: triggers when a unit steps on', ()=>withRules({}, async()=>{
+    const g = scenario([['probe',2,1]],[[0,1]]); const post = g('E-post0');
+    S.queue = [{id:'P-probe', key:'s1', r:1, c:0}];
+    S.phase='run'; await runQueue();
+    await moveUnit(post,1,0,{});
+    return [lost(post)>0 && post.st.burn===2 && S.tiles.length===0, `post took ${lost(post)}, burn ${post.st.burn}, left ${S.tiles.length}`];
+  })],
+  ['Engine · an untriggered tile effect expires after 3 rounds', ()=>withRules({}, async()=>{
+    scenario([['probe',2,1]],[[0,1]]);
+    S.queue = [{id:'P-probe', key:'s1', r:2, c:2}];
+    S.phase='run'; await runQueue();
+    const seen = [S.tiles.length];
+    for(let i=0;i<3;i++){ await nextRound(); seen.push(S.tiles.length); }
+    return [seen.join()==='1,1,1,0', `on the board: placed ${seen[0]}, after each round end ${seen.slice(1).join(', ')}`];
+  })],
+  ['Formation · place on an empty tile, swap onto a hero, and the layout carries into the next battle', async()=>{
+    const grid = {...GRID}, squad = [...SQUAD], saved = FORMATION['4x4'];
+    Object.assign(GRID, {rows:4, cols:4}); SQUAD = [...DEFAULT_SQUAD]; delete FORMATION['4x4'];
+    try {
+      reset({defaultFormation:true, pristine:true});
+      const inForm = S.phase==='form';
+      const k = unitById('P-kaede'), b = unitById('P-brann');
+      placeHero(k.id, 3, 3); const moved = k.r===3 && k.c===3;
+      const bFrom = [b.r,b.c]; placeHero(k.id, b.r, b.c);
+      const swapped = k.r===bFrom[0] && k.c===bFrom[1] && b.r===3 && b.c===3;
+      startBattle(); const planning = S.phase==='plan';
+      reset({pristine:true});
+      const kept = unitById('P-kaede').r===bFrom[0] && unitById('P-brann').r===3 && unitById('P-brann').c===3 && S.phase==='form';
+      return [inForm && moved && swapped && planning && kept, `starts in formation ${inForm}, moved ${moved}, swapped ${swapped}, battle starts ${planning}, kept next battle ${kept}`];
+    } finally { Object.assign(GRID, grid); SQUAD = squad; if(saved) FORMATION['4x4'] = saved; else delete FORMATION['4x4']; }
+  }],
+  ['Formation · enemies start spread over the 4×4 grid, every tile in bounds and unique', async()=>{
+    const grid = {...GRID}; Object.assign(GRID, {rows:4, cols:4});
+    try {
+      reset({defaultFormation:true});
+      const foes = S.units.filter(u=>u.side==='E'), tiles = foes.map(u=>u.r+','+u.c);
+      const rows = new Set(foes.map(u=>u.r)).size, lanes = new Set(foes.map(u=>u.c)).size;
+      const ok = new Set(tiles).size===foes.length && foes.every(u=>inB(u.r,u.c)) && rows>=3 && lanes===4;
+      return [ok, `enemy tiles ${foes.map(u=>nameOf(u)+' '+lane(u.r,u.c)).join(', ')} · ${rows} rows, ${lanes} lanes`];
+    } finally { Object.assign(GRID, grid); }
+  }],
+  ['Baseline · on 3×3 with the v0.1 element triangle and every rule off, the fixed fight matches v0.1',()=>withRules({}, async()=>{
+    const saved = {...T}, squad = [...SQUAD], grid = {...GRID};
+    Object.assign(T, {elem:150/100, chain:10/100, fall:10/100}); SQUAD = [...DEFAULT_SQUAD]; Object.assign(GRID, {rows:3, cols:3}); const em = ELEM.mode; ELEM.mode = 'triangle';
+    let snap;
+    try { snap = await scriptedFight(); } finally { Object.assign(T, saved); SQUAD = squad; Object.assign(GRID, grid); ELEM.mode = em; }
+    const bad = snap.findIndex((s,i)=>s!==BASELINE[i]);
+    return [snap.length===BASELINE.length && bad<0, bad<0 ? `${snap.length} rounds match the v0.1 snapshot` : `round ${bad+1} differs: ${snap[bad]}`];
+  })],
+  ['Shapes · scaled on 4×4 (2 lanes, 2 rows, cross reach 2), identical to v0.1 on 3×3', async()=>{
+    const grid = {...GRID}, scaled = SHAPES.scaled;
+    try {
+      SHAPES.scaled = true; Object.assign(GRID, {rows:4, cols:4});
+      const big = {lane:pattern('pierce',0,3).length, laneCols:[...new Set(pattern('pierce',0,3).map(t=>t[1]))].join(''), row:pattern('sweep',3,0).length, rowRows:[...new Set(pattern('sweep',3,0).map(t=>t[0]))].join(''), cross:pattern('cross',1,1).length};
+      Object.assign(GRID, {rows:3, cols:3});
+      const small = {lane:pattern('pierce',0,2).length, row:pattern('sweep',2,0).length, cross:pattern('cross',1,1).length};
+      const ok = big.lane===8 && big.laneCols==='32' && big.row===8 && big.rowRows==='32' && big.cross===7 && small.lane===3 && small.row===3 && small.cross===5;
+      return [ok, `4×4: lane ${big.lane} tiles (lanes ${big.laneCols}), row ${big.row} (rows ${big.rowRows}), cross ${big.cross} from B·Mid · 3×3: lane ${small.lane}, row ${small.row}, cross ${small.cross}`];
+    } finally { Object.assign(GRID, grid); SHAPES.scaled = scaled; }
+  }],
+  ['Reference · on 4×4 with the v0.1 element triangle, unscaled shapes and every rule off, the fixed fight matches the recorded snapshot', ()=>withRules({}, async()=>{
+    const saved = {...T}, squad = [...SQUAD], grid = {...GRID}, scaled = SHAPES.scaled;
+    Object.assign(T, {elem:150/100, chain:10/100, fall:10/100}); SQUAD = [...DEFAULT_SQUAD]; Object.assign(GRID, {rows:4, cols:4}); SHAPES.scaled = false; const em = ELEM.mode; ELEM.mode = 'triangle';
+    let snap;
+    try { snap = await scriptedFight(); } finally { Object.assign(T, saved); SQUAD = squad; Object.assign(GRID, grid); SHAPES.scaled = scaled; ELEM.mode = em; }
+    const bad = snap.findIndex((s,i)=>s!==REFERENCE_4X4[i]);
+    return [snap.length===REFERENCE_4X4.length && bad<0, bad<0 ? `${snap.length} rounds match the 4×4 reference` : `round ${bad+1} differs: ${snap[bad]}`];
+  })],
+  ['Rule · Sightline: a back-row shooter loses its own depth; ignoresFalloff is untouched', async()=>{
+    const shots = async ()=>{
+      const g = scenario([['kaede',0,0],['probe',0,2]],[[1,1]]); S.phase='run';
+      const k = g('P-kaede'), p = g('P-probe'), post = g('E-post0');
+      const k0 = await hit(k,post), p0 = await hit(p,post);
+      k.r = 2; p.r = 2;
+      return [k0, await hit(k,post), p0, await hit(p,post)];
+    };
+    const [k0,k2,p0,p2] = await withRules({sightline:true}, shots);
+    const want = k0*(1 - T.fall - RULES.sightline.perRow*2)/(1 - T.fall);
+    return [near(k2,want) && p0===p2, `Kaede's Bolt front row ${k0} → back row ${k2} (expected ≈${want.toFixed(1)}) · probe ${p0} → ${p2}`];
+  }],
+  ['Rule · Screening: each unit already hit in the lane cuts the next by 25%', async()=>{
+    const lane3 = async ()=>{
+      const g = scenario([['kaede',1,1]],[[0,1],[1,1],[2,1]]); S.phase='run';
+      await perform(g('P-kaede'), act(g('P-kaede'),'s0'), 0, 1, 0);
+      return [0,1,2].map(i=>lost(g('E-post'+i)));
+    };
+    const off = await withRules({}, lane3), on = await withRules({screening:true}, lane3);
+    const ok = near(on[0],off[0]) && near(on[1],off[1]*0.75) && near(on[2],off[2]*0.5);
+    return [ok, `Foxfire Lance front to back: off ${off.join('/')} · on ${on.join('/')}`];
+  }],
+  ['Rule · Kindred: a same-element hit deals ×0.85', async()=>{
+    const one = async ()=>{ const g = scenario([['kaede',1,1]],[[0,1]]); S.phase='run'; return hit(g('P-kaede'), g('E-post0')); };
+    const off = await withRules({}, one), on = await withRules({kindred:true}, one);
+    return [near(on, off*RULES.kindred.mult), `Kaede (Fire) on a Fire post: off ${off} · on ${on}`];
+  }],
+  ['Rule · Focus: a link on the same target as the previous link gets +5%', async()=>{
+    const run = (target)=>withRules({focus:true}, async()=>{
+      scenario([['kaede',1,1],['sorrel',1,0]],[[0,1],[0,0]]);
+      S.queue = [{id:'P-kaede', key:'s0', r:0, c:1},{id:'P-sorrel', key:'s1', r:target[0], c:target[1]}];
+      S.phase='run'; await runQueue();
+      return S.trace.find(x=>x.id==='P-sorrel').chainMult;
+    });
+    const same = await run([0,1]), other = await run([0,0]);
+    const ok = Math.abs(same-(1+T.chain+RULES.focus.perLink))<1e-9 && Math.abs(other-(1+T.chain))<1e-9;
+    return [ok, `Sorrel's Pinning Shot after Kaede: same target ×${same.toFixed(2)} · other target ×${other.toFixed(2)}`];
+  }],
+  ['Rule · Shatter: a big enough overshoot shatters; a bare kill does not', ()=>withRules({shatter:true}, async()=>{
+    const g = scenario([['kaede',1,1]],[[0,0],[0,2]]); S.phase='run';
+    const small = g('E-post0'), big = g('E-post1');
+    small.maxHp = 100; small.hp = 10; big.maxHp = 1000; big.hp = 10;
+    await hit(g('P-kaede'), small); await hit(g('P-kaede'), big);
+    return [small.shattered===true && !big.shattered && S.shatters.P===1, `100-HP post shattered: ${!!small.shattered} · 1000-HP post shattered: ${!!big.shattered} · count ${S.shatters.P}`];
+  })],
+  ['Rule · Last Stand: downed for 2 rounds, a heal revives at 25%, too late means gone', ()=>withRules({lastStand:true}, async()=>{
+    const g = scenario([['brann',0,1],['sorrel',0,0],['ilse',2,2]],[[0,1]]); S.phase='run';
+    const brann = g('P-brann'), sorrel = g('P-sorrel'), post = g('E-post0');
+    brann.hp = 1; await perform(post, act(post,'basic'), brann.r, brann.c, 0);
+    const downed = brann.downed;
+    await perform(g('P-ilse'), act(g('P-ilse'),'s1'), 2, 2, 0);
+    const back = [brann.alive, brann.hp];
+    sorrel.hp = 1; await perform(post, act(post,'basic'), sorrel.r, sorrel.c, 0);
+    await nextRound(); const after1 = sorrel.downed;
+    await nextRound(); S.phase='run';
+    g('P-ilse').cd = [0,0];
+    await perform(g('P-ilse'), act(g('P-ilse'),'s1'), 2, 2, 0);
+    const ok = downed===2 && back[0] && back[1]===Math.round(brann.maxHp*RULES.lastStand.reviveHp) && after1===1 && sorrel.fallen && !sorrel.alive;
+    return [ok, `Brann downed ${downed} rds, revived ${back[0]} at ${back[1]} HP · Sorrel downed, ${after1} rd left after a round, fallen ${!!sorrel.fallen}, revived late ${sorrel.alive}`];
+  })],
+  ['Rule · Ashfall: nothing before round 8, then every unit burns once a round', ()=>withRules({ashfall:true}, async()=>{
+    const g = scenario([['kaede',1,1],['brann',0,1]],[[0,1]]);
+    const units = ['P-kaede','P-brann','E-post0'].map(g);
+    g('P-brann').st.burn = 3;   // already burning: should still tick once, not twice
+    S.round = 7; await endOfRound();
+    const at7 = units.map(lost);
+    S.round = 8; await endOfRound();
+    const at8 = units.map(lost);
+    const tick = u => Math.round(u.maxHp*0.06);
+    const ok = at7[0]===0 && at7[2]===0 && at7[1]===tick(units[1]) && units.every((u,i)=>at8[i]-at7[i]===tick(u));
+    return [ok, `HP lost after round 7: ${at7.join('/')} (Brann was already burning) · after round 8: ${at8.join('/')} · one tick each = ${units.map(tick).join('/')}`];
+  })],
+  ['Cards · best-of merge: two 1★ copies make a 2★ with the higher of each stat +10%; the fodder augment carries and is set', ()=>withCollection(async()=>{
+    const k1 = cardBy('kaede'), k2 = CARDS.find(c=>c.hero==='kaede' && c!==k1);
+    slotAug(k2.uid, 0, 'keen');
+    const want = Object.fromEntries(STATS.map(s=>[s, Math.round(Math.max(k1.base[s], k2.base[s])*1.1)]));
+    const r = mergeCards('kaede', k2.uid), got = cardStats(k1);
+    const ok = r.ok && k1.stars===2 && STATS.every(s=>got[s]===want[s]) && !cardBy(k2.uid) && k1.augs.length===1 && k1.augs[0].aug==='keen' && k1.augs[0].skill===0 && k1.augs[0].locked && !LOOSE.includes('keen');
+    return [ok, `2★ Kaede ${STATS.map(s=>s+' '+got[s]).join(', ')} (expected ${STATS.map(s=>want[s]).join('/')}) · augments ${k1.augs.map(a=>a.aug+(a.locked?' set':'')).join(', ')}`];
+  })],
+  ['Cards · sum merge: stats add up, like the Undine example', ()=>withCollection(async()=>{
+    MERGE.mode = 'sum';
+    const i1 = cardBy('ilse'), i2 = CARDS.find(c=>c.hero==='ilse' && c!==i1);
+    const a = cardStats(i1), b = cardStats(i2);
+    mergeCards('ilse', i2.uid);
+    const got = cardStats(i1);
+    return [STATS.every(s=>got[s]===a[s]+b[s]) && i1.stars===2, `(${a.atk} ATK, ${a.maxHp} HP) + (${b.atk} ATK, ${b.maxHp} HP) = (${got.atk} ATK, ${got.maxHp} HP)`];
+  })],
+  ['Cards · a fodder augment with no matching skill goes loose', ()=>withCollection(async()=>{
+    const ilse = CARDS.find(c=>c.hero==='ilse' && c.uid!=='ilse');
+    slotAug(ilse.uid, 1, 'wellspring');
+    const before = LOOSE.filter(k=>k==='wellspring').length;
+    mergeCards('kaede', ilse.uid);
+    const after = LOOSE.filter(k=>k==='wellspring').length;
+    return [before===0 && after===1 && cardBy('kaede').augs.length===0, `Wellspring in the loose pile: ${before} before, ${after} after · Kaede augments ${cardBy('kaede').augs.length}`];
+  })],
+  ['Cards · free augments swap until a merge; set ones stay put', ()=>withCollection(async()=>{
+    const k = cardBy('kaede');
+    const slotted = slotAug('kaede', 0, 'keen'), freeOut = unslotAug('kaede', 0), back = slotAug('kaede', 0, 'keen');
+    const full = slotAug('kaede', 1, 'hasten');   // 1★ holds one augment
+    mergeCards('kaede', CARDS.find(c=>c.hero==='kaede' && c!==k).uid);
+    const setOut = unslotAug('kaede', 0), second = slotAug('kaede', 1, 'hasten'), secondOut = unslotAug('kaede', 1);
+    const ok = slotted && freeOut && back && !full && !setOut && second && secondOut;
+    return [ok, `slot ${slotted}, unslot ${freeOut}, 2nd on a 1★ ${full} · after merge: unslot set ${setOut}, new slot ${second}, unslot it ${secondOut}`];
+  })],
+  ['Cards · only the same star level merges, 3★ is the cap, and an Ashcrown makes a 4★', ()=>withCollection(async()=>{
+    const kc = CARDS.filter(c=>c.hero==='kaede'), ic = CARDS.filter(c=>c.hero==='ilse');
+    mergeCards(kc[0].uid, kc[1].uid);
+    const mixed = mergeCards(kc[0].uid, kc[2].uid).ok;   // 2★ + 1★
+    mergeCards(ic[0].uid, ic[1].uid);
+    mergeCards(kc[0].uid, ic[0].uid);
+    const three = kc[0].stars;
+    const k3 = newCard('kaede', true); k3.stars = 3; CARDS.push(k3);
+    const past = mergeCards(kc[0].uid, k3.uid).ok;
+    const crowned = crownCard(kc[0].uid), again = crownCard(k3.uid);
+    return [!mixed && three===3 && !past && crowned && kc[0].stars===4 && !again && CROWNS===0,
+      `2★+1★ ${mixed} · reached ${three}★ · 3★+3★ ${past} · crown ${crowned} → ${kc[0].stars}★ · second crown ${again}`];
+  })],
+  ['Augments · Keen and Wellspring add up; Lingering does not and stun caps at 2; Hasten stops at cooldown 1; Kindling adds Burn', async()=>{
+    const brann = applyAugs(heroDef('brann').skills, [{aug:'lingering',skill:0},{aug:'lingering',skill:0},{aug:'hasten',skill:0},{aug:'hasten',skill:0},{aug:'hasten',skill:0}])[0];
+    const ilse = applyAugs(heroDef('ilse').skills, [{aug:'wellspring',skill:1},{aug:'wellspring',skill:1}])[1];
+    const kaede = applyAugs(heroDef('kaede').skills, [{aug:'keen',skill:0},{aug:'keen',skill:0},{aug:'lingering',skill:0}])[0];
+    const sorrel = applyAugs(heroDef('sorrel').skills, [{aug:'kindling',skill:0}])[0];
+    const ok = brann.fx.stun===2 && brann.cd===1 && Math.abs(ilse.power-2.24)<1e-9 && Math.abs(kaede.power-1.625)<1e-9 && kaede.fx.burn===3 && sorrel.fx.burn===1;
+    return [ok, `Undertow Slam stun ${brann.fx.stun}, CD ${brann.cd} · Rain ×${ilse.power} · Foxfire ×${kaede.power}, burn ${kaede.fx.burn} · Crosswind burn ${sorrel.fx.burn}`];
+  }],
+  ['Augments · in battle, Keen adds 15% to a real hit', ()=>withRules({}, async()=>{
+    const shot = async augs=>{ const g = scenario([['kaede',1,1]],[[0,1]]); const k = g('P-kaede'); k.skills = applyAugs(heroDef('kaede').skills, augs); S.phase='run'; return hit(k, g('E-post0'), 's0'); };
+    const d0 = await shot([]), d1 = await shot([{aug:'keen',skill:0}]);
+    return [near(d1, d0*1.15), `Foxfire Lance ${d0} → ${d1} with Keen (×${(d1/d0).toFixed(3)})`];
+  })],
+  ['Elements · four-way cycle: each element beats one, loses to one, and is neutral with its opposite', async()=>{
+    const els = Object.keys(ELEMS), em = ELEM.mode; ELEM.mode = 'four';
+    try {
+      const rows = els.map(a=>({a, up:els.filter(b=>elemMult(a,b)>1), down:els.filter(b=>elemMult(a,b)<1), even:els.filter(b=>b!==a && elemMult(a,b)===1)}));
+      const opp = {fire:'earth', earth:'fire', wind:'water', water:'wind'};
+      const ok = rows.every(r=>r.up.length===1 && r.down.length===1 && r.even.length===1 && r.even[0]===opp[r.a]);
+      return [ok, rows.map(r=>`${r.a} beats ${r.up} · loses to ${r.down} · even with ${r.even}`).join(' | ')];
+    } finally { ELEM.mode = em; }
+  }],
+  ['Elements · Brann is Earth: his Rockfall hits Water ×1.5, and the v0.1 triangle restores him to Water', ()=>withRules({}, async()=>{
+    const em = ELEM.mode;
+    try {
+      ELEM.mode = 'four';
+      const g = scenario([['brann',0,1]],[[0,1]]); g('E-post0').elem = 'water'; S.phase='run';
+      const b = g('P-brann'), vsWater = await hit(b, g('E-post0'), 's0');
+      g('E-post0').elem = 'fire'; b.cd = [0,0]; const vsFire = await hit(b, g('E-post0'), 's0');
+      ELEM.mode = 'triangle'; const old = mk(heroDef('brann'),'P').elem;
+      return [b.elem==='earth' && near(vsWater, vsFire*1.5) && old==='water', `Rockfall on Water ${vsWater}, on Fire ${vsFire} (×${(vsWater/vsFire).toFixed(2)}) · triangle-mode Brann is ${old}`];
+    } finally { ELEM.mode = em; }
+  })],
+  ['Visuals · augments name the skill and pick the aura: most augments wins, ties go to the first slotted', async()=>{
+    const s = applyAugs(heroDef('kaede').skills, [{aug:'kindling',skill:0},{aug:'hasten',skill:0}]);
+    const a1 = aura([{aug:'hasten'},{aug:'kindling'}]), a2 = aura([{aug:'hasten'},{aug:'keen'},{aug:'kindling'}]);
+    const ok = s[0].name==='Kindled Foxfire Lance' && s[1].name==='Ninefold Blaze' && a1.fam==='wind' && a1.lvl===1 && a2.fam==='fire' && a2.lvl===2;
+    return [ok, `${s[0].name} / ${s[1].name} · Hasten then Kindling → ${a1.fam} ${a1.lvl} · plus Keen → ${a2.fam} ${a2.lvl}`];
+  }],
+];
+// Runs fn on a fresh starting collection, then puts the player's cards back as they were.
+async function withCollection(fn){
+  const saved = structuredClone({CARDS, LOOSE, CROWNS, SQUAD, mode:MERGE.mode, seed, cardSeq});
+  newCollection();
+  try { return await fn(); }
+  finally { ({CARDS, LOOSE, CROWNS, SQUAD, seed, cardSeq} = saved); MERGE.mode = saved.mode; }
+}
+async function runChecks(){
+  const btn = $('#checkBtn'); btn.disabled = true;
+  const savedDelay = DELAY; DELAY = 0;
+  const out = [];
+  try {
+    for(const [name,fn] of CHECKS){
+      try { const [pass, detail] = await fn(); out.push({name, pass, detail}); }
+      catch(e){ out.push({name, pass:false, detail:'error: '+e.message}); }
+    }
+  } finally { DELAY = savedDelay; btn.disabled = false; }
+  reset();
+  const n = out.filter(x=>x.pass).length;
+  out.forEach((x,i)=>console[x.pass?'log':'error'](`[check ${i+1}] ${x.pass?'PASS':'FAIL'} ${x.name}: ${x.detail}`));
+  $('#checkSum').textContent = `${n}/${out.length} passed`;
+  $('#checks').innerHTML = out.map((x,i)=>`<li class="${x.pass?'pass':'fail'}"><span class="v">${x.pass?'PASS':'FAIL'}</span><span>${i+1}. ${x.name}<small>${x.detail}</small></span></li>`).join('');
+  addLog(`Acceptance checks: ${n}/${out.length} passed`, 'sys'); renderLog();
+  return out;
+}
+
+/* ---------- wiring ---------- */
+for(const id of ['#gridE','#gridP']){
+  const g = $(id);
+  g.addEventListener('click', e=>{ const t=e.target.closest('.tile'); if(t) onTile(t.dataset.side,+t.dataset.r,+t.dataset.c); });
+  g.addEventListener('mouseover', e=>{ const t=e.target.closest('.tile'); if(t) onHover(t.dataset.side,+t.dataset.r,+t.dataset.c); });
+  g.addEventListener('mouseleave', ()=>onHover(null));
+}
+$('#panel').addEventListener('click', e=>{
+  if(e.target.closest('#againBtn')){ reset(); return; }
+  if(e.target.closest('#defaultFormBtn')){ delete FORMATION[gridKey()]; reset({defaultFormation:true}); return; }
+  const r = e.target.closest('.rbtn'); if(r){ if(S.phase==='plan' || S.phase==='form'){ S.sel={id:r.dataset.id, act:null, pick:S.phase==='form'}; render(); } return; }
+  const b = e.target.closest('.act'); if(b) onAction(b.dataset.key);
+});
+$('#chips').addEventListener('click', e=>{
+  const c = e.target.closest('.chip'); if(!c || S.phase!=='plan') return;
+  S.queue.splice(+c.dataset.i,1); render();
+});
+$('#squad').addEventListener('click', e=>{
+  if(S.phase==='run') return;
+  const b = e.target.closest('[data-act]'); if(!b || b.disabled) return;
+  const uid = b.dataset.uid; let msg;
+  switch(b.dataset.act){
+    case 'field': msg = toggleField(uid); break;
+    case 'unslot': unslotAug(uid, +b.dataset.j); break;
+    case 'merge': {
+      const sel = document.querySelector(`[data-mergefor="${uid}"]`);
+      if(!sel.value){ msg = `Pick a card to feed into ${heroDef(cardBy(uid).hero).name} first.`; break; }
+      const f = cardBy(sel.value), r = mergeCards(uid, sel.value);
+      if(!r.ok){ msg = r.msg; break; }
+      const c = cardBy(uid), name = heroDef(c.hero).name;
+      msg = `${name} is now ${starTxt(c.stars)}, fed ${heroDef(f.hero).name} (${f.uid}). ` + STATS.map(k=>`${k==='maxHp'?'HP':k.toUpperCase()} ${r.before[k]}→${r.after[k]}`).join(', ') + '.'
+        + (r.carried.length ? ` Carried: ${r.carried.join(', ')}.` : '') + (r.loose.length ? ` Went loose: ${r.loose.join(', ')}.` : '')
+        + (c.augs.length ? ` Its ${c.augs.length} augment${c.augs.length>1?'s are':' is'} now set.` : '');
+      break;
+    }
+    case 'crown': if(crownCard(uid)) msg = `${heroDef(cardBy(uid).hero).name} is crowned 4★ and gains a fourth augment slot.`; break;
+    case 'mode': MERGE.mode = b.dataset.mode; msg = 'Applies to the next merge.'; break;
+    case 'recruit': { const h = HEROES[Math.floor(rand()*HEROES.length)], c = newCard(h.key, true); CARDS.push(c); msg = `Recruited a 1★ ${h.name} (${c.uid}).`; break; }
+    case 'findaug': { const k = Object.keys(AUGS)[Math.floor(rand()*Object.keys(AUGS).length)]; LOOSE.push(k); msg = `Found ${AUGS[k].name}.`; break; }
+    case 'crownplus': CROWNS++; break;
+    case 'resetcards': newCollection(); msg = 'Cards reset to the starting collection.'; break;
+  }
+  renderSquad(msg); reset();
+});
+$('#squad').addEventListener('change', e=>{
+  const s = e.target.closest('.augsel'); if(!s || !s.value || S.phase==='run') return;
+  slotAug(s.dataset.uid, +s.dataset.i, s.value); renderSquad(); reset();
+});
+$('#runBtn').addEventListener('click', ()=>{ if(S.phase==='over') reset(); else if(S.phase==='form') startBattle(); else runRound(); });
+// Drag-and-drop placement during the formation step (tap-to-place covers touch and keyboard).
+$('#gridP').addEventListener('dragstart', e=>{
+  const t = e.target.closest('.tile'); if(S.phase!=='form' || !t) return;
+  const u = at('P',+t.dataset.r,+t.dataset.c); if(!u){ e.preventDefault(); return; }
+  e.dataTransfer.setData('text/plain', u.id); e.dataTransfer.effectAllowed = 'move';
+});
+$('#gridP').addEventListener('dragover', e=>{ if(S.phase==='form' && e.target.closest('.tile')){ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } });
+$('#gridP').addEventListener('drop', e=>{
+  const t = e.target.closest('.tile'); if(S.phase!=='form' || !t) return;
+  e.preventDefault(); placeHero(e.dataTransfer.getData('text/plain'), +t.dataset.r, +t.dataset.c);
+});
+$('#resetBtn').addEventListener('click', reset);
+$('#checkBtn').addEventListener('click', ()=>{ if(S.phase!=='run') runChecks(); });
+function renderRules(){
+  $('#rules').innerHTML = `<div class="lvl">${Object.entries(RULES).map(([k,r])=>`<button type="button" class="rl" data-k="${k}" aria-pressed="${r.on}"><b>${r.name}${r.on?' · on':''}</b><span>${r.desc(r)}</span></button>`).join('')}</div>
+    <p class="squad-note">Toggling a rule restarts the battle. The numbers live in RULES at the top of the script.</p>`;
+}
+$('#rules').addEventListener('click', e=>{
+  const b = e.target.closest('.rl'); if(!b || S.phase==='run') return;
+  RULES[b.dataset.k].on = !RULES[b.dataset.k].on; renderRules(); reset();
+});
+function renderGridSize(){
+  $('#gridSize').innerHTML = `<div class="lvl">${GRID_SIZES.map((g,i)=>{ const on = g.rows===GRID.rows && g.cols===GRID.cols;
+    return `<button type="button" class="gs" data-i="${i}" aria-pressed="${on}"><b>${g.cols} wide × ${g.rows} deep${on?' · on':''}</b><span>${g.rows===3&&g.cols===3?'The v0.1 layout':g.rows===4?'Adds a Deep row and a fourth lane':'Adds a fourth lane'}</span></button>`; }).join('')}</div>
+    <div class="lvl"><button type="button" class="shp" aria-pressed="${SHAPES.scaled}"><b>Area shapes scale with the grid${SHAPES.scaled?' · on':''}</b><span>On a side longer than 3: lane attacks cover 2 lanes, row attacks 2 rows, crosses reach 2 tiles. Both sides use it.</span></button></div>
+    <div class="lvl">${[['four','Four elements','Water douses Fire, Fire consumes Wind, Wind erodes Earth, Earth dams Water. Opposites are neutral.'],['triangle','v0.1 triangle','Fire beats Wind beats Water beats Fire. Earth units fall back to their old element.']].map(([m,name,desc])=>
+      `<button type="button" class="elm" data-m="${m}" aria-pressed="${ELEM.mode===m}"><b>${name}${ELEM.mode===m?' · on':''}</b><span>${desc}</span></button>`).join('')}</div>
+    <div class="lvl">${CARD_SHAPES.map(([k,name,desc])=>`<button type="button" class="cshape" data-k="${k}" aria-pressed="${CARD.shape===k}"><b>Cards ${name}${CARD.shape===k?' · on':''}</b><span>${desc}</span></button>`).join('')}</div>
+    <p class="squad-note">Changing the grid, shapes or elements restarts the battle. Your formation is kept per grid size.</p>`;
+}
+function renderLegend(){
+  const cyc = ELEM.mode==='four' ? ['water','fire','wind','earth','water'] : ['fire','wind','water','fire'];
+  $('#legend').innerHTML = cyc.map(e=>`<span class="pill bg-${e}">${sigil(e)}${ELEMS[e].label}</span>`).join('beats');
+}
+$('#gridSize').addEventListener('click', e=>{
+  if(S.phase==='run') return;
+  if(e.target.closest('.shp')){ SHAPES.scaled = !SHAPES.scaled; renderGridSize(); reset(); return; }
+  const cs = e.target.closest('.cshape'); if(cs){ CARD.shape = cs.dataset.k; document.body.dataset.shape = CARD.shape; renderGridSize(); render(); return; }
+  const m = e.target.closest('.elm'); if(m){ ELEM.mode = m.dataset.m; renderGridSize(); renderLegend(); reset(); return; }
+  const b = e.target.closest('.gs'); if(!b) return;
+  Object.assign(GRID, GRID_SIZES[+b.dataset.i]); renderGridSize(); reset();
+});
+function syncKnobs(){
+  T.elem = +$('#kElem').value/100; T.chain = +$('#kChain').value/100; T.fall = +$('#kFall').value/100;
+  $('#oElem').textContent = '×'+T.elem.toFixed(2);
+  $('#oChain').textContent = '+'+Math.round(T.chain*100)+'%';
+  $('#oFall').textContent = '−'+Math.round(T.fall*100)+'%';
+}
+for(const id of ['#kElem','#kChain','#kFall']) $(id).addEventListener('input', ()=>{ syncKnobs(); if(S && S.phase==='plan'){ render(); } });
+syncKnobs();
+renderSquad();
+renderRules();
+renderGridSize();
+renderLegend();
+reset();
+</script>
+
+</body></html>
