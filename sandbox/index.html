@@ -395,7 +395,10 @@ const AUGS = {
   lingering:{name:'Lingering', fam:'water', prefix:'Lingering', fits:['debuff'], desc:'Stun and Burn last 1 round longer. Does not stack; stun caps at 2.'},
   bulwark:{name:'Bulwark', fam:'earth', prefix:'Bedrock', fits:['shield'], desc:'+20% shield. Stacks.'},
   hasten:{name:'Hasten', fam:'wind', prefix:'Swift', fits:['any'], desc:'Cooldown −1. Stacks, never below 1.'},
+  celerity:{name:'Celerity', fam:'wind', prefix:'Fleet', fits:['damage','heal','shield'], desc:'Fires this skill as the battle starts. Then by stars: 1★ locked for the fight, 2★ double cooldown, 3★ normal cooldown, 4★ ready again.'},
 };
+// Celerity's cooldown after the opener, by the card's stars (multiplier on the skill's cooldown; Infinity = locked).
+const CELERITY_CD = {1:Infinity, 2:2, 3:1, 4:0};
 // The family with the most augments wins; a tie goes to the one slotted first. Strength 1–3 follows that family's count.
 function aura(augs){
   const n = {}; for(const a of augs) n[AUGS[a.aug||a].fam] = (n[AUGS[a.aug||a].fam]||0) + 1;
@@ -432,6 +435,7 @@ function applyAugs(skills, augs){
       if(s.fx.stun) s.fx.stun = Math.min(STUN_CAP, s.fx.stun+1);
       if(s.fx.burn) s.fx.burn += 1;
     }
+    if(n('celerity')) s.celerity = true;
     s.augs = augs.filter(a=>a.skill===i).map(a=>a.aug);
     if(s.augs.length){
       // The skill takes the prefix of its leading family's first augment: Foxfire Lance + Kindling = Kindled Foxfire Lance.
@@ -582,13 +586,36 @@ function placeHero(id,r,c){
   S.flash.push(tk('P',r,c));
   render(); spawnFx();
 }
-function startBattle(quiet){
+async function startBattle(quiet){
   FORMATION[gridKey()] = Object.fromEntries(S.units.filter(u=>u.side==='P').map(u=>[u.key,[u.r,u.c]]));
   S.phase = 'plan'; S.sel = {id:S.units.find(u=>u.side==='P').id, act:null};
   if(quiet) return;
+  if(await runOpeners()) return finish();
   addLog('Round 1', 'sys');
   addLog('Tap a hero, pick an action, then tap a highlighted tile. Heroes you leave unqueued use a basic attack after the queue.');
   render();
+}
+// Celerity: before round 1, every skill carrying it fires once, fastest unit first, at the AI's preferred target.
+// The opener is not a chain link, its stun lasts at most 1 round, and the cooldown that follows depends on the card's stars.
+// Returns true if the openers ended the battle.
+async function runOpeners(){
+  const openers = S.units.filter(u=>u.alive).sort((a,b)=>b.spd-a.spd)
+    .flatMap(u=>u.skills.map((s,i)=>({u, i, s})).filter(x=>x.s.celerity));
+  if(!openers.length) return false;
+  S.phase = 'run';
+  addLog('Opening volley', 'sys');
+  for(const {u, i} of openers){
+    if(!u.alive) continue;
+    const a = act(u,'s'+i);
+    const opener = (a.fx && a.fx.stun > 1) ? {...a, fx:{...a.fx, stun:1}} : a;
+    const p = opener.pattern==='all' ? [u.r,u.c] : pick(u,opener);
+    if(!p) continue;
+    await perform(u, opener, p[0], p[1], 0);
+    u.cd[i] = a.cd * CELERITY_CD[u.stars || 1];
+    if(over()) return true;
+  }
+  S.phase = 'plan';
+  return false;
 }
 
 const opp = s => s==='P' ? 'E' : 'P';
@@ -1149,7 +1176,7 @@ function actBtn(u,k,stunned){
   else if(a.kind==='tile') meta = `Any enemy tile${a.wide?' + behind':''}<br>${a.effect.payload.power}× ATK · CD ${a.cd}`;
   else if(a.kind==='buff') meta = `Enemy grid<br>Team buff · CD ${a.cd}`;
   else meta = 'Self';
-  const cdTxt = a.isSkill ? (left ? `<span class="act-cd">${left} rd</span>` : '<span class="act-cd ready">Ready</span>') : '';
+  const cdTxt = a.isSkill ? (left===Infinity ? '<span class="act-cd">Locked</span>' : left ? `<span class="act-cd">${left} rd</span>` : '<span class="act-cd ready">Ready</span>') : '';
   return `<button type="button" class="act ${a.isSkill?'skill':''} ${S.sel.act===k?'on':''}" data-key="${k}" ${dis?'disabled':''}>
     <span class="act-top"><span class="act-name">${a.name}</span>${cdTxt}</span>
     <span class="act-mid">${mini(a)}<span class="act-meta">${meta}</span></span>
@@ -1590,6 +1617,32 @@ const CHECKS = [
     const ok = s[0].name==='Kindled Foxfire Lance' && s[1].name==='Ninefold Blaze' && a1.fam==='wind' && a1.lvl===1 && a2.fam==='fire' && a2.lvl===2;
     return [ok, `${s[0].name} / ${s[1].name} · Hasten then Kindling → ${a1.fam} ${a1.lvl} · plus Keen → ${a2.fam} ${a2.lvl}`];
   }],
+  ['Celerity · fits damage, heal and shield skills, renames with Fleet, and marks the skill as an opener', async()=>{
+    const k = applyAugs(heroDef('kaede').skills, [{aug:'celerity',skill:1}]);
+    const fitsAll = ['kaede','brann','ilse'].every(h=>heroDef(h).skills.every(s=>fits('celerity',s)));
+    return [k[1].celerity===true && !k[0].celerity && k[1].name==='Fleet Ninefold Blaze' && fitsAll, `${k[1].name} · opener ${!!k[1].celerity} · fits every starter skill ${fitsAll}`];
+  }],
+  ['Celerity · fires before round 1, not as a chain link; then locked at 1★, double cooldown at 2★, normal at 3★, ready at 4★', ()=>withRules({}, async()=>{
+    const out = [];
+    for(const stars of [1,2,3,4]){
+      const g = scenario([['kaede',1,1]],[[0,1]]); const k = g('P-kaede');
+      k.stars = stars; k.skills = applyAugs(heroDef('kaede').skills, [{aug:'celerity',skill:1}]);
+      await runOpeners();
+      out.push({stars, hit:lost(g('E-post0'))>0, cd:k.cd[1], chain:S.trace[0] && S.trace[0].chainMult, phase:S.phase});
+    }
+    const want = [Infinity, 8, 4, 0];
+    const ok = out.every((o,i)=>o.hit && o.cd===want[i] && o.chain===1 && o.phase==='plan');
+    return [ok, out.map(o=>`${o.stars}★ cooldown ${o.cd===Infinity?'locked':o.cd}`).join(' · ') + ` · chain ×${out[0].chain}`];
+  })],
+  ['Celerity · an opener stun lasts 1 round even with Lingering; the same skill in the queue keeps its 2', ()=>withRules({}, async()=>{
+    const g = scenario([['brann',0,1]],[[0,1]]); const b = g('P-brann'), post = g('E-post0');
+    b.stars = 4; b.skills = applyAugs(heroDef('brann').skills, [{aug:'celerity',skill:0},{aug:'lingering',skill:0}]);
+    await runOpeners();
+    const opened = post.st.stun;
+    post.st.stun = 0; S.phase = 'run';
+    await perform(b, act(b,'s0'), post.r, post.c, 0);
+    return [opened===1 && post.st.stun===2, `${b.skills[0].name}: opener stun ${opened}, queued stun ${post.st.stun}`];
+  })],
 ];
 // Runs fn on a fresh starting collection, then puts the player's cards back as they were.
 async function withCollection(fn){
