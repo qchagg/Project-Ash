@@ -1,0 +1,45 @@
+<title>Ashgrid Playtest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Cormorant:ital,wght@1,700&display=swap">
+<style>
+/* Godot web shell for the playtest artifact: one full-screen canvas over the warm black, a gilded loading screen until the engine starts. */
+:root{--ink:#120e0a;--gold:#e3c278;--gold-deep:#c9a24f;--parch:#ece0c4;--display:'Cinzel',Georgia,serif;--italic:'Cormorant',Georgia,serif;color-scheme:dark}
+html,body{height:100%;margin:0;background:var(--ink);overflow:hidden;touch-action:none}
+#canvas{display:block}
+#canvas:focus{outline:none}
+#status{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--ink);color:var(--parch);text-align:center;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#status b{font-family:var(--display);font-weight:900;font-size:clamp(34px,9vw,52px);color:var(--gold);letter-spacing:.04em}
+#msg{font-family:var(--italic);font-style:italic;font-weight:700;font-size:20px;max-width:30ch;margin:0}
+#bar{width:min(320px,70vw);height:4px;background:rgba(227,194,120,.18);box-shadow:0 0 0 1px var(--gold-deep),0 0 0 5px var(--ink),0 0 0 6px rgba(201,162,79,.5)}
+#bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .2s}
+@media (prefers-reduced-motion:reduce){#bar i{transition:none}}
+</style>
+<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
+<noscript>Ashgrid needs JavaScript to run.</noscript>
+<div id="status" role="status"><b>Ashgrid</b><span id="bar" aria-hidden="true"><i></i></span><p id="msg">Kindling the forge…</p></div>
+<script>
+// Artifacts serve files up to 15 MB and only web types, so the engine (index.wasm, ~40 MB) and the game pack (index.pck)
+// ship as gzipped base64 text (tools/godot-export-web.sh). Unpack them on the way in.
+const _fetch = window.fetch;
+const unpack = url => _fetch(url + '.gz.b64.txt').then(r => r.text()).then(b64 => {
+  const bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')),
+    {headers: {'Content-Type': url.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream'}});
+});
+window.fetch = (url, opts) => /\.(wasm|pck)$/.test(String(url)) ? unpack(String(url)) : _fetch(url, opts);
+</script>
+<script src="$GODOT_URL"></script>
+<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const engine = new Engine(GODOT_CONFIG);
+const bar = document.querySelector('#bar i'), msg = document.getElementById('msg');
+const missing = Engine.getMissingFeatures({threads: $GODOT_THREADS_ENABLED});
+if (missing.length) {
+  msg.textContent = 'This browser can’t run the game. Missing: ' + missing.join(', ') + '.';
+} else {
+  engine.startGame({onProgress: (cur, total) => { if (total > 0) bar.style.width = (100 * cur / total) + '%'; }})
+    .then(() => document.getElementById('status').remove())
+    .catch(err => { console.error(err); msg.textContent = 'The game could not start: ' + (err && err.message || err); });
+}
+</script>
