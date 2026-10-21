@@ -60,22 +60,37 @@ func _build() -> void:
 	var col := Forge.vbox(34)
 	body.add_child(col)
 
-	var head := Forge.hbox(32)
-	col.add_child(head)
+	# The card, standing tilted like the Gilded Forge sheet, with the name centred beneath.
+	var stage := Control.new()
+	stage.custom_minimum_size = Vector2(632, 500)
+	col.add_child(stage)
 	var art := CardArt.new().setup(hero, c.stars)
 	art.ornate = true
-	art.custom_minimum_size = Vector2(200, 266)
-	head.add_child(art)
+	art.showcase = true
+	art.size = Vector2(330, 440)
+	art.position = Vector2((632 - 330) / 2.0, 22)
+	art.pivot_offset = art.size / 2
+	art.rotation_degrees = -2.5
+	stage.add_child(art)
+
 	var names := Forge.vbox(10)
-	names.size_flags_vertical = SIZE_SHRINK_CENTER
-	head.add_child(names)
-	names.add_child(Forge.sc(h.name, 52, Forge.PARCHMENT, true, 0.1))
-	names.add_child(Forge.sc(h.title, 24, Forge.GOLD))
-	var stars := Forge.hbox(6)
+	col.add_child(names)
+	var nm := Forge.sc(h.name, 62, Forge.PARCHMENT, true, 0.1)
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	nm.add_theme_color_override("font_shadow_color", Color.BLACK)
+	nm.add_theme_constant_override("shadow_offset_y", 4)
+	names.add_child(nm)
+	var tl := Forge.hbox(16)
+	tl.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.add_child(tl)
+	tl.add_child(_hairline(52))
+	tl.add_child(Forge.sc(h.title, 24, Forge.GOLD))
 	for i in c.stars:
-		stars.add_child(Forge.glyph("star", 22, Data.TIER_COLORS[c.stars].lightened(0.15)))
-	names.add_child(stars)
-	names.add_child(Forge.sc("%s · %s" % [Data.ELEMS[h.elem].label, h.range], 20, Forge.LABEL))
+		tl.add_child(Forge.glyph("star", 20, Data.TIER_COLORS[c.stars].lightened(0.15)))
+	tl.add_child(_hairline(52))
+	var kind := Forge.sc("%s · %s" % [Data.ELEMS[h.elem].label, h.range], 20, Forge.LABEL)
+	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	names.add_child(kind)
 
 	col.add_child(_stats(c))
 	col.add_child(_kit(c))
@@ -439,3 +454,11 @@ func _kv(k: String, val: String, color: Color) -> Control:
 	h.add_child(a)
 	h.add_child(Forge.label(val, 24, color, Forge.SANS_BOLD))
 	return h
+
+
+func _hairline(w: int) -> Control:
+	var r := ColorRect.new()
+	r.color = Forge.GOLD_DEEP
+	r.custom_minimum_size = Vector2(w, 2)
+	r.size_flags_vertical = SIZE_SHRINK_CENTER
+	return r
