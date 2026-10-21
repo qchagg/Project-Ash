@@ -160,6 +160,8 @@ func _filter(elem: String, glyph: String, tint: Color) -> Button:
 	return b
 
 
+## Roster · Squad · Town · Battle · Codex. Town, the home of meta-progression, sits raised in the centre on a medallion.
+## Codex holds settings and lore. Only the roster is built so far; the rest are dimmed.
 func _tab_bar() -> Control:
 	var bar := PanelContainer.new()
 	var s := Forge.flat(Forge.PLAQUE_DEEP)
@@ -169,17 +171,39 @@ func _tab_bar() -> Control:
 	bar.custom_minimum_size.y = 136
 	var h := Forge.hbox(0)
 	bar.add_child(h)
-	for t in [["roster", "tab_roster", true], ["squad", "tab_squad", false], ["battle", "tab_battle", false]]:
+	for t in [["roster", "tab_roster", true], ["squad", "tab_squad", false], ["town", "tab_town", false],
+			["battle", "tab_battle", false], ["codex", "tab_codex", false]]:
 		var v := Forge.vbox(8)
-		v.alignment = BoxContainer.ALIGNMENT_CENTER
+		v.alignment = BoxContainer.ALIGNMENT_END if t[0] == "town" else BoxContainer.ALIGNMENT_CENTER
 		v.size_flags_horizontal = SIZE_EXPAND_FILL
+		v.tooltip_text = "" if t[2] else "Coming soon"
 		var col: Color = Forge.GOLD_LIGHT if t[2] else Color(Forge.DIM, 0.6)
-		var g := Forge.glyph(t[1], 40, col)
-		g.size_flags_horizontal = SIZE_SHRINK_CENTER
-		v.add_child(g)
-		var l := Forge.sc(t[0], 20, col)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		v.add_child(l)
+		if t[0] == "town":
+			# The medallion rises above the bar; its glyph is drawn on it.
+			var m := Control.new()
+			m.custom_minimum_size = Vector2(0, 40)
+			m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			m.draw.connect(func():
+				var c := Vector2(m.size.x / 2, -14)
+				m.draw_circle(c, 56, Forge.INK)
+				m.draw_circle(c, 52, Forge.GOLD_DEEP)
+				m.draw_circle(c, 49, Forge.PLAQUE_DEEP)
+				m.draw_arc(c, 43, 0, TAU, 48, Color(Forge.GOLD, 0.35), 1.5, true)
+				m.draw_texture_rect(Forge.icon("tab_town"), Rect2(c - Vector2(26, 26), Vector2(52, 52)), false, Forge.GOLD))
+			v.add_child(m)
+			var tl := Forge.sc("town", 20, Forge.GOLD)
+			tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			v.add_child(tl)
+			var pad := Control.new()
+			pad.custom_minimum_size.y = 22
+			v.add_child(pad)
+		else:
+			var g := Forge.glyph(t[1], 40, col)
+			g.size_flags_horizontal = SIZE_SHRINK_CENTER
+			v.add_child(g)
+			var l := Forge.sc(t[0], 20, col)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			v.add_child(l)
 		if t[2]:
 			v.draw.connect(func(): Forge.diamond(v, Vector2(v.size.x / 2, -2), 9, Forge.GOLD))
 		h.add_child(v)

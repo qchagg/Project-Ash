@@ -34,12 +34,12 @@ const HEROES := [
 		{"name": "Ninefold Blaze", "flavor": "He lets the fire off its leash, and it finds everyone.", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.7, "cd": 4, "fx": {"burn": 1}, "desc": "Nine tails of fire hit every enemy tile."}]},
 	{"key": "brann", "favored": ["resolve", "might"], "bio": "[A line of bio goes here.]", "name": "Brann", "title": "Eternal Rider", "elem": "earth", "legacy_elem": "water", "range": "melee",
 		"max_hp": 1400, "atk": 100, "def": 95, "spd": 70, "r": 0, "c": 1,
-		"portrait": {"src": "res://art/portraits/brann.webp", "x": 54, "y": 44, "zoom": 2.0}, "skills": [
+		"portrait": {"src": "res://art/portraits/brann.webp", "x": 54, "y": 44, "zoom": 2.0}, "full": {"src": "res://art/full/brann.webp", "x": 50, "w": 1.5, "face": [53, 11]}, "skills": [
 		{"name": "Rockfall", "flavor": "The mountain answers when he charges.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.4, "cd": 3, "fx": {"stun": 1}, "desc": "Heavy blow to an exposed enemy. Stuns it for its next action."},
 		{"name": "Breakwater", "flavor": "He plants his feet, and the line holds.", "kind": "shield", "pattern": "all", "power": 1.9, "cd": 4, "desc": "Shields every ally. Shields hold until broken."}]},
 	{"key": "sorrel", "favored": ["finesse", "wits"], "bio": "[A line of bio goes here.]", "name": "Sorrel", "title": "Gale Archer", "elem": "wind", "range": "ranged",
 		"max_hp": 900, "atk": 135, "def": 45, "spd": 105, "r": 1, "c": 0,
-		"portrait": {"src": "res://art/portraits/sorrel.webp", "x": 52, "y": 44, "zoom": 2.0}, "skills": [
+		"portrait": {"src": "res://art/portraits/sorrel.webp", "x": 52, "y": 44, "zoom": 2.0}, "full": {"src": "res://art/full/sorrel.webp", "x": 50, "w": 1.4, "face": [51, 35]}, "skills": [
 		{"name": "Crosswind", "flavor": "His arrows ride the gale four ways at once.", "kind": "dmg", "range": "ranged", "pattern": "cross", "power": 1.0, "cd": 2, "desc": "Hits a tile and its four neighbors."},
 		{"name": "Pinning Shot", "flavor": "One arrow, and the target forgets how to move.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
 	{"key": "ilse", "favored": ["lore", "charm"], "bio": "Tide chantress of Jaladesh, once cursed as a sea-witch.", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
