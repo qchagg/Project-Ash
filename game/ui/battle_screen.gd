@@ -17,6 +17,7 @@ const PANEL_H := 300.0
 const HIT_STOP := 0.09
 ## The strip's middle: the queue chips, the forecast bar or the round's log, whichever is showing.
 const MID_H := 104.0
+const HEAD := 100.0
 
 var b: Battle
 ## The board as currently shown (unit id -> snapshot); it trails the engine during playback.
@@ -266,8 +267,9 @@ func is_step(side: String, r: int, c: int) -> bool:
 	return v in b.step_tiles(u) and (shown.is_empty() or v != Vector2i(shown.r, shown.c)) and unit_view(side, r, c).is_empty()
 
 
-## The forecast bar, Fire Emblem style: who acts, what with, and the target's HP before and after. With several
-## targets in the shape, the arrows (or a tap on a numbered tile) step through them.
+## The forecast bar, Fire Emblem style: the acting hero's headshot faces the target's across the numbers, with the
+## target's HP before and after between them. With several targets in the shape, the arrows (or a tap on a numbered
+## tile) step through them.
 func _fill_forecast() -> void:
 	for ch in _forecast.get_children():
 		ch.queue_free()
@@ -279,60 +281,81 @@ func _fill_forecast() -> void:
 	var a := b.act(me, sel_act)
 	var t := b.unit(e.id)
 	var tint: Color = Forge.MEND if e.kind != "dmg" else Forge.HARM
-	var row := Forge.hbox(14)
+	var row := Forge.hbox(10)
 	row.size_flags_vertical = SIZE_EXPAND_FILL
 	_forecast.add_child(row)
-	row.add_child(Forge.skill_icon(a, me.elem, 58))
-	var left := Forge.vbox(0)
-	left.size_flags_vertical = SIZE_SHRINK_CENTER
-	left.custom_minimum_size.x = 150
-	left.add_child(Forge.sc(Battle.name_of(me), 18, Forge.LABEL))
-	var an := Forge.sc(a.name, 20, Forge.GOLD)
+	var mine := _headshot(me, Forge.GOLD_LIGHT)
+	var icon := Forge.skill_icon(a, me.elem, 40)
+	icon.position = Vector2(HEAD - 30, -8)
+	mine.add_child(icon)
+	row.add_child(mine)
+	var mid := Forge.vbox(2)
+	mid.size_flags_horizontal = SIZE_EXPAND_FILL
+	mid.size_flags_vertical = SIZE_SHRINK_CENTER
+	row.add_child(mid)
+	var tags := Forge.hbox(8)
+	mid.add_child(tags)
+	var an := Forge.sc(a.name + "  →", 20, Forge.GOLD)
 	an.clip_text = true
 	an.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	an.custom_minimum_size.x = 150
-	left.add_child(an)
-	row.add_child(left)
-	var arrow := Forge.sc("→", 26, tint)
-	arrow.size_flags_vertical = SIZE_SHRINK_CENTER
-	row.add_child(arrow)
-	var right := Forge.vbox(2)
-	right.size_flags_horizontal = SIZE_EXPAND_FILL
-	right.size_flags_vertical = SIZE_SHRINK_CENTER
-	row.add_child(right)
-	var top := Forge.hbox(8)
-	right.add_child(top)
-	top.add_child(Forge.sc(Battle.name_of(t), 20, Forge.PARCHMENT))
-	if e.edge != "":
-		top.add_child(Forge.sc(e.edge, 16, Forge.GAIN if e.edge == "weak" else Forge.MUTED))
-	if e.ko:
-		top.add_child(Forge.sc("knocked out", 16, Forge.HARM, true))
+	an.size_flags_horizontal = SIZE_EXPAND_FILL
+	tags.add_child(an)
 	var nums := Forge.hbox(8)
-	right.add_child(nums)
+	mid.add_child(nums)
 	if e.kind == "shield":
 		nums.add_child(Forge.sc("shield +%d" % e.shield, 26, Forge.MEND, true, 0.04))
 	else:
-		nums.add_child(Forge.sc("hp %d" % e.before, 22, Forge.MUTED, false, 0.04))
+		nums.add_child(Forge.sc("hp %d" % e.before, 20, Forge.MUTED, false, 0.04))
 		nums.add_child(Forge.sc("→ %d" % e.after, 28, tint, true, 0.04))
-		var diff: int = e.after - e.before
-		nums.add_child(Forge.sc("(%+d)" % diff, 18, Forge.MUTED, false, 0.04))
-	right.add_child(_hp_bar(e))
-	if _fc.size() > 1:
-		var cyc := Forge.hbox(0)
-		cyc.size_flags_vertical = SIZE_SHRINK_CENTER
-		row.add_child(cyc)
-		for d in [-1, 1]:
-			var bt := Forge.link("‹" if d < 0 else "›", "", 30)
-			bt.custom_minimum_size = Vector2(44, 64)
-			bt.pressed.connect(func():
-				_fc_i = (_fc_i + d + _fc.size()) % _fc.size()
-				_fill_forecast()
-				_redraw_tiles())
-			cyc.add_child(bt)
-			if d < 0:
-				var n := Forge.sc("%d/%d" % [_fc_i + 1, _fc.size()], 18, Forge.LABEL)
-				n.size_flags_vertical = SIZE_SHRINK_CENTER
-				cyc.add_child(n)
+		nums.add_child(Forge.sc("(%+d)" % (e.after - e.before), 18, Forge.MUTED, false, 0.04))
+	mid.add_child(_hp_bar(e))
+	if e.edge != "":
+		tags.add_child(Forge.sc(e.edge, 16, Forge.GAIN if e.edge == "weak" else Forge.MUTED))
+	if e.ko:
+		tags.add_child(Forge.sc("knocked out", 16, Forge.HARM, true))
+	# Several targets: the count sits on the target's headshot and the arrows either side step through them.
+	var theirs := _headshot(t, tint, e.ko, "%d/%d" % [_fc_i + 1, _fc.size()] if _fc.size() > 1 else "")
+	var cyc := Forge.hbox(0)
+	cyc.size_flags_vertical = SIZE_SHRINK_CENTER
+	row.add_child(cyc)
+	for d in [-1, 1]:
+		if d > 0:
+			cyc.add_child(theirs)
+		if _fc.size() < 2:
+			continue
+		var bt := Forge.link("‹" if d < 0 else "›", "", 30)
+		bt.custom_minimum_size = Vector2(34, 64)
+		bt.pressed.connect(func():
+			_fc_i = (_fc_i + d + _fc.size()) % _fc.size()
+			_fill_forecast()
+			_redraw_tiles())
+		cyc.add_child(bt)
+
+
+## A unit's face, cropped by the portrait's eye line, framed in `edge`, with the name across the bottom. Foes without
+## art show their element. A knocked-out forecast greys the face and marks it with a skull; `badge` is a corner count.
+func _headshot(u: Dictionary, edge: Color, ko := false, badge := "") -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(HEAD, HEAD)
+	c.size_flags_vertical = SIZE_SHRINK_CENTER
+	c.draw.connect(func():
+		var r := Rect2(Vector2.ZERO, c.size)
+		c.draw_rect(r, Color(Forge.ELEM[u.elem], 0.25))
+		if u.has("portrait"):
+			Forge.portrait(c, tex(u.portrait.src), r.grow(-2), u.portrait, 0.85)
+		else:
+			c.draw_texture_rect(Forge.sigil(u.elem), Rect2(r.get_center() - Vector2(26, 34), Vector2(52, 52)), false, Forge.GOLD)
+		c.draw_polygon(PackedVector2Array([Vector2(0, HEAD * 0.55), Vector2(HEAD, HEAD * 0.55), Vector2(HEAD, HEAD), Vector2(0, HEAD)]),
+			PackedColorArray([Color(Forge.INK, 0), Color(Forge.INK, 0), Color(Forge.INK, 0.92), Color(Forge.INK, 0.92)]))
+		if ko:
+			c.draw_rect(r, Color(Forge.INK, 0.5))
+			BattleTile.skull(c, r.get_center() + Vector2(0, -8), 1.6)
+		c.draw_string(Forge.tracked(Forge.SC, 1), Vector2(0, HEAD - 8), Battle.name_of(u).to_lower(), HORIZONTAL_ALIGNMENT_CENTER, HEAD, 16, Forge.PARCHMENT)
+		if badge != "":
+			c.draw_rect(Rect2(HEAD - 40, 0, 40, 22), Color(Forge.INK, 0.9))
+			c.draw_string(Forge.SC, Vector2(HEAD - 40, 17), badge, HORIZONTAL_ALIGNMENT_CENTER, 40, 16, Forge.PARCHMENT)
+		c.draw_rect(r, edge, false, 3.0))
+	return c
 
 
 ## An HP bar showing the part an attack takes (red) or a heal restores (green).

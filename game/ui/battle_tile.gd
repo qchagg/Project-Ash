@@ -164,16 +164,16 @@ func _preview(pv: Dictionary) -> void:
 	draw_rect(box, col if pv.current else Color(col, 0.5), false, 3.0 if pv.current else 1.5)
 	draw_string(f, box.position + Vector2(9, 29), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px, col.lightened(0.15))
 	if pv.ko:
-		_skull(Vector2(box.end.x + 14, box.position.y + 19))
+		skull(self, Vector2(box.end.x + 14, box.position.y + 19))
 
 
 ## A small skull: the forecast says this hit knocks the unit out.
-func _skull(cpt: Vector2) -> void:
-	draw_circle(cpt, 12, Forge.INK)
-	draw_circle(cpt + Vector2(0, -2), 9, Forge.PARCHMENT)
-	draw_rect(Rect2(cpt + Vector2(-5, 4), Vector2(10, 6)), Forge.PARCHMENT)
-	draw_circle(cpt + Vector2(-3.5, -2), 2.6, Forge.INK)
-	draw_circle(cpt + Vector2(3.5, -2), 2.6, Forge.INK)
+static func skull(ci: CanvasItem, cpt: Vector2, k := 1.0) -> void:
+	ci.draw_circle(cpt, 12 * k, Forge.INK)
+	ci.draw_circle(cpt + Vector2(0, -2) * k, 9 * k, Forge.PARCHMENT)
+	ci.draw_rect(Rect2(cpt + Vector2(-5, 4) * k, Vector2(10, 6) * k), Forge.PARCHMENT)
+	ci.draw_circle(cpt + Vector2(-3.5, -2) * k, 2.6 * k, Forge.INK)
+	ci.draw_circle(cpt + Vector2(3.5, -2) * k, 2.6 * k, Forge.INK)
 
 
 ## The aimed tile: corner brackets in the action's colour.
