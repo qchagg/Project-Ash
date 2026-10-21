@@ -1,7 +1,7 @@
 class_name CharacterView
 extends Control
 ## The hero out of the card: full art drifting over their element's backdrop, name, title and lore.
-## Matchups fold away under the element tag. A painted regional background can slot in under the backdrop.
+## The first page of a hero: the sheet sits one scroll below. Matchups fold away under the element tag. A painted regional background can slot in under the backdrop.
 
 const MODE := "four"
 
@@ -13,6 +13,9 @@ var _art: Control
 var _tex: Texture2D
 var _tags: VBoxContainer
 var _t := 0.0
+var _arrow_btn: Button
+
+signal down_requested
 
 
 func setup(a: App, hero_key: String, card_uid: String) -> CharacterView:
@@ -46,23 +49,7 @@ func _ready() -> void:
 	motes.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(motes)
 
-	var top := Forge.margins(MarginContainer.new(), 30, 12, 44, 0)
-	top.set_anchors_preset(PRESET_TOP_WIDE)
-	add_child(top)
-	var tb := Forge.hbox(0)
-	top.add_child(tb)
-	var back := Forge.link("sheet")
-	back.pressed.connect(func(): app.show_hero(hero, uid))
-	tb.add_child(back)
-	var sp := Control.new()
-	sp.size_flags_horizontal = SIZE_EXPAND_FILL
-	tb.add_child(sp)
-	if c.stars < 4:
-		var hint := Forge.sc("%d★ · steps out of the frame at 4★" % c.stars, 22, Forge.LABEL)
-		hint.size_flags_vertical = SIZE_SHRINK_CENTER
-		tb.add_child(hint)
-
-	var foot := Forge.margins(MarginContainer.new(), 44, 0, 44, 60)
+	var foot := Forge.margins(MarginContainer.new(), 44, 0, 44, 190)
 	foot.set_anchors_preset(PRESET_BOTTOM_WIDE)
 	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(foot)
@@ -70,6 +57,8 @@ func _ready() -> void:
 	foot.add_child(v)
 	var names := Forge.vbox(10)
 	v.add_child(names)
+	if c.stars < 4:
+		names.add_child(Forge.sc("%d★ · steps out of the frame at 4★" % c.stars, 20, Forge.LABEL))
 	var nm := Forge.sc(h.name, 96, Forge.PARCHMENT, true, 0.08)
 	nm.add_theme_color_override("font_shadow_color", Color.BLACK)
 	nm.add_theme_constant_override("shadow_offset_y", 5)
@@ -91,6 +80,29 @@ func _ready() -> void:
 	_tags = Forge.vbox(18)
 	v.add_child(_tags)
 	_fill_tags()
+	add_child(_arrow())
+
+
+## The bobbing arrow at the foot of the page: the sheet is one scroll (or one tap) below.
+func _arrow() -> Control:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.tooltip_text = "Stats and skills"
+	b.custom_minimum_size = Vector2(200, 130)
+	b.position = Vector2(260, 1560 - 150)
+	b.size = Vector2(200, 130)
+	b.pressed.connect(func(): down_requested.emit())
+	b.draw.connect(func():
+		var bob := 8.0 * sin(_t * TAU / 1.6)
+		var f := Forge.tracked(Forge.SC, 3)
+		b.draw_string(f, Vector2(0, 34), "stats", HORIZONTAL_ALIGNMENT_CENTER, b.size.x, 22, Forge.GOLD)
+		var c := Vector2(b.size.x / 2, 74 + bob)
+		b.draw_polyline(PackedVector2Array([c + Vector2(-20, -8), c + Vector2(0, 12), c + Vector2(20, -8)]), Forge.GOLD_LIGHT, 3.0, true)
+		b.draw_polyline(PackedVector2Array([c + Vector2(-14, 10), c + Vector2(0, 24), c + Vector2(14, 10)]), Color(Forge.GOLD, 0.45), 2.0, true))
+	_arrow_btn = b
+	return b
 
 
 func _fill_tags() -> void:
@@ -167,6 +179,8 @@ func _line(text: String, elem: String) -> Control:
 func _process(delta: float) -> void:
 	_t += delta
 	_art.queue_redraw()
+	if _arrow_btn:
+		_arrow_btn.queue_redraw()
 
 
 func _draw_art() -> void:

@@ -347,11 +347,11 @@ const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce
 let DELAY = reduced ? 180 : 580;
 
 const HEROES = [
-  {key:'kaede', name:'Kaede', title:'Ember Vixen', elem:'fire', range:'ranged', maxHp:820, atk:150, def:40, spd:92, r:1, c:1,
+  {key:'kaede', name:'Surya', title:'Desert Fox', elem:'fire', range:'ranged', maxHp:820, atk:150, def:40, spd:92, r:1, c:1,
     portrait:{src:'portraits/kaede.webp', x:58, y:48, zoom:2.0}, skills:[
     {name:'Foxfire Lance', kind:'dmg', range:'ranged', pattern:'pierce', power:1.25, cd:2, fx:{burn:2}, desc:'Spears an entire lane, front to back. Burns for 2 rounds.'},
     {name:'Ninefold Blaze', kind:'dmg', range:'ranged', pattern:'all', power:0.7, cd:4, fx:{burn:1}, desc:'Nine tails of fire hit every enemy tile.'}]},
-  {key:'brann', name:'Brann', title:'Harbor Wall', elem:'earth', legacyElem:'water', range:'melee', maxHp:1400, atk:100, def:95, spd:70, r:0, c:1,
+  {key:'brann', name:'Brann', title:'Eternal Rider', elem:'earth', legacyElem:'water', range:'melee', maxHp:1400, atk:100, def:95, spd:70, r:0, c:1,
     portrait:{src:'portraits/brann.webp', x:54, y:44, zoom:2.0}, skills:[
     {name:'Rockfall', kind:'dmg', range:'melee', pattern:'single', power:1.4, cd:3, fx:{stun:1}, desc:'Heavy blow to an exposed enemy. Stuns it for its next action.'},
     {name:'Breakwater', kind:'shield', pattern:'all', power:1.9, cd:4, desc:'Shields every ally. Shields hold until broken.'}]},
@@ -359,7 +359,7 @@ const HEROES = [
     portrait:{src:'portraits/sorrel.webp', x:52, y:44, zoom:2.0}, skills:[
     {name:'Crosswind', kind:'dmg', range:'ranged', pattern:'cross', power:1.0, cd:2, desc:'Hits a tile and its four neighbors.'},
     {name:'Pinning Shot', kind:'dmg', range:'ranged', pattern:'single', power:1.7, cd:3, fx:{stun:1}, desc:'Precise shot that pins one target in place.'}]},
-  {key:'ilse', name:'Ilse', title:'Tide Chantress', elem:'water', range:'ranged', maxHp:850, atk:95, def:50, spd:88, r:2, c:2,
+  {key:'ilse', name:'Varuni', title:'Tide Chantress', elem:'water', range:'ranged', maxHp:850, atk:95, def:50, spd:88, r:2, c:2,
     portrait:{src:'portraits/ilse.webp', x:40, y:36, zoom:2.1}, skills:[
     {name:'Riptide', kind:'dmg', range:'ranged', pattern:'sweep', power:0.95, cd:2, desc:'Washes across a full row.'},
     {name:'Rain of Renewal', kind:'heal', pattern:'all', power:1.6, cd:3, fx:{cleanse:true}, desc:'Heals every ally and clears burns.'}]},
@@ -1363,7 +1363,7 @@ const CHECKS = [
     S.queue = [{id:'P-probe', key:'s2', r:1, c:1},{id:'P-kaede', key:'s0', r:0, c:1}];
     S.phase='run'; await runQueue();
     const k = S.trace.find(x=>x.id==='P-kaede');
-    return [Math.abs(k.chainMult-(1+T.chain))<1e-9, `Kaede's Foxfire Lance chain ×${k.chainMult.toFixed(2)}`];
+    return [Math.abs(k.chainMult-(1+T.chain))<1e-9, `Surya's Foxfire Lance chain ×${k.chainMult.toFixed(2)}`];
   })],
   ['Engine · chain-neutral move: far tile, chain and stacks kept, mark boosts next basic', ()=>withRules({}, async()=>{
     const d0 = await baseShot();
@@ -1381,7 +1381,7 @@ const CHECKS = [
     const d = await hit(p, g('E-post0'));
     const plain = (await run('move')).ilse;
     const ok = pos[0]===0 && pos[1]===0 && Math.abs(ilse-(1+T.chain))<1e-9 && Math.abs(plain-1)<1e-9 && kept===2 && near(d, d0*1.5*1.2) && p.marks.length===0;
-    return [ok, `landed ${lane(...pos)}, Ilse chain ×${ilse.toFixed(2)} (×${plain.toFixed(2)} after a normal move), stacks kept ${kept}, next shot ×${(d/d0).toFixed(2)}`];
+    return [ok, `landed ${lane(...pos)}, Varuni chain ×${ilse.toFixed(2)} (×${plain.toFixed(2)} after a normal move), stacks kept ${kept}, next shot ×${(d/d0).toFixed(2)}`];
   })],
   ['Engine · tile effect onAct: damage and Burn when the unit acts, then gone', ()=>withRules({}, async()=>{
     const g = scenario([['probe',2,1]],[[0,1]]); const post = g('E-post0');
@@ -1470,7 +1470,7 @@ const CHECKS = [
     };
     const [k0,k2,p0,p2] = await withRules({sightline:true}, shots);
     const want = k0*(1 - T.fall - RULES.sightline.perRow*2)/(1 - T.fall);
-    return [near(k2,want) && p0===p2, `Kaede's Bolt front row ${k0} → back row ${k2} (expected ≈${want.toFixed(1)}) · probe ${p0} → ${p2}`];
+    return [near(k2,want) && p0===p2, `Surya's Bolt front row ${k0} → back row ${k2} (expected ≈${want.toFixed(1)}) · probe ${p0} → ${p2}`];
   }],
   ['Rule · Screening: each unit already hit in the lane cuts the next by 25%', async()=>{
     const lane3 = async ()=>{
@@ -1485,7 +1485,7 @@ const CHECKS = [
   ['Rule · Kindred: a same-element hit deals ×0.85', async()=>{
     const one = async ()=>{ const g = scenario([['kaede',1,1]],[[0,1]]); S.phase='run'; return hit(g('P-kaede'), g('E-post0')); };
     const off = await withRules({}, one), on = await withRules({kindred:true}, one);
-    return [near(on, off*RULES.kindred.mult), `Kaede (Fire) on a Fire post: off ${off} · on ${on}`];
+    return [near(on, off*RULES.kindred.mult), `Surya (Fire) on a Fire post: off ${off} · on ${on}`];
   }],
   ['Rule · Focus: a link on the same target as the previous link gets +5%', async()=>{
     const run = (target)=>withRules({focus:true}, async()=>{
@@ -1496,7 +1496,7 @@ const CHECKS = [
     });
     const same = await run([0,1]), other = await run([0,0]);
     const ok = Math.abs(same-(1+T.chain+RULES.focus.perLink))<1e-9 && Math.abs(other-(1+T.chain))<1e-9;
-    return [ok, `Sorrel's Pinning Shot after Kaede: same target ×${same.toFixed(2)} · other target ×${other.toFixed(2)}`];
+    return [ok, `Sorrel's Pinning Shot after Surya: same target ×${same.toFixed(2)} · other target ×${other.toFixed(2)}`];
   }],
   ['Rule · Shatter: a big enough overshoot shatters; a bare kill does not', ()=>withRules({shatter:true}, async()=>{
     const g = scenario([['kaede',1,1]],[[0,0],[0,2]]); S.phase='run';
@@ -1538,7 +1538,7 @@ const CHECKS = [
     const want = Object.fromEntries(STATS.map(s=>[s, Math.round(Math.max(k1.base[s], k2.base[s])*1.1)]));
     const r = mergeCards('kaede', k2.uid), got = cardStats(k1);
     const ok = r.ok && k1.stars===2 && STATS.every(s=>got[s]===want[s]) && !cardBy(k2.uid) && k1.augs.length===1 && k1.augs[0].aug==='keen' && k1.augs[0].skill===0 && k1.augs[0].locked && !LOOSE.includes('keen');
-    return [ok, `2★ Kaede ${STATS.map(s=>s+' '+got[s]).join(', ')} (expected ${STATS.map(s=>want[s]).join('/')}) · augments ${k1.augs.map(a=>a.aug+(a.locked?' set':'')).join(', ')}`];
+    return [ok, `2★ Surya ${STATS.map(s=>s+' '+got[s]).join(', ')} (expected ${STATS.map(s=>want[s]).join('/')}) · augments ${k1.augs.map(a=>a.aug+(a.locked?' set':'')).join(', ')}`];
   })],
   ['Cards · sum merge: stats add up, like the Undine example', ()=>withCollection(async()=>{
     MERGE.mode = 'sum';
@@ -1554,7 +1554,7 @@ const CHECKS = [
     const before = LOOSE.filter(k=>k==='wellspring').length;
     mergeCards('kaede', ilse.uid);
     const after = LOOSE.filter(k=>k==='wellspring').length;
-    return [before===0 && after===1 && cardBy('kaede').augs.length===0, `Wellspring in the loose pile: ${before} before, ${after} after · Kaede augments ${cardBy('kaede').augs.length}`];
+    return [before===0 && after===1 && cardBy('kaede').augs.length===0, `Wellspring in the loose pile: ${before} before, ${after} after · Surya augments ${cardBy('kaede').augs.length}`];
   })],
   ['Cards · free augments swap until a merge; set ones stay put', ()=>withCollection(async()=>{
     const k = cardBy('kaede');

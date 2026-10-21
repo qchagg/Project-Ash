@@ -1,7 +1,7 @@
 class_name App
 extends Control
 ## The game's root: owns the collection and switches between screens.
-## Roster → hero sheet → character view, each built from the Forge kit.
+## Roster → a hero (character view, sheet below, swipe for the next), each built from the Forge kit.
 
 var col := Collection.new()
 ## The roster's element filter, kept while you visit a hero.
@@ -23,12 +23,9 @@ func show_roster() -> void:
 	_open(Roster.new().setup(self))
 
 
-func show_hero(hero_key: String, uid := "") -> void:
-	_open(HeroSheet.new().setup(self, hero_key, uid))
-
-
-func show_character(hero_key: String, uid: String) -> void:
-	_open(CharacterView.new().setup(self, hero_key, uid))
+## A hero opens on the character view; the sheet is one scroll below, other heroes a swipe away.
+func show_hero(hero_key: String, uid := "", sheet := false) -> void:
+	_open(HeroPager.new().setup(self, hero_key, uid, sheet))
 
 
 func _open(screen: Control) -> void:

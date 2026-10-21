@@ -1,11 +1,12 @@
 class_name HeroSheet
 extends Control
-## One hero's sheet: the card, stats that open on tap, skills and passives, and the copies you own.
+## One hero's sheet, the page under the character view: stats that open on tap, skills and passives, and the copies you own.
 ## Feeding is a deliberate two-step commit: Feed, pick a copy (the stats preview the result), Confirm.
 
 const PATTERNS := {
 	"pierce": [1, 5, 9, 13], "all": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], "single": [5], "cross": [1, 4, 5, 6, 9], "sweep": [4, 5, 6, 7],
 }
+const PAGE_H := 1560.0
 const PATTERN_NAMES := {"pierce": "Pierce", "single": "Single", "cross": "Cross", "sweep": "Full row"}
 
 var app: App
@@ -19,6 +20,8 @@ var fodder := ""
 var status := ""
 var _ui: Control
 
+signal height_changed(h: float)
+
 
 func setup(a: App, hero_key: String, card_uid: String) -> HeroSheet:
 	app = a
@@ -30,7 +33,8 @@ func setup(a: App, hero_key: String, card_uid: String) -> HeroSheet:
 func _ready() -> void:
 	var bd := Backdrop.new()
 	bd.elem = Data.hero(hero).elem
-	bd.focus = Vector2(0.5, 0.2)
+	bd.focus = Vector2(0.5, 0.0)
+	bd.strength = 0.6
 	bd.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(bd)
 	_build()
@@ -46,57 +50,52 @@ func _build() -> void:
 	var h := Data.hero(hero)
 	var c := _card()
 	var root := Forge.vbox(0)
-	root.set_anchors_preset(PRESET_FULL_RECT)
+	root.custom_minimum_size = Vector2(720, PAGE_H)
 	add_child(root)
 	_ui = root
 
-	var top := Forge.margins(MarginContainer.new(), 30, 12, 30, 0)
-	root.add_child(top)
-	var tb := Forge.hbox(0)
-	top.add_child(tb)
-	var back := Forge.link("roster")
-	back.pressed.connect(app.show_roster)
-	tb.add_child(back)
-	var sp := Control.new()
-	sp.size_flags_horizontal = SIZE_EXPAND_FILL
-	tb.add_child(sp)
-	tb.add_child(_round_button("character", "View %s as a character" % h.name, func(): app.show_character(hero, uid)))
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	root.add_child(scroll)
-	var body := Forge.margins(MarginContainer.new(), 44, 8, 44, 24)
-	body.size_flags_horizontal = SIZE_EXPAND_FILL
-	scroll.add_child(body)
+	# Room at the top for the pager's roster link and hero dots.
+	var body := Forge.margins(MarginContainer.new(), 44, 120, 44, 24)
+	root.add_child(body)
 	var col := Forge.vbox(34)
 	body.add_child(col)
 
+	var head := Forge.hbox(32)
+	col.add_child(head)
 	var art := CardArt.new().setup(hero, c.stars)
 	art.ornate = true
-	art.custom_minimum_size = Vector2(330, 440)
-	art.size_flags_horizontal = SIZE_SHRINK_CENTER
-	col.add_child(art)
-
-	var names := Forge.vbox(8)
-	col.add_child(names)
-	var nm := Forge.sc(h.name, 62, Forge.PARCHMENT, true, 0.1)
-	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	names.add_child(nm)
-	var tl := Forge.hbox(16)
-	tl.alignment = BoxContainer.ALIGNMENT_CENTER
-	names.add_child(tl)
-	tl.add_child(_hairline(52))
-	tl.add_child(Forge.sc(h.title, 24, Forge.GOLD))
+	art.custom_minimum_size = Vector2(200, 266)
+	head.add_child(art)
+	var names := Forge.vbox(10)
+	names.size_flags_vertical = SIZE_SHRINK_CENTER
+	head.add_child(names)
+	names.add_child(Forge.sc(h.name, 52, Forge.PARCHMENT, true, 0.1))
+	names.add_child(Forge.sc(h.title, 24, Forge.GOLD))
+	var stars := Forge.hbox(6)
 	for i in c.stars:
-		tl.add_child(Forge.glyph("star", 20, Data.TIER_COLORS[c.stars].lightened(0.15)))
-	tl.add_child(_hairline(52))
+		stars.add_child(Forge.glyph("star", 22, Data.TIER_COLORS[c.stars].lightened(0.15)))
+	names.add_child(stars)
+	names.add_child(Forge.sc("%s · %s" % [Data.ELEMS[h.elem].label, h.range], 20, Forge.LABEL))
 
 	col.add_child(_stats(c))
 	col.add_child(_kit(c))
 
+	var push := Control.new()
+	push.size_flags_vertical = SIZE_EXPAND_FILL
+	root.add_child(push)
 	root.add_child(_footer(c))
+	_fit.call_deferred()
+
+
+## Grows the sheet to its content (at least one screen) and tells the pager.
+func _fit() -> void:
+	if not is_instance_valid(_ui):
+		return
+	var hgt := maxf(PAGE_H, _ui.get_combined_minimum_size().y)
+	_ui.size = Vector2(720, hgt)
+	custom_minimum_size = Vector2(720, hgt)
+	size = Vector2(720, hgt)
+	height_changed.emit(hgt)
 
 
 func _stats(c: Dictionary) -> Control:
@@ -422,13 +421,6 @@ func _round_button(glyph: String, tip: String, cb: Callable, px := 80) -> Button
 	b.pressed.connect(cb)
 	return b
 
-
-func _hairline(w: int) -> Control:
-	var r := ColorRect.new()
-	r.color = Forge.GOLD_DEEP
-	r.custom_minimum_size = Vector2(w, 2)
-	r.size_flags_vertical = SIZE_SHRINK_CENTER
-	return r
 
 
 func _kv(k: String, val: String, color: Color) -> Control:

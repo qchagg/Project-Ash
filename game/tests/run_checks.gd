@@ -45,7 +45,7 @@ func _best_merge() -> Array:
 	var got := col.stats(k1)
 	var ok: bool = r.ok and k1.stars == 2 and got == want and col.by(k2.uid).is_empty() \
 		and k1.augs.size() == 1 and k1.augs[0].aug == "keen" and k1.augs[0].skill == 0 and k1.augs[0].locked and not "keen" in col.loose
-	return [ok, "2★ Kaede %s (expected %s)" % [got, want]]
+	return [ok, "2★ Surya %s (expected %s)" % [got, want]]
 
 
 func _sum_merge() -> Array:

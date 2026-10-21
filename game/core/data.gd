@@ -27,12 +27,12 @@ const ELEM_COLORS := {
 }
 
 const HEROES := [
-	{"key": "kaede", "name": "Kaede", "title": "Ember Vixen", "elem": "fire", "range": "ranged",
+	{"key": "kaede", "name": "Surya", "title": "Desert Fox", "elem": "fire", "range": "ranged",
 		"max_hp": 820, "atk": 150, "def": 40, "spd": 92, "r": 1, "c": 1,
 		"portrait": {"src": "res://art/portraits/kaede.webp", "x": 58, "y": 48, "zoom": 2.0}, "skills": [
 		{"name": "Foxfire Lance", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.25, "cd": 2, "fx": {"burn": 2}, "desc": "Spears an entire lane, front to back. Burns for 2 rounds."},
 		{"name": "Ninefold Blaze", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.7, "cd": 4, "fx": {"burn": 1}, "desc": "Nine tails of fire hit every enemy tile."}]},
-	{"key": "brann", "name": "Brann", "title": "Harbor Wall", "elem": "earth", "legacy_elem": "water", "range": "melee",
+	{"key": "brann", "name": "Brann", "title": "Eternal Rider", "elem": "earth", "legacy_elem": "water", "range": "melee",
 		"max_hp": 1400, "atk": 100, "def": 95, "spd": 70, "r": 0, "c": 1,
 		"portrait": {"src": "res://art/portraits/brann.webp", "x": 54, "y": 44, "zoom": 2.0}, "skills": [
 		{"name": "Rockfall", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.4, "cd": 3, "fx": {"stun": 1}, "desc": "Heavy blow to an exposed enemy. Stuns it for its next action."},
@@ -42,7 +42,7 @@ const HEROES := [
 		"portrait": {"src": "res://art/portraits/sorrel.webp", "x": 52, "y": 44, "zoom": 2.0}, "skills": [
 		{"name": "Crosswind", "kind": "dmg", "range": "ranged", "pattern": "cross", "power": 1.0, "cd": 2, "desc": "Hits a tile and its four neighbors."},
 		{"name": "Pinning Shot", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
-	{"key": "ilse", "name": "Ilse", "title": "Tide Chantress", "elem": "water", "range": "ranged",
+	{"key": "ilse", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
 		"max_hp": 850, "atk": 95, "def": 50, "spd": 88, "r": 2, "c": 2,
 		"portrait": {"src": "res://art/portraits/ilse.webp", "x": 40, "y": 36, "zoom": 2.1}, "skills": [
 		{"name": "Riptide", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
