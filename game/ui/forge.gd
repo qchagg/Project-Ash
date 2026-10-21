@@ -221,18 +221,29 @@ static func perimeter(r: Rect2, f: float) -> Vector2:
 	return r.position + Vector2(0, r.size.y - d)
 
 
-## Crops the square portrait to a rect around its focus point, zoomed toward the face.
-## Returns the part of the image it drew, so overlays (the 4★ break-out) can line up with it.
+## Every card crops to the same eye line, taken from Brann's card: the eyes sit EYE_LINE down the crop, the eyes-to-chin
+## drop fills FACE of its height, and the eyes sit LOOK across. A portrait gives its eyes and chin as % of the image.
+const EYE_LINE := 0.46
+const FACE := 0.335
+const LOOK := 0.53
+
+
+## Draws the portrait cropped to the eye-line rule; `zoom` above the card's 0.62 pulls in closer (bond thumbnails).
+## Returns the part of the image it drew.
 static func portrait(ci: CanvasItem, tex: Texture2D, r: Rect2, p: Dictionary, zoom := 0.62) -> Rect2:
-	var ts := tex.get_size()
-	var z := maxf(1.0, p.zoom * zoom)
-	var region := Vector2(ts.y / z * r.size.x / r.size.y, ts.y / z)
+	var src := crop(tex.get_size(), r.size, p, zoom)
+	ci.draw_texture_rect_region(tex, r, src)
+	return src
+
+
+## The part of an image of size `ts` that the eye-line rule shows in a rect of size `size`.
+static func crop(ts: Vector2, size: Vector2, p: Dictionary, zoom := 0.62) -> Rect2:
+	var eyes := Vector2(ts.x * p.eyes[0] / 100.0, ts.y * p.eyes[1] / 100.0)
+	var h := minf(ts.y, ts.y * (p.chin - p.eyes[1]) / 100.0 / FACE * 0.62 / zoom)
+	var region := Vector2(h * size.x / size.y, h)
 	if region.x > ts.x:
-		region = Vector2(ts.x, ts.x * r.size.y / r.size.x)
-	var c := Vector2(ts.x * p.x / 100.0, ts.y * p.y / 100.0)
-	var pos := (c - region / 2).clamp(Vector2.ZERO, ts - region)
-	ci.draw_texture_rect_region(tex, r, Rect2(pos, region))
-	return Rect2(pos, region)
+		region = Vector2(ts.x, ts.x * size.y / size.x)
+	return Rect2((eyes - Vector2(LOOK, EYE_LINE) * region).clamp(Vector2.ZERO, ts - region), region)
 
 
 static func diamond(ci: CanvasItem, c: Vector2, r: float, color: Color, filled := true) -> void:

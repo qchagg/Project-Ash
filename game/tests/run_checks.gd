@@ -15,6 +15,7 @@ func _init() -> void:
 		["Elements · four-way cycle: each element beats one, loses to one, and is neutral with its opposite", _four_way],
 		["Visuals · augments name the skill and pick the aura: most augments wins, ties go to the first slotted", _aura_names],
 		["Celerity · fits damage, heal and shield skills, renames with Fleet, and marks the skill as an opener", _celerity_fits],
+		["Cards · every portrait crops to Brann's eye line: eyes at the same height, the face the same size", _eye_line],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -154,6 +155,20 @@ func _celerity_fits() -> Array:
 		for s in Data.hero(h).skills:
 			fits_all = fits_all and Data.fits("celerity", s)
 	return [k[1].get("celerity", false) and not k[0].has("celerity") and k[1].name == "Fleet Ninefold Blaze" and fits_all, "%s · fits every starter skill %s" % [k[1].name, fits_all]]
+
+
+func _eye_line() -> Array:
+	var card := Vector2(293, 378)
+	var ok := true
+	var lines := []
+	for h in Data.HEROES:
+		var ts: Vector2 = load(h.portrait.src).get_size()
+		var r := Forge.crop(ts, card, h.portrait)
+		var eye: float = (ts.y * h.portrait.eyes[1] / 100.0 - r.position.y) / r.size.y
+		var face: float = ts.y * (h.portrait.chin - h.portrait.eyes[1]) / 100.0 / r.size.y
+		ok = ok and absf(eye - Forge.EYE_LINE) < 0.01 and absf(face - Forge.FACE) < 0.01
+		lines.append("%s eyes %d%%, face %d%%" % [h.name, roundi(eye * 100), roundi(face * 100)])
+	return [ok, " · ".join(lines)]
 
 
 const SEEDED := {"kaede": [820, 150, 40, 92], "brann": [1400, 100, 95, 70], "sorrel": [900, 135, 45, 105], "ilse": [850, 95, 50, 88],
