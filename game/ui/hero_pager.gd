@@ -1,6 +1,7 @@
 class_name HeroPager
 extends Control
-## A hero's pages stacked vertically: the character view, the sheet (card, stats, skills), then evolve and equip.
+## A hero's pages stacked vertically: the character view, the sheet (card, stats, skills), then the chronicle.
+## Evolve and equip open from the sheet's buttons as a screen sliding up over the pages.
 ## Drag, scroll or tap an arrow to move down a page; pages snap into place, and a page taller than the screen
 ## scrolls freely inside. Swipe sideways for the next or previous hero, on the same page.
 
@@ -16,7 +17,7 @@ var app: App
 var heroes: Array = []
 var index := 0
 var uid := ""
-## Which page is showing (0 character view, 1 sheet, 2 evolve and equip); kept when swiping between heroes.
+## Which page is showing (0 character view, 1 sheet, 2 chronicle); kept when swiping between heroes.
 var level := 0
 
 var _page: Control
@@ -31,6 +32,8 @@ var _axis := ""
 var _dx := 0.0
 var _tween: Tween
 var _dots: Control
+## The evolve or equip screen while it is open; the pager ignores gestures meanwhile.
+var _modal: Control
 
 
 func setup(a: App, hero_key: String, card_uid: String, start_level := 0) -> HeroPager:
@@ -102,14 +105,9 @@ func _open(from: int) -> void:
 	view.down_requested.connect(func(): _snap(_top(1)))
 	var sheet := HeroSheet.new().setup(app, key, card_uid)
 	sheet.down_requested.connect(func(): _snap(_top(2)))
-	var evolve := EvolvePage.new().setup(app, key, card_uid)
-	# Merging, crowning, equipping or viewing another copy changes what the pages above show.
-	evolve.changed.connect(func(): sheet.refresh())
-	evolve.viewing.connect(func(u: String):
-		uid = u
-		sheet.uid = u
-		sheet.refresh())
-	_pages = [view, sheet, evolve]
+	sheet.open_requested.connect(func(m: String): _open_modal(m, sheet))
+	var chronicle := ChroniclePage.new().setup(app, key, card_uid)
+	_pages = [view, sheet, chronicle]
 	_heights = [PAGE_H, PAGE_H, PAGE_H]
 	for i in _pages.size():
 		var p: Control = _pages[i]
@@ -132,6 +130,46 @@ func _open(from: int) -> void:
 		t.chain().tween_callback(old.queue_free)
 	elif old:
 		old.queue_free()
+
+
+## Slides evolve or equip up over the hero. Changes there refresh the sheet underneath.
+func _open_modal(m: String, sheet: HeroSheet) -> void:
+	if _modal:
+		return
+	var key: String = heroes[index]
+	_modal = Control.new()
+	_modal.size = Vector2(W, PAGE_H)
+	_modal.position = Vector2(0, PAGE_H)
+	_modal.clip_contents = true
+	add_child(_modal)
+	var bg := ColorRect.new()
+	bg.color = Forge.INK
+	bg.set_anchors_preset(PRESET_FULL_RECT)
+	_modal.add_child(bg)
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_modal.add_child(scroll)
+	var page := EvolvePage.new().setup(app, key, sheet.uid, m)
+	page.changed.connect(func(): sheet.refresh())
+	page.viewing.connect(func(u: String):
+		uid = u
+		sheet.uid = u
+		sheet.refresh())
+	page.closed.connect(_close_modal)
+	scroll.add_child(page)
+	create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT).tween_property(_modal, "position:y", 0.0, 0.32)
+
+
+func _close_modal() -> void:
+	if not _modal:
+		return
+	var m := _modal
+	_modal = null
+	var t := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	t.tween_property(m, "position:y", PAGE_H, 0.26)
+	t.tween_callback(m.queue_free)
 
 
 func _layout() -> void:
@@ -197,7 +235,7 @@ func _process(delta: float) -> void:
 
 
 func _input(e: InputEvent) -> void:
-	if not is_visible_in_tree():
+	if not is_visible_in_tree() or _modal:
 		return
 	if e is InputEventMouseButton and e.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_UP] and e.pressed:
 		_wheel(e.button_index == MOUSE_BUTTON_WHEEL_DOWN)
@@ -205,6 +243,10 @@ func _input(e: InputEvent) -> void:
 		return
 	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 		if e.pressed:
+			# Some controls own their drags (the character view's zoom rail).
+			var p: Control = _pages[level] if level < _pages.size() else null
+			if p and p.has_method("blocks_drag") and p.blocks_drag(e.position):
+				return
 			_press = true
 			_start = e.position
 			_last = e.position

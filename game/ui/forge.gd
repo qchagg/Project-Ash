@@ -221,7 +221,8 @@ static func perimeter(r: Rect2, f: float) -> Vector2:
 
 
 ## Crops the square portrait to a rect around its focus point, zoomed toward the face.
-static func portrait(ci: CanvasItem, tex: Texture2D, r: Rect2, p: Dictionary, zoom := 0.62) -> void:
+## Returns the part of the image it drew, so overlays (the 4★ break-out) can line up with it.
+static func portrait(ci: CanvasItem, tex: Texture2D, r: Rect2, p: Dictionary, zoom := 0.62) -> Rect2:
 	var ts := tex.get_size()
 	var z := maxf(1.0, p.zoom * zoom)
 	var region := Vector2(ts.y / z * r.size.x / r.size.y, ts.y / z)
@@ -230,6 +231,7 @@ static func portrait(ci: CanvasItem, tex: Texture2D, r: Rect2, p: Dictionary, zo
 	var c := Vector2(ts.x * p.x / 100.0, ts.y * p.y / 100.0)
 	var pos := (c - region / 2).clamp(Vector2.ZERO, ts - region)
 	ci.draw_texture_rect_region(tex, r, Rect2(pos, region))
+	return Rect2(pos, region)
 
 
 static func diamond(ci: CanvasItem, c: Vector2, r: float, color: Color, filled := true) -> void:

@@ -29,25 +29,25 @@ const ELEM_COLORS := {
 const HEROES := [
 	{"key": "kaede", "name": "Surya", "title": "Desert Fox", "elem": "fire", "range": "ranged",
 		"max_hp": 820, "atk": 150, "def": 40, "spd": 92, "r": 1, "c": 1,
-		"portrait": {"src": "res://art/portraits/kaede.webp", "x": 58, "y": 48, "zoom": 2.0}, "full": {"src": "res://art/full/kaede.webp", "x": 65, "w": 1.5}, "skills": [
-		{"name": "Foxfire Lance", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.25, "cd": 2, "fx": {"burn": 2}, "desc": "Spears an entire lane, front to back. Burns for 2 rounds."},
-		{"name": "Ninefold Blaze", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.7, "cd": 4, "fx": {"burn": 1}, "desc": "Nine tails of fire hit every enemy tile."}]},
+		"portrait": {"src": "res://art/portraits/kaede.webp", "x": 58, "y": 48, "zoom": 2.0}, "full": {"src": "res://art/full/kaede.webp", "x": 65, "w": 1.5, "face": [69, 26]}, "skills": [
+		{"name": "Foxfire Lance", "flavor": "A spear of fox-light, thrown clean through every rank.", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.25, "cd": 2, "fx": {"burn": 2}, "desc": "Spears an entire lane, front to back. Burns for 2 rounds."},
+		{"name": "Ninefold Blaze", "flavor": "He lets the fire off its leash, and it finds everyone.", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.7, "cd": 4, "fx": {"burn": 1}, "desc": "Nine tails of fire hit every enemy tile."}]},
 	{"key": "brann", "name": "Brann", "title": "Eternal Rider", "elem": "earth", "legacy_elem": "water", "range": "melee",
 		"max_hp": 1400, "atk": 100, "def": 95, "spd": 70, "r": 0, "c": 1,
 		"portrait": {"src": "res://art/portraits/brann.webp", "x": 54, "y": 44, "zoom": 2.0}, "skills": [
-		{"name": "Rockfall", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.4, "cd": 3, "fx": {"stun": 1}, "desc": "Heavy blow to an exposed enemy. Stuns it for its next action."},
-		{"name": "Breakwater", "kind": "shield", "pattern": "all", "power": 1.9, "cd": 4, "desc": "Shields every ally. Shields hold until broken."}]},
+		{"name": "Rockfall", "flavor": "The mountain answers when he charges.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.4, "cd": 3, "fx": {"stun": 1}, "desc": "Heavy blow to an exposed enemy. Stuns it for its next action."},
+		{"name": "Breakwater", "flavor": "He plants his feet, and the line holds.", "kind": "shield", "pattern": "all", "power": 1.9, "cd": 4, "desc": "Shields every ally. Shields hold until broken."}]},
 	{"key": "sorrel", "name": "Sorrel", "title": "Gale Archer", "elem": "wind", "range": "ranged",
 		"max_hp": 900, "atk": 135, "def": 45, "spd": 105, "r": 1, "c": 0,
 		"portrait": {"src": "res://art/portraits/sorrel.webp", "x": 52, "y": 44, "zoom": 2.0}, "skills": [
-		{"name": "Crosswind", "kind": "dmg", "range": "ranged", "pattern": "cross", "power": 1.0, "cd": 2, "desc": "Hits a tile and its four neighbors."},
-		{"name": "Pinning Shot", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
+		{"name": "Crosswind", "flavor": "His arrows ride the gale four ways at once.", "kind": "dmg", "range": "ranged", "pattern": "cross", "power": 1.0, "cd": 2, "desc": "Hits a tile and its four neighbors."},
+		{"name": "Pinning Shot", "flavor": "One arrow, and the target forgets how to move.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
 	{"key": "ilse", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
 		"max_hp": 850, "atk": 95, "def": 50, "spd": 88, "r": 2, "c": 2,
-		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "x": 46, "y": 50, "zoom": 3.6}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6},
+		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "x": 45, "y": 47, "zoom": 6.0}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
 		"cutin": "res://art/video/ilse-wave.ogv", "celebrate": "res://art/video/ilse-celebrate.ogv", "skills": [
-		{"name": "Riptide", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
-		{"name": "Rain of Renewal", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
+		{"name": "Riptide", "flavor": "The tide turns wherever she points.", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
+		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
 ]
 
 # Augments slot into a skill whose tags they fit. Numbers add up; durations take the higher value.

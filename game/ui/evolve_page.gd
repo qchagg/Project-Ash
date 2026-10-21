@@ -1,12 +1,15 @@
 class_name EvolvePage
 extends Control
-## The third page of a hero: evolution (copies, feeding, the Ashcrown) and equipment (augment slots).
-## Feeding stays a two-step commit: Feed, pick a copy and see the result, Confirm.
+## Evolve or equip, opened from the sheet's buttons and sliding up over the hero.
+## Evolve: copies, feeding (a two-step commit: Feed, pick a copy and see the result, Confirm), the Ashcrown, field or bench.
+## Equip: one augment slot per star, and the loose augments that fit.
 
 const PAGE_H := 1560.0
 const TIERS := ["bronze", "silver", "gold", "ashcrown"]
 
 var app: App
+## "evolve" or "equip".
+var mode := "evolve"
 var hero := ""
 var uid := ""
 var feeding := false
@@ -19,12 +22,14 @@ signal height_changed(h: float)
 signal changed
 ## A different copy is now the one being looked at.
 signal viewing(card_uid: String)
+signal closed
 
 
-func setup(a: App, hero_key: String, card_uid: String) -> EvolvePage:
+func setup(a: App, hero_key: String, card_uid: String, page_mode := "evolve") -> EvolvePage:
 	app = a
 	hero = hero_key
 	uid = card_uid
+	mode = page_mode
 	return self
 
 
@@ -46,21 +51,23 @@ func refresh() -> void:
 	if _ui:
 		_ui.queue_free()
 	var c := _card()
-	var root := Forge.margins(MarginContainer.new(), 44, 120, 44, 80)
+	var root := Forge.margins(MarginContainer.new(), 44, 12, 44, 80)
 	root.custom_minimum_size = Vector2(720, PAGE_H)
 	add_child(root)
 	_ui = root
 	var col := Forge.vbox(40)
 	root.add_child(col)
 
+	var back := Forge.link(Data.hero(hero).name)
+	back.size_flags_horizontal = SIZE_SHRINK_BEGIN
+	back.pressed.connect(func(): closed.emit())
+	col.add_child(back)
 	var head := Forge.vbox(8)
 	col.add_child(head)
-	head.add_child(Forge.sc("evolve · equip", 44, Forge.GOLD, true, 0.12))
+	head.add_child(Forge.sc(mode, 52, Forge.GOLD, true, 0.12))
 	head.add_child(Forge.label("%s, %d★ %s" % [Data.hero(hero).name, c.stars, TIERS[c.stars - 1]], 26, Forge.MUTED))
-
-	col.add_child(_evolution(c))
 	col.add_child(Forge.rule())
-	col.add_child(_equipment(c))
+	col.add_child(_evolution(c) if mode == "evolve" else _equipment(c))
 	_fit.call_deferred()
 
 
@@ -78,7 +85,6 @@ func _fit() -> void:
 
 func _evolution(c: Dictionary) -> Control:
 	var v := Forge.vbox(26)
-	v.add_child(Forge.sc("evolution", 24, Forge.GOLD))
 	v.add_child(_track(c.stars))
 	var how := "Feed a copy of the same stars to rise a star." if c.stars < 3 else (
 		"An Ashcrown takes a 3★ to 4★. You have %d." % app.col.crowns if c.stars == 3 else "Fully evolved.")
@@ -272,7 +278,6 @@ func _preview() -> Dictionary:
 ## One augment slot per star. Free augments come off with a tap; a merge sets them for good.
 func _equipment(c: Dictionary) -> Control:
 	var v := Forge.vbox(22)
-	v.add_child(Forge.sc("equipment", 24, Forge.GOLD))
 	v.add_child(_para("One augment slot per star. Augments swap freely until a merge sets them."))
 	var skills: Array = Data.hero(hero).skills
 	var slots := GridContainer.new()

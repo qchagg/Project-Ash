@@ -16,6 +16,9 @@ var _full: Texture2D
 var _full_info := {}
 var _tags: VBoxContainer
 var _t := 0.0
+## 0 shows the whole figure, 1 closes in on the face; the rail on the right sets it.
+var _zoom := 0.0
+var _rail: Control
 
 signal down_requested
 
@@ -28,12 +31,16 @@ func setup(a: App, hero_key: String, card_uid: String) -> CharacterView:
 
 
 func _ready() -> void:
+	# The zoomed art is bigger than the page; keep it off the sheet below.
+	clip_contents = true
 	var h := Data.hero(hero)
 	var c := app.col.by(uid)
 	_tex = load(h.portrait.src)
 	if h.has("full"):
 		_full_info = h.full
 		_full = load(h.full.src)
+	# Heroes with a full-body cutout open wide; a square portrait opens close, as it always has.
+	_zoom = app.zoom.get(hero, 0.0 if _full else 1.0)
 
 	var bd := Backdrop.new()
 	bd.elem = h.elem
@@ -98,6 +105,49 @@ func _ready() -> void:
 	v.add_child(_tags)
 	_fill_tags()
 	add_child(_arrow())
+	_rail = _zoom_rail()
+	add_child(_rail)
+
+
+## A thin gold line down the right edge with a diamond on it: up closes in on the face, down shows the whole figure.
+## Drag the diamond or tap the line.
+func _zoom_rail() -> Control:
+	var r := Control.new()
+	r.position = Vector2(640, 360)
+	r.size = Vector2(80, 520)
+	r.mouse_default_cursor_shape = Control.CURSOR_VSIZE
+	r.tooltip_text = "Zoom"
+	var top := 40.0
+	var bottom := r.size.y - 40.0
+	r.draw.connect(func():
+		var x := r.size.x / 2
+		r.draw_line(Vector2(x, top), Vector2(x, bottom), Color(Forge.GOLD, 0.35), 2.0)
+		for y in [top, bottom]:
+			r.draw_line(Vector2(x - 8, y), Vector2(x + 8, y), Color(Forge.GOLD, 0.45), 2.0)
+		# Small marks for what each end means: a face at the top, a figure at the bottom.
+		r.draw_arc(Vector2(x, top - 22), 7, 0, TAU, 20, Color(Forge.GOLD, 0.5), 2.0, true)
+		r.draw_arc(Vector2(x, bottom + 16), 4, 0, TAU, 12, Color(Forge.GOLD, 0.5), 2.0, true)
+		r.draw_line(Vector2(x, bottom + 20), Vector2(x, bottom + 32), Color(Forge.GOLD, 0.5), 2.0)
+		var y := lerpf(bottom, top, _zoom)
+		Forge.diamond(r, Vector2(x, y), 11, Forge.INK)
+		Forge.diamond(r, Vector2(x, y), 10, Forge.GOLD_LIGHT, false))
+	var set_from := func(y: float):
+		_zoom = clampf((bottom - y) / (bottom - top), 0.0, 1.0)
+		app.zoom[hero] = _zoom
+		r.queue_redraw()
+	r.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
+			set_from.call(e.position.y)
+			r.accept_event()
+		elif e is InputEventMouseMotion and e.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			set_from.call(e.position.y)
+			r.accept_event())
+	return r
+
+
+## The pager asks before taking a drag: drags that start on the zoom rail belong to it.
+func blocks_drag(at: Vector2) -> bool:
+	return is_instance_valid(_rail) and _rail.get_global_rect().grow(10).has_point(at)
 
 
 func _arrow() -> Control:
@@ -189,12 +239,19 @@ func _draw_art() -> void:
 	if _full:
 		_draw_full()
 		return
-	# A slow 12-second drift and zoom, like the mockup's Ken Burns pass.
+	# Close: the slow 12-second drift and zoom across the face, like the mockup's Ken Burns pass.
+	# Wide: the whole square portrait, a little wider than the page, its top edge faded into the dark.
 	var k := 0.5 - 0.5 * cos(_t * TAU / 12.0)
-	var s := 1270.0 * (1.06 + 0.04 * k)
-	var pos := Vector2(-275 - 15 * k, -11 * k)
-	var r := Rect2(pos, Vector2(s, s))
+	var z := smoothstep(0.0, 1.0, _zoom)
+	var close := Rect2(Vector2(-275 - 15 * k, -11 * k), Vector2.ONE * 1270.0 * (1.06 + 0.04 * k))
+	var wide := Rect2(Vector2(-140 - 6 * k, 150), Vector2.ONE * 1000.0 * (1.0 + 0.02 * k))
+	var r := Rect2(wide.position.lerp(close.position, z), wide.size.lerp(close.size, z))
 	_art.draw_texture_rect(_tex, r, false)
+	if r.position.y > 0:
+		_art.draw_rect(Rect2(0, 0, 720, r.position.y), Forge.INK)
+		var e := r.position.y
+		_art.draw_polygon(PackedVector2Array([Vector2(0, e), Vector2(720, e), Vector2(720, e + 160), Vector2(0, e + 160)]),
+			PackedColorArray([Forge.INK, Forge.INK, Color(Forge.INK, 0), Color(Forge.INK, 0)]))
 	# Fade the art into the ink so the text sits on darkness.
 	var top := 1560.0 * 0.48
 	var bottom := 1560.0 * 0.8
@@ -215,12 +272,16 @@ func _draw_full() -> void:
 	var sway := sin(_t * TAU / 9.0)
 	var scale := 1.0 + 0.012 * breathe
 	var size := Vector2(w, h) * scale
-	# Centre the figure (its x focus) a little right of the page centre, leaving the left for the name.
+	# Wide: the figure (its x focus) a little right of the page centre, leaving the left for the name;
+	# the cut at the hips lands below the fade, where the page is already solid ink.
 	var cx := 400.0 + 6.0 * sway
-	# The cut at the hips lands below the fade, where the page is already solid ink.
-	var top := 1310.0 - size.y
-	var pos := Vector2(cx - size.x * _full_info.get("x", 50) / 100.0, top)
-	_art.draw_texture_rect(_full, Rect2(pos, size), false)
+	var wide := Rect2(Vector2(cx - size.x * _full_info.get("x", 50) / 100.0, 1310.0 - size.y), size)
+	# Close: the face, enlarged, centred in the upper half of the page.
+	var face: Array = _full_info.get("face", [50, 20])
+	var big := size * 2.6
+	var close := Rect2(Vector2(360 + 6.0 * sway, 560) - Vector2(big.x * face[0] / 100.0, big.y * face[1] / 100.0), big)
+	var z := smoothstep(0.0, 1.0, _zoom)
+	_art.draw_texture_rect(_full, Rect2(wide.position.lerp(close.position, z), wide.size.lerp(close.size, z)), false)
 	# The image is cut at the hips: fade it into the ink under the name.
 	var a := 1560.0 * 0.55
 	var b := 1560.0 * 0.78

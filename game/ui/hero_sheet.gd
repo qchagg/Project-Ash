@@ -1,14 +1,14 @@
 class_name HeroSheet
 extends Control
-## The second page of a hero: the showcase card, stats, and skills or passives.
-## A stat's breakdown floats over the page when tapped, so nothing below it moves.
-## Copies, feeding, the Ashcrown and equipment live one page further down (EvolvePage).
+## The second page of a hero: the showcase card, stats, and skills or passives, with buttons to evolve and equip.
+## Tapping a stat or a skill floats a translucent card over the page with the numbers, so nothing below it moves.
 
 const PATTERNS := {
 	"pierce": [1, 5, 9, 13], "all": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], "single": [5], "cross": [1, 4, 5, 6, 9], "sweep": [4, 5, 6, 7],
 }
 const PAGE_H := 1560.0
 const PATTERN_NAMES := {"pierce": "Pierce", "single": "Single", "cross": "Cross", "sweep": "Full row"}
+const MODE := "four"
 
 var app: App
 var hero := ""
@@ -16,13 +16,17 @@ var uid := ""
 var tab := "skills"
 var swapping := false
 var open_stat := ""
+var open_skill := -1
 var status := ""
 var _ui: Control
 var _row: Control
+var _skill_rows: Array = []
 var _pop: Control
 
 signal height_changed(h: float)
 signal down_requested
+## Evolve or equip was tapped ("evolve" or "equip").
+signal open_requested(mode: String)
 
 
 func setup(a: App, hero_key: String, card_uid: String) -> HeroSheet:
@@ -52,6 +56,7 @@ func refresh() -> void:
 		if n:
 			n.queue_free()
 	_pop = null
+	_skill_rows = []
 	var h := Data.hero(hero)
 	var c := _card()
 	var root := Forge.vbox(0)
@@ -60,20 +65,21 @@ func refresh() -> void:
 	_ui = root
 
 	# Room at the top for the pager's roster link and hero dots.
-	var body := Forge.margins(MarginContainer.new(), 44, 120, 44, 24)
+	var body := Forge.margins(MarginContainer.new(), 44, 150, 44, 24)
 	root.add_child(body)
 	var col := Forge.vbox(34)
 	body.add_child(col)
 
 	# The card, standing tilted like the Gilded Forge sheet, with the name centred beneath.
 	var stage := Control.new()
-	stage.custom_minimum_size = Vector2(632, 500)
+	stage.custom_minimum_size = Vector2(632, 480)
 	col.add_child(stage)
 	var art := CardArt.new().setup(hero, c.stars)
 	art.ornate = true
 	art.showcase = true
+	art.drift = 1.6
 	art.size = Vector2(330, 440)
-	art.position = Vector2((632 - 330) / 2.0, 22)
+	art.position = Vector2((632 - 330) / 2.0, 10)
 	art.pivot_offset = art.size / 2
 	art.rotation_degrees = -2.5
 	stage.add_child(art)
@@ -98,6 +104,14 @@ func refresh() -> void:
 	names.add_child(kind)
 
 	col.add_child(_stats(c))
+	var acts := Forge.hbox(20)
+	col.add_child(acts)
+	for m in [["evolve", "Copies, feeding and the Ashcrown"], ["equip", "Augment slots"]]:
+		var b := Forge.ember(m[0], 72)
+		b.size_flags_horizontal = SIZE_EXPAND_FILL
+		b.tooltip_text = m[1]
+		b.pressed.connect(func(): open_requested.emit(m[0]))
+		acts.add_child(b)
 	col.add_child(_kit(c))
 	if status != "":
 		var l := Forge.label(status, 24, Forge.GOLD, Forge.SANS_ITALIC)
@@ -110,13 +124,15 @@ func refresh() -> void:
 	var foot := CenterContainer.new()
 	foot.custom_minimum_size.y = 170
 	root.add_child(foot)
-	var arrow := DownArrow.make("evolve · equip")
-	arrow.tooltip_text = "Copies, evolution and equipment"
+	var arrow := DownArrow.make("chronicle")
+	arrow.tooltip_text = "History and bio"
 	arrow.pressed.connect(func(): down_requested.emit())
 	foot.add_child(arrow)
 	_fit.call_deferred()
 	if open_stat != "":
-		_open_pop.call_deferred(c)
+		_stat_pop.call_deferred(c)
+	elif open_skill >= 0:
+		_skill_pop.call_deferred(c)
 
 
 ## Grows the page to its content (at least one screen) and tells the pager.
@@ -130,6 +146,7 @@ func _fit() -> void:
 	height_changed.emit(hgt)
 
 
+## Four chips, icon and number centred together in each.
 func _stats(c: Dictionary) -> Control:
 	var row := Forge.hbox(14)
 	_row = row
@@ -137,7 +154,7 @@ func _stats(c: Dictionary) -> Control:
 	for k in Data.STATS:
 		var b := Button.new()
 		b.size_flags_horizontal = SIZE_EXPAND_FILL
-		b.custom_minimum_size.y = 70
+		b.custom_minimum_size.y = 72
 		b.focus_mode = Control.FOCUS_NONE
 		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		b.tooltip_text = Forge.STAT_NAME[k].capitalize()
@@ -145,29 +162,31 @@ func _stats(c: Dictionary) -> Control:
 		var st := Forge.flat(Color("#2a1f15") if on else Color(Forge.PLAQUE, 0.85), Forge.GOLD if on else Color(Forge.BRONZE, 0.8), 2)
 		for state in ["normal", "hover", "pressed"]:
 			b.add_theme_stylebox_override(state, st)
-		b.icon = Forge.icon(Forge.STAT_ICON[k])
-		b.add_theme_constant_override("icon_max_width", 26)
-		for ic in ["icon_normal_color", "icon_hover_color", "icon_pressed_color"]:
-			b.add_theme_color_override(ic, Forge.STAT_TINT[k])
-		b.text = str(s[k])
-		b.add_theme_font_override("font", Forge.SANS_BOLD)
-		b.add_theme_font_size_override("font_size", 30)
-		for fc in ["font_color", "font_hover_color", "font_pressed_color"]:
-			b.add_theme_color_override(fc, Forge.PARCHMENT)
-		b.add_theme_constant_override("h_separation", 10)
+		var inner := CenterContainer.new()
+		inner.set_anchors_preset(PRESET_FULL_RECT)
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(inner)
+		var h := Forge.hbox(10)
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(h)
+		h.add_child(Forge.glyph(Forge.STAT_ICON[k], 28, Forge.STAT_TINT[k]))
+		var n := Forge.label(str(s[k]), 30, Forge.PARCHMENT, Forge.SANS_BOLD)
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(n)
 		b.pressed.connect(func():
+			open_skill = -1
 			open_stat = "" if open_stat == k else k
 			refresh())
 		row.add_child(b)
 	return row
 
 
-## The stat breakdown, floating just under the chips over whatever is below. A tap anywhere closes it.
-func _open_pop(c: Dictionary) -> void:
-	if not is_instance_valid(_row):
+## A translucent card floating under `anchor`, with a notch pointing at `point` (x within the page).
+## A tap anywhere outside it closes it.
+func _float(anchor: Control, point_x: float, fill: Callable) -> void:
+	if not is_instance_valid(anchor):
 		return
-	var s := app.col.stats(c)
-	var at := _row.global_position - global_position + Vector2(0, _row.size.y + 12)
+	var at := anchor.global_position - global_position + Vector2(0, anchor.size.y + 12)
 	_pop = Control.new()
 	_pop.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(_pop)
@@ -177,33 +196,79 @@ func _open_pop(c: Dictionary) -> void:
 	catcher.set_anchors_preset(PRESET_FULL_RECT)
 	catcher.pressed.connect(func():
 		open_stat = ""
+		open_skill = -1
 		refresh())
 	_pop.add_child(catcher)
 	var p := PanelContainer.new()
-	var st := Forge.flat(Color("#1d1610"), Forge.GOLD, 2, Vector4(26, 18, 26, 20))
-	st.shadow_color = Color(0, 0, 0, 0.6)
+	var st := Forge.flat(Color(Forge.INK, 0.84), Color(Forge.GOLD, 0.85), 2, Vector4(26, 18, 26, 20))
+	st.shadow_color = Color(0, 0, 0, 0.45)
 	st.shadow_size = 18
 	st.shadow_offset = Vector2(0, 8)
 	p.add_theme_stylebox_override("panel", st)
-	p.position = at
-	p.custom_minimum_size.x = _row.size.x
+	p.position = Vector2(44, at.y)
+	p.custom_minimum_size.x = 632
 	p.mouse_filter = Control.MOUSE_FILTER_STOP
 	_pop.add_child(p)
 	var lines := Forge.vbox(10)
 	p.add_child(lines)
-	lines.add_child(Forge.sc(Forge.STAT_NAME[open_stat], 22, Forge.GOLD))
-	lines.add_child(_kv("This copy", str(s[open_stat]), Forge.PARCHMENT))
-	lines.add_child(_kv("%s’s average" % Data.hero(hero).name, str(Data.hero(hero)[open_stat]), Forge.PARCHMENT))
-	if c.stars > 1:
-		lines.add_child(_kv("Star bonus (%d★)" % c.stars, "+%d%%" % roundi(Collection.STAR_BONUS * (c.stars - 1) * 100), Forge.GAIN))
-	# A little notch pointing at the chip it belongs to.
-	var chip: Control = _row.get_child(Data.STATS.find(open_stat))
+	fill.call(lines)
 	var notch := Control.new()
 	notch.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	notch.position = at + Vector2(chip.position.x + chip.size.x / 2, 0)
+	notch.position = Vector2(point_x, at.y)
 	notch.draw.connect(func():
-		notch.draw_colored_polygon(PackedVector2Array([Vector2(-12, 1), Vector2(0, -11), Vector2(12, 1)]), Forge.GOLD))
+		notch.draw_colored_polygon(PackedVector2Array([Vector2(-12, 1), Vector2(0, -11), Vector2(12, 1)]), Color(Forge.GOLD, 0.85)))
 	_pop.add_child(notch)
+
+
+func _stat_pop(c: Dictionary) -> void:
+	var s := app.col.stats(c)
+	var chip: Control = _row.get_child(Data.STATS.find(open_stat))
+	var x := chip.global_position.x - global_position.x + chip.size.x / 2
+	_float(_row, x, func(lines: VBoxContainer):
+		lines.add_child(Forge.sc(Forge.STAT_NAME[open_stat], 22, Forge.GOLD))
+		lines.add_child(_kv("This copy", str(s[open_stat]), Forge.PARCHMENT))
+		lines.add_child(_kv("%s’s average" % Data.hero(hero).name, str(Data.hero(hero)[open_stat]), Forge.PARCHMENT))
+		if c.stars > 1:
+			lines.add_child(_kv("Star bonus (%d★)" % c.stars, "+%d%%" % roundi(Collection.STAR_BONUS * (c.stars - 1) * 100), Forge.GAIN)))
+
+
+## A skill's numbers: element and matchups, the target pattern, power and effects, cooldown, augments.
+func _skill_pop(c: Dictionary) -> void:
+	if open_skill >= _skill_rows.size():
+		return
+	var s: Dictionary = app.col.skills(c)[open_skill]
+	var h := Data.hero(hero)
+	var row: Control = _skill_rows[open_skill]
+	_float(row, 120.0, func(lines: VBoxContainer):
+		var head := Forge.hbox(14)
+		lines.add_child(head)
+		var g := TextureRect.new()
+		g.texture = Forge.sigil(h.elem)
+		g.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		g.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		g.custom_minimum_size = Vector2(26, 26)
+		g.modulate = Forge.ELEM[h.elem]
+		head.add_child(g)
+		head.add_child(Forge.sc("%s skill" % Data.ELEMS[h.elem].label, 22, Forge.ELEM[h.elem].lightened(0.2)))
+		var vs := []
+		for e in Data.ELEMS:
+			if Data.beats(MODE, h.elem, e):
+				vs.append("strong against " + Data.ELEMS[e].label)
+			elif Data.beats(MODE, e, h.elem):
+				vs.append("weak to " + Data.ELEMS[e].label)
+		var sp := Control.new()
+		sp.size_flags_horizontal = SIZE_EXPAND_FILL
+		head.add_child(sp)
+		head.add_child(Forge.label(" · ".join(vs), 20, Forge.MUTED))
+		var mid := Forge.hbox(22)
+		lines.add_child(mid)
+		mid.add_child(pattern_grid(s.pattern, Forge.ELEM[h.elem]))
+		var t := Forge.vbox(4)
+		mid.add_child(t)
+		t.add_child(Forge.label(meta(s), 26, Forge.PARCHMENT, Forge.SANS_BOLD))
+		t.add_child(Forge.label("Cooldown %d round%s" % [s.cd, "" if s.cd == 1 else "s"], 22, Forge.MUTED))
+		if s.get("augs", []).size() > 0:
+			lines.add_child(Forge.label("Augments: " + ", ".join(s.augs.map(func(a): return Data.AUGS[a].name)), 22, Forge.GAIN)))
 
 
 func _kit(c: Dictionary) -> Control:
@@ -219,8 +284,11 @@ func _kit(c: Dictionary) -> Control:
 		var sw := Forge.link("done" if swapping else "swap", "swap", 22)
 		sw.pressed.connect(_toggle_swap)
 		head.add_child(sw)
-		for s in app.col.skills(c):
-			v.add_child(_slot(s))
+		var skills := app.col.skills(c)
+		for i in skills.size():
+			var row := _slot(skills[i], i)
+			_skill_rows.append(row)
+			v.add_child(row)
 	else:
 		var p := PanelContainer.new()
 		p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.PLAQUE, 0.85), Color(Forge.BRONZE, 0.8), 2, Vector4(24, 20, 24, 20)))
@@ -230,26 +298,49 @@ func _kit(c: Dictionary) -> Control:
 	return v
 
 
-func _slot(s: Dictionary) -> Control:
-	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.PLAQUE, 0.85), Color(Forge.BRONZE, 0.8), 2, Vector4(22, 16, 22, 16)))
+## A skill row: name and flavour, cooldown at the side. Tapping it floats the numbers over the page.
+func _slot(s: Dictionary, i: int) -> Control:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.tooltip_text = "Details"
+	var on := open_skill == i
+	var st := Forge.flat(Color("#2a1f15") if on else Color(Forge.PLAQUE, 0.85), Forge.GOLD if on else Color(Forge.BRONZE, 0.8), 2)
+	for state in ["normal", "hover", "pressed"]:
+		b.add_theme_stylebox_override(state, st)
+	b.pressed.connect(func():
+		open_stat = ""
+		open_skill = -1 if open_skill == i else i
+		refresh())
+	var m := Forge.margins(MarginContainer.new(), 22, 18, 22, 18)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.set_anchors_preset(PRESET_FULL_RECT)
+	b.add_child(m)
 	var h := Forge.hbox(22)
-	p.add_child(h)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(h)
 	h.add_child(pattern_grid(s.pattern, Forge.ELEM[Data.hero(hero).elem]))
-	var txt := Forge.vbox(2)
+	var txt := Forge.vbox(4)
+	txt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	txt.size_flags_horizontal = SIZE_EXPAND_FILL
 	h.add_child(txt)
 	txt.add_child(Forge.sc(s.name, 30, Forge.PARCHMENT, false, 0.08))
-	txt.add_child(Forge.label(meta(s), 24, Forge.MUTED))
+	var fl := Forge.label(s.get("flavor", s.desc), 23, Color("#e2d5b6"), Forge.SANS_ITALIC)
+	fl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fl.custom_minimum_size.x = 380
+	txt.add_child(fl)
 	var cd := Forge.hbox(6)
+	cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cd.size_flags_vertical = SIZE_SHRINK_CENTER
 	cd.add_child(Forge.glyph("cooldown", 24, Forge.MUTED))
 	cd.add_child(Forge.label(str(s.cd), 26, Forge.MUTED, Forge.SANS_BOLD))
-	cd.tooltip_text = "Cooldown %d" % s.cd
 	h.add_child(cd)
 	if swapping:
 		h.add_child(_round_button("swap", "Swap %s" % s.name, _no_swap, 66))
-	return p
+	# A button doesn't grow to its children, so follow the content's height.
+	b.custom_minimum_size.y = 120
+	m.minimum_size_changed.connect(func(): b.custom_minimum_size.y = m.get_combined_minimum_size().y)
+	return b
 
 
 ## The 4×4 target pattern a skill hits, tinted in the hero's element.
@@ -288,6 +379,7 @@ static func _num(x: float) -> String:
 
 func _show(t: String) -> void:
 	tab = t
+	open_skill = -1
 	if t != "skills":
 		swapping = false
 	status = ""
