@@ -16,22 +16,22 @@ const DEFAULT_SQUAD := ["kaede", "brann", "sorrel", "ilse"]
 const FOES := [
 	{"key": "golem", "name": "Basalt Golem", "short": "Golem", "elem": "earth", "legacy_elem": "fire", "range": "melee",
 		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 1,
-		"portrait": {"src": "res://art/portraits/golem.webp", "eyes": [45, 39], "chin": 52}, "skills": [
+		"portrait": {"src": "res://art/portraits/golem.webp", "eyes": [57, 37], "chin": 55}, "skills": [
 		{"name": "Magma Fist", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.5, "cd": 3, "fx": {"burn": 2}},
 		{"name": "Quake", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 0.8, "cd": 3}]},
 	{"key": "blade", "name": "Galeblade", "short": "Galeblade", "elem": "wind", "range": "melee",
 		"max_hp": 950, "atk": 145, "def": 40, "spd": 110, "r": 0, "c": 0,
-		"portrait": {"src": "res://art/portraits/blade.webp", "eyes": [53, 44.5], "chin": 54}, "skills": [
+		"portrait": {"src": "res://art/portraits/blade.webp", "eyes": [38, 41], "chin": 58}, "skills": [
 		{"name": "Gust Step", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.6, "cd": 4, "fx": {"stun": 1}},
 		{"name": "Cyclone Cut", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 1.0, "cd": 2}]},
 	{"key": "caller", "name": "Tidecaller", "short": "Tidecaller", "elem": "water", "range": "ranged",
 		"max_hp": 900, "atk": 125, "def": 45, "spd": 85, "r": 1, "c": 2,
-		"portrait": {"src": "res://art/portraits/caller.webp", "eyes": [42, 42], "chin": 55}, "skills": [
+		"portrait": {"src": "res://art/portraits/caller.webp", "eyes": [42, 44], "chin": 60}, "skills": [
 		{"name": "Mend", "kind": "heal", "pattern": "all", "power": 1.2, "cd": 4},
 		{"name": "Tidal Pillar", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.15, "cd": 3}]},
 	{"key": "seer", "name": "Ashen Seer", "short": "Seer", "elem": "fire", "range": "ranged",
 		"max_hp": 800, "atk": 135, "def": 35, "spd": 95, "r": 2, "c": 1,
-		"portrait": {"src": "res://art/portraits/seer.webp", "eyes": [50, 40], "chin": 53}, "skills": [
+		"portrait": {"src": "res://art/portraits/seer.webp", "eyes": [33, 40], "chin": 61}, "skills": [
 		{"name": "Ember Rain", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.55, "cd": 4, "fx": {"burn": 1}},
 		{"name": "Flare", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.6, "cd": 2}]},
 ]
@@ -481,8 +481,17 @@ func _log(text: String, cls := "") -> void:
 	events.append({"t": "log", "text": text, "cls": cls})
 
 
+## A beat: carries the board as it stands, so a screen can show each beat rather than the end of the round.
 func _step() -> void:
-	events.append({"t": "step"})
+	events.append({"t": "step", "snap": snapshot()})
+
+
+## Every unit's changing state, by id: {hp, r, c, alive, downed, st}.
+func snapshot() -> Dictionary:
+	var out := {}
+	for u in units:
+		out[u.id] = {"hp": u.hp, "r": u.r, "c": u.c, "alive": u.alive, "downed": u.downed, "st": u.st.duplicate()}
+	return out
 
 
 ## Hands over what happened since the last call.
