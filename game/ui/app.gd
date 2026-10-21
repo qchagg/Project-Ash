@@ -34,6 +34,16 @@ func show_roster() -> void:
 	_open(Roster.new().setup(self))
 
 
+## The tab bar's destinations.
+func show_tab(tab: String) -> void:
+	match tab:
+		"roster": show_roster()
+		"squad": _open(SquadScreen.new().setup(self))
+		"town": _open(TownScreen.new().setup(self))
+		"battle": _open(BattleScreen.new().setup(self))
+		"codex": _open(CodexScreen.new().setup(self))
+
+
 ## A hero opens on the character view; the sheet and evolve pages are below, other heroes a swipe away.
 func show_hero(hero_key: String, uid := "", page := 0) -> void:
 	_open(HeroPager.new().setup(self, hero_key, uid, page))
