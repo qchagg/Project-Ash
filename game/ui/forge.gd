@@ -205,6 +205,18 @@ static func link(text: String, glyph_name := "back", px := 24) -> Button:
 	return b
 
 
+## A segmented-control tab: a quiet link, gold and underlined when it is the current one.
+static func seg(text: String, on: bool, cb: Callable) -> Button:
+	var b := link(text, "", 24)
+	b.custom_minimum_size.y = 64
+	for k in ["font_color", "font_hover_color"]:
+		b.add_theme_color_override(k, GOLD_LIGHT if on else DIM)
+	if on:
+		b.draw.connect(func(): b.draw_rect(Rect2(0, b.size.y - 4, b.size.x, 4), GOLD))
+	b.pressed.connect(cb)
+	return b
+
+
 ## The tier frame and inner hairline every card wears; 4★ cards get a turning rim in their element's colours.
 static func card_frame(ci: CanvasItem, r: Rect2, stars: int, elem: String, t: float) -> void:
 	var tier: Color = Data.TIER_COLORS[stars]

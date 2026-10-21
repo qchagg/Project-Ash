@@ -38,7 +38,7 @@ func _init() -> void:
 		if e is InputEventMouseButton and e.pressed:
 			close())
 	_panel = PanelContainer.new()
-	var st := Forge.flat(Color(Forge.INK, 0.84), Color(Forge.GOLD, 0.85), 2, Vector4(26, 18, 26, 20))
+	var st := Forge.flat(Color(Forge.INK, 0.92), Color(Forge.GOLD, 0.85), 2, Vector4(26, 18, 26, 20))
 	st.shadow_color = Color(0, 0, 0, 0.45)
 	st.shadow_size = 18
 	st.shadow_offset = Vector2(0, 8)

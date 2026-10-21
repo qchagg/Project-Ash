@@ -16,6 +16,7 @@ func _init() -> void:
 		["Visuals · augments name the skill and pick the aura: most augments wins, ties go to the first slotted", _aura_names],
 		["Celerity · fits damage, heal and shield skills, renames with Fleet, and marks the skill as an opener", _celerity_fits],
 		["Regions · every hero's home is a region with a dark and a light colorway and its own sigil", _regions],
+		["Lore · thirty archetypes, every region has two or more, every element at least seven, each linked hero exists", _archetypes],
 		["Cards · every portrait crops to Brann's eye line: eyes at the same height, the face the same size", _eye_line],
 	]
 	var failed := 0
@@ -168,6 +169,22 @@ func _regions() -> Array:
 		ok = ok and good
 		lines.append("%s → %s" % [h.name, r.get("name", "none")])
 	return [ok, " · ".join(lines)]
+
+
+func _archetypes() -> Array:
+	var per_region := {}
+	var per_elem := {}
+	var ok := Lore.ARCHETYPES.size() == 30
+	for a in Lore.ARCHETYPES:
+		ok = ok and Data.REGIONS.has(a.region) and Data.ELEMS.has(a.elem) and Lore.ROLES.has(a.role) \
+			and a.favored.all(func(x): return Data.APTITUDES.has(x)) and (a.hero == "" or not Data.hero(a.hero).is_empty())
+		per_region[a.region] = per_region.get(a.region, 0) + 1
+		per_elem[a.elem] = per_elem.get(a.elem, 0) + 1
+	for r in Data.REGIONS:
+		ok = ok and per_region.get(r, 0) >= 2 and ResourceLoader.exists("res://art/icons/ui/region_%s.svg" % r)
+	for e in Data.ELEMS:
+		ok = ok and per_elem.get(e, 0) >= 7
+	return [ok, "%d archetypes · %s" % [Lore.ARCHETYPES.size(), per_elem]]
 
 
 func _eye_line() -> Array:

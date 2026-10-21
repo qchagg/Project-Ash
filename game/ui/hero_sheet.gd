@@ -248,8 +248,8 @@ func _kit(c: Dictionary) -> Control:
 	var v := Forge.vbox(14)
 	var head := Forge.hbox(36)
 	v.add_child(head)
-	head.add_child(_seg("Skills", tab == "skills", _show.bind("skills")))
-	head.add_child(_seg("Passives", tab == "passives", _show.bind("passives")))
+	head.add_child(Forge.seg("Skills", tab == "skills", _show.bind("skills")))
+	head.add_child(Forge.seg("Passives", tab == "passives", _show.bind("passives")))
 	var sp := Control.new()
 	sp.size_flags_horizontal = SIZE_EXPAND_FILL
 	head.add_child(sp)
@@ -371,17 +371,6 @@ func _toggle_swap() -> void:
 func _no_swap() -> void:
 	status = "There are no other skills to swap to yet."
 	refresh()
-
-
-func _seg(text: String, on: bool, cb: Callable) -> Button:
-	var b := Forge.link(text, "", 24)
-	b.custom_minimum_size.y = 64
-	for k in ["font_color", "font_hover_color"]:
-		b.add_theme_color_override(k, Forge.GOLD_LIGHT if on else Forge.DIM)
-	if on:
-		b.draw.connect(func(): b.draw_rect(Rect2(0, b.size.y - 4, b.size.x, 4), Forge.GOLD))
-	b.pressed.connect(cb)
-	return b
 
 
 func _round_button(glyph: String, tip: String, cb: Callable, px := 80) -> Button:

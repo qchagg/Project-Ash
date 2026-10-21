@@ -76,21 +76,42 @@ const HEROES := [
 # Aptitudes for trials (d20 + bonus against the trial's difficulty), from the earlier Aptitudes screen.
 # Each hero favours two: those roll +3 and spark on 19–20. Display only until trials are ported.
 
-## Home regions. Each has a colorway, a dark and a light, after the Legends of Runeterra regions: the dark grounds
+## Home regions, drawn from cultures around the world (`inspired` names the influence). Each has a colorway, a dark and a light, after the Legends of Runeterra regions: the dark grounds
 ## its panels, the light carries its sigil (art/icons/ui/region_<key>.svg) and accents.
 const REGIONS := {
 	"jaladesh": {"name": "Jaladesh", "dark": Color("#0d2629"), "light": Color("#e895b4"),
-		"desc": "A delta of a thousand channels, stilt villages and lotus lamps on the water."},
+		"desc": "A delta of a thousand channels, stilt villages and lotus lamps on the water.",
+		"inspired": "The Bengal delta and the Sundarbans; Bangla and Sanskrit (jala, water)."},
 	"marusthal": {"name": "Marusthal", "dark": Color("#2b1310"), "light": Color("#e6b47c"),
-		"desc": "Salt-white dunes, red sandstone palace cities and caravans that travel by moonlight."},
+		"desc": "Salt-white dunes, red sandstone palace cities and caravans that travel by moonlight.",
+		"inspired": "The Thar desert and the Rajput courts; Sanskrit (maru, desert)."},
 	"khorvan": {"name": "Khorvan Steppe", "dark": Color("#161b1f"), "light": Color("#9fc4dc"),
-		"desc": "An ocean of grass under an enormous sky, where the horse herds outnumber the people a hundred to one."},
+		"desc": "An ocean of grass under an enormous sky, where the horse herds outnumber the people a hundred to one.",
+		"inspired": "The Kazakh and Mongolian steppe."},
 	"gwyntmoor": {"name": "Gwyntmoor", "dark": Color("#1b1722"), "light": Color("#b8a0d0"),
-		"desc": "High moors where the wind never stops: stone circles, and centaur herds running the ridgelines."},
+		"desc": "High moors where the wind never stops: stone circles, and centaur herds running the ridgelines.",
+		"inspired": "Welsh uplands; Welsh (gwynt, wind)."},
 	"hraunvald": {"name": "Hraunvald", "dark": Color("#121414"), "light": Color("#7ccbc1"),
-		"desc": "Black lava fields that still steam, hot springs, and a fallen kingdom carved into the side of a volcano."},
+		"desc": "Black lava fields that still steam, hot springs, and a fallen kingdom carved into the side of a volcano.",
+		"inspired": "Iceland; Icelandic (hraun, lava field)."},
 	"vetroles": {"name": "Vetrolés", "dark": Color("#0f1d14"), "light": Color("#93c96b"),
-		"desc": "A windswept forest where the trees whisper and the paths rearrange themselves overnight."},
+		"desc": "A windswept forest where the trees whisper and the paths rearrange themselves overnight.",
+		"inspired": "Slavic forests; veter and les, wind and forest."},
+	"djeliba": {"name": "Djeliba", "dark": Color("#141a33"), "light": Color("#f2c14e"),
+		"desc": "A river empire of mudbrick cities and great libraries, where griots carry eight hundred years of history in song.",
+		"inspired": "The Mali and Songhai empires, Timbuktu and Djenné; Bambara (Djeliba, the Niger, 'great river')."},
+	"mwambao": {"name": "Mwambao", "dark": Color("#0f1f2a"), "light": Color("#f4846a"),
+		"desc": "A coral-stone coast of carved doors and dhow harbours, where the monsoon decides who trades with whom.",
+		"inspired": "The Swahili coast: Lamu, Zanzibar, Kilwa; Swahili (mwambao, coastline)."},
+	"ritisuyu": {"name": "Ritisuyu", "dark": Color("#231a14"), "light": Color("#ef5a4c"),
+		"desc": "Snow peaks above terraced valleys, rope bridges over gorges, and roads that runners cross in relays.",
+		"inspired": "The Andes and Tawantinsuyu; Quechua (rit'i, snow; suyu, region)."},
+	"xochitlan": {"name": "Xochitlan", "dark": Color("#0c1f1c"), "light": Color("#ff9f1c"),
+		"desc": "A lake city of floating gardens and marigold causeways, ringed by jungle and hidden wells.",
+		"inspired": "Tenochtitlan and the Maya lowlands; Nahuatl (xochitl, flower; -tlan, place of)."},
+	"lautlangit": {"name": "Lautlangit", "dark": Color("#2a1a12"), "light": Color("#e8e2d0"),
+		"desc": "A thousand volcanic islands where the sea and the sky meet, sailed by people who were born on boats.",
+		"inspired": "The Malay archipelago; Malay and Indonesian (laut, sea; langit, sky)."},
 }
 
 const APTITUDES := {
