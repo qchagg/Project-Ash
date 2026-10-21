@@ -9,6 +9,8 @@ var app: App
 var hero := ""
 var uid := ""
 var _matchups := false
+## The aptitude whose details are showing, if any.
+var _apt := ""
 var _art: Control
 var _tex: Texture2D
 ## A full-body cutout, when the hero has one; otherwise the square portrait fills the page.
@@ -79,28 +81,18 @@ func _ready() -> void:
 	add_child(foot)
 	var v := Forge.vbox(26)
 	foot.add_child(v)
-	var names := Forge.vbox(10)
+	# Title over name, then a line of bio.
+	var names := Forge.vbox(4)
 	v.add_child(names)
-	if c.stars < 4:
-		names.add_child(Forge.sc("%d★ · steps out of the frame at 4★" % c.stars, 20, Forge.LABEL))
+	names.add_child(Forge.sc(h.title, 28, Forge.GOLD))
 	var nm := Forge.sc(h.name, 96, Forge.PARCHMENT, true, 0.08)
 	nm.add_theme_color_override("font_shadow_color", Color.BLACK)
 	nm.add_theme_constant_override("shadow_offset_y", 5)
 	names.add_child(nm)
-	var tl := Forge.hbox(18)
-	names.add_child(tl)
-	tl.add_child(Forge.sc(h.title, 28, Forge.GOLD))
-	var fade := Control.new()
-	fade.size_flags_horizontal = SIZE_EXPAND_FILL
-	fade.custom_minimum_size.y = 2
-	fade.size_flags_vertical = SIZE_SHRINK_CENTER
-	fade.draw.connect(func():
-		fade.draw_polyline_colors(PackedVector2Array([Vector2.ZERO, Vector2(fade.size.x, 0)]),
-			PackedColorArray([Forge.GOLD_DEEP, Color(Forge.GOLD_DEEP, 0)]), 2.0))
-	tl.add_child(fade)
-	var lore := Forge.label("[A line or two of %s’s voice or lore goes here.]" % h.name, 30, Color("#e2d5b6"), Forge.SANS_ITALIC)
-	lore.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(lore)
+	var bio := Forge.label(h.get("bio", "[A line of bio goes here.]"), 30, Color("#e2d5b6"), Forge.SANS_ITALIC)
+	bio.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	bio.custom_minimum_size.x = 580
+	v.add_child(bio)
 	_tags = Forge.vbox(18)
 	v.add_child(_tags)
 	_fill_tags()
@@ -177,6 +169,25 @@ func _fill_tags() -> void:
 	wrap.add_child(btn)
 	row.add_child(wrap)
 	row.add_child(_tag_panel(_tag(h.range.capitalize(), "", Color.WHITE)))
+	# The hero's favoured aptitudes, for trials. Tap one for what it covers.
+	var apts := Forge.hbox(16)
+	_tags.add_child(apts)
+	for a in h.get("favored", []):
+		var t := _tag_panel(_tag("%s +%d" % [a, Data.FAVORED_BONUS], "", Color.WHITE))
+		var b := Button.new()
+		b.flat = true
+		b.focus_mode = Control.FOCUS_NONE
+		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		b.tooltip_text = Data.APTITUDES[a]
+		b.set_anchors_preset(PRESET_FULL_RECT)
+		b.pressed.connect(func():
+			_apt = "" if _apt == a else a
+			_matchups = false
+			_fill_tags())
+		t.add_child(b)
+		apts.add_child(t)
+	if _apt != "":
+		_tags.add_child(_note_line("%s · favored, d20 +%d, sparks on 19–20 · %s" % [_apt.capitalize(), Data.FAVORED_BONUS, Data.APTITUDES[_apt]]))
 	if _matchups:
 		var m := Forge.hbox(36)
 		_tags.add_child(m)
@@ -190,7 +201,15 @@ func _fill_tags() -> void:
 
 func _toggle_matchups() -> void:
 	_matchups = not _matchups
+	_apt = ""
 	_fill_tags()
+
+
+func _note_line(text: String) -> Label:
+	var l := Forge.label(text, 24, Color("#e2d5b6"), Forge.SANS_ITALIC)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size.x = 580
+	return l
 
 
 func _tag(text: String, elem: String, tint: Color) -> HBoxContainer:
