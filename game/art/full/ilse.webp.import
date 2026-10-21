@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://pb4dtnrop073"
-path="res://.godot/imported/ilse.webp-b10c75f8b71627ad6d8398c9f14f94a7.ctex"
+uid="uid://dh0okul5580c7"
+path="res://.godot/imported/ilse.webp-250c58803a3a178f77a58767955be005.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/portraits/ilse.webp"
-dest_files=["res://.godot/imported/ilse.webp-b10c75f8b71627ad6d8398c9f14f94a7.ctex"]
+source_file="res://art/full/ilse.webp"
+dest_files=["res://.godot/imported/ilse.webp-250c58803a3a178f77a58767955be005.ctex"]
 
 [params]
 

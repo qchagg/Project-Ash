@@ -283,6 +283,7 @@ func _commit(c: Dictionary, copies: Array) -> Button:
 		b.pressed.connect(func():
 			if app.col.crown(uid):
 				status = "The Ashcrown takes %s to 4★." % Data.hero(hero).name
+				_celebrate()
 			_build())
 		return b
 	if c.stars >= 4:
@@ -297,6 +298,8 @@ func _commit(c: Dictionary, copies: Array) -> Button:
 		b.pressed.connect(func():
 			var r := app.col.merge(uid, fodder)
 			status = "%s rises to %d★." % [Data.hero(hero).name, _card().stars] if r.ok else r.msg
+			if r.ok:
+				_celebrate()
 			feeding = false
 			fodder = ""
 			_build())
@@ -361,6 +364,12 @@ func _preview() -> Dictionary:
 	copy.merge_mode = app.col.merge_mode
 	var r := copy.merge(uid, fodder)
 	return r.after if r.ok else {}
+
+
+func _celebrate() -> void:
+	var h := Data.hero(hero)
+	if h.has("celebrate"):
+		CutIn.play(app, h.celebrate)
 
 
 func _show(t: String) -> void:
