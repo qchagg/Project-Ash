@@ -7,7 +7,8 @@ extends Screen
 ## Nothing here assumes four heroes: grids, chips and the panel size from the battle's own rows, columns and units.
 
 const GAP := 8.0
-const TILE_H := 88.0
+## Tile height: taller on the 3-row grid a four-hero squad fights on, so the board fills the screen.
+const TILE_H := {3: 112.0, 4: 88.0}
 ## How long each beat of a resolving round stays on screen.
 const BEAT := 0.42
 ## The open action panel's height: the hero line, two rows of buttons, the armed skill and a two-line hint.
@@ -28,9 +29,9 @@ var _spoils := ""
 var _aim_at := Vector2i(-1, -1)
 var _aim_side := ""
 ## Whether the action panel docked at the foot is open; folded, it is just its handle.
-var _dock_open := true
-var _dock_label: Label
-var _dock_handle: Button
+## The tab bar, hidden from the moment the fight begins until it ends: nothing in it is needed mid-battle.
+var _nav: Control
+var _retreat: Button
 var _tiles := {}
 var _tex := {}
 var _round: Label
@@ -51,11 +52,23 @@ func _build() -> void:
 	_new_fight()
 	_round = Forge.sc("", 22, Forge.LABEL)
 	head_right.add_child(_round)
+	_retreat = Forge.link("retreat", "back", 20)
+	_retreat.custom_minimum_size.y = 44
+	_retreat.tooltip_text = "Leave this fight and start over from the formation"
+	_retreat.pressed.connect(func():
+		if _playing:
+			return
+		_new_fight()
+		_log.text = ""
+		refresh()
+		_intro())
+	head_right.add_child(_retreat)
 	body.add_child(_grid("E"))
 	body.add_child(_strip())
 	body.add_child(_grid("P"))
 	# The selected hero's actions dock above the tab bar, outside the scroll, and fold down to a handle.
 	var root := body.get_parent().get_parent().get_parent()
+	_nav = root.get_child(root.get_child_count() - 1)
 	root.add_child(_dock())
 	root.move_child(root.get_child(root.get_child_count() - 1), root.get_child_count() - 2)
 	refresh()
@@ -82,6 +95,9 @@ func _new_fight() -> void:
 	b = Battle.new()
 	b.rules.reach = true
 	b.rules.ground = true
+	# Three rows for a four-hero squad; the fourth comes back if squads grow to five.
+	b.rows = Collection.ROWS
+	b.cols = Collection.COLS
 	var heroes := []
 	var pos := {}
 	for uid in app.col.squad:
@@ -101,7 +117,8 @@ func _new_fight() -> void:
 func _grid(side: String) -> Control:
 	var g := Control.new()
 	var tw := (632.0 - GAP * (b.cols - 1)) / b.cols
-	g.custom_minimum_size = Vector2(632, b.rows * TILE_H + (b.rows - 1) * GAP)
+	var th: float = TILE_H.get(b.rows, 88.0)
+	g.custom_minimum_size = Vector2(632, b.rows * th + (b.rows - 1) * GAP)
 	for r in b.rows:
 		for c in b.cols:
 			var t := BattleTile.new()
@@ -110,8 +127,8 @@ func _grid(side: String) -> Control:
 			t.r = r
 			t.c = c
 			var row := b.rows - 1 - r if side == "E" else r
-			t.position = Vector2(c * (tw + GAP), row * (TILE_H + GAP))
-			t.size = Vector2(tw, TILE_H)
+			t.position = Vector2(c * (tw + GAP), row * (th + GAP))
+			t.size = Vector2(tw, th)
 			g.add_child(t)
 			_tiles["%s%d%d" % [side, r, c]] = t
 	return g
@@ -120,46 +137,15 @@ func _grid(side: String) -> Control:
 ## The docked action panel: a handle (the hero's name and a chevron) over the actions. Tap the handle to fold it.
 func _dock() -> Control:
 	var p := PanelContainer.new()
-	var st := Forge.flat(Color(Forge.PLAQUE_DEEP, 0.97), Color(Forge.GOLD_DEEP, 0.8), 0, Vector4(44, 6, 44, 16))
+	var st := Forge.flat(Color(Forge.PLAQUE_DEEP, 0.97), Color(Forge.GOLD_DEEP, 0.8), 0, Vector4(44, 18, 44, 28))
 	st.border_width_top = 2
 	st.shadow_color = Color(0, 0, 0, 0.5)
 	st.shadow_size = 16
 	p.add_theme_stylebox_override("panel", st)
-	var v := Forge.vbox(8)
-	p.add_child(v)
-	var handle := Button.new()
-	handle.flat = true
-	handle.focus_mode = Control.FOCUS_NONE
-	handle.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	handle.custom_minimum_size.y = 52
-	handle.tooltip_text = "Fold or raise the actions"
-	for state in ["normal", "hover", "pressed"]:
-		handle.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-	var row := Forge.hbox(12)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	handle.add_child(row)
-	row.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	# A grip bar in the middle, the hero on the left, the chevron on the right.
-	_dock_label = Forge.sc("", 20, Forge.LABEL)
-	_dock_label.size_flags_horizontal = SIZE_EXPAND_FILL
-	_dock_label.size_flags_vertical = SIZE_SHRINK_CENTER
-	row.add_child(_dock_label)
-	_dock_handle = handle
-	handle.draw.connect(func():
-		handle.draw_rect(Rect2(handle.size.x / 2 - 30, 6, 60, 5), Color(Forge.GOLD_DEEP, 0.7))
-		# A chevron on the right: down to fold, up to raise.
-		var m := Vector2(handle.size.x - 12, handle.size.y / 2 + 4)
-		var d := 6.0 if _dock_open else -6.0
-		handle.draw_polyline(PackedVector2Array([m + Vector2(-9, -d), m + Vector2(0, d), m + Vector2(9, -d)]), Forge.GOLD, 2.5, true))
-	handle.pressed.connect(func():
-		_dock_open = not _dock_open
-		refresh())
-	Forge.press_weight(handle, 0.97)
-	v.add_child(handle)
 	_panel = Forge.vbox(10)
-	# One fixed height while open, so the buttons never slide under a thumb as hints or skill details come and go.
+	# One fixed height, so the buttons never slide under a thumb as hints or skill details come and go.
 	_panel.custom_minimum_size.y = PANEL_H
-	v.add_child(_panel)
+	p.add_child(_panel)
 	return p
 
 
@@ -206,10 +192,11 @@ func refresh() -> void:
 		view = _plan_view()
 	_fill_chips()
 	_fill_panel()
-	_panel.visible = _dock_open
-	_dock_handle.queue_redraw()
-	var u := b.unit(sel_id)
-	_dock_label.text = "actions" if _dock_open or u.is_empty() or b.phase == "over" else "%s · tap to raise" % Battle.name_of(u).to_lower()
+	var fighting: bool = _playing or b.phase in ["plan", "run"]
+	_nav.visible = not fighting
+	# The panel keeps one height only while fighting, when its buttons are in use.
+	_panel.custom_minimum_size.y = PANEL_H if b.phase == "plan" else 0.0
+	_retreat.visible = b.phase == "plan" and not _playing
 
 
 ## The board while planning: heroes stand where their planned step takes them.
@@ -676,7 +663,8 @@ func _play() -> void:
 				if not is_inside_tree():
 					return
 			"cutin":
-				await CutIn.play(app, e.src).finished
+				var who := b.unit(e.id)
+				await CutIn.pop(app, e.src, e.name, Battle.name_of(who), who.elem).finished
 				if not is_inside_tree():
 					return
 			"step":

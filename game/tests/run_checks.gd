@@ -197,10 +197,10 @@ func _celerity_fits() -> Array:
 
 func _formation() -> Array:
 	var col := Collection.new()
-	var moved := col.place("kaede", Vector2i(3, 3)) == "" and col.tile("kaede") == Vector2i(3, 3)
+	var moved := col.place("kaede", Vector2i(2, 3)) == "" and col.tile("kaede") == Vector2i(2, 3)
 	var b := col.tile("brann")
-	var swapped := col.place("kaede", b) == "" and col.tile("kaede") == b and col.tile("brann") == Vector2i(3, 3)
-	var off := col.place("kaede", Vector2i(4, 0)) != "" and col.tile("kaede") == b
+	var swapped := col.place("kaede", b) == "" and col.tile("kaede") == b and col.tile("brann") == Vector2i(2, 3)
+	var off := col.place("kaede", Vector2i(Collection.ROWS, 0)) != "" and col.tile("kaede") == b
 	var benched := col.place("rock", Vector2i(2, 0)) != ""
 	# Basalt's own spot (0, 2): put Sorrel there first, then field Basalt in Varuni's seat.
 	col.place("sorrel", Vector2i(0, 2))

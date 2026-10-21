@@ -36,7 +36,7 @@ const FOES := [
 		{"name": "Flare", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.6, "cd": 2}]},
 ]
 ## Enemy starting tiles per grid size ("colsxrows"); a size not listed uses each foe's own r, c (the v0.1 layout).
-const FOE_START := {"4x4": {"golem": Vector2i(0, 1), "blade": Vector2i(0, 2), "caller": Vector2i(2, 0), "seer": Vector2i(3, 3)}}
+const FOE_START := {"4x3": {"golem": Vector2i(0, 1), "blade": Vector2i(0, 2), "caller": Vector2i(2, 0), "seer": Vector2i(2, 3)}, "4x4": {"golem": Vector2i(0, 1), "blade": Vector2i(0, 2), "caller": Vector2i(2, 0), "seer": Vector2i(3, 3)}}
 
 ## v0.2 rule proposals plus Reach. All start off, so the reference fights hold; a screen switches on what it plays with.
 const RULE_DEFS := {

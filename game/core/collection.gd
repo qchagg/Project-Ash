@@ -7,8 +7,9 @@ extends RefCounted
 const MAX_SQUAD := 4
 const DEFAULT_SQUAD := ["kaede", "brann", "sorrel", "ilse"]
 const STAR_BONUS := 0.10
-## Each side's grid, as the sandbox's default: rows from the front (0) back, columns are lanes.
-const ROWS := 4
+## Each side's grid: rows from the front (0) back, columns are lanes. 3 rows by 4 lanes for a squad of four;
+## a fifth hero would bring back the fourth row.
+const ROWS := 3
 const COLS := 4
 
 ## best: a merge keeps the higher of each stat and every star adds STAR_BONUS. sum: the two cards' stats add up.
