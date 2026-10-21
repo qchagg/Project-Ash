@@ -52,6 +52,21 @@ func _draw() -> void:
 		var fx := screen.b.effects_at(side, r, c)
 		if fx.size():
 			_tag(Vector2(8, 8), fx[0].label.to_lower(), Color("#ff7a3d"))
+		var ghost := screen.ghost_at(side, r, c)
+		if not ghost.is_empty():
+			# The spot a hero will step away from: their portrait, faded, in a dashed frame.
+			if ghost.has("portrait"):
+				draw_set_transform(Vector2.ZERO)
+				Forge.portrait(self, screen.tex(ghost.portrait.src), rect.grow(-6), ghost.portrait)
+				draw_rect(rect.grow(-6), Color(Forge.INK, 0.72))
+			_dashed(rect.grow(-3), Color(Forge.GOLD, 0.7))
+			draw_string(Forge.tracked(Forge.SC, 2), Vector2(0, size.y / 2 + 6), "stay", HORIZONTAL_ALIGNMENT_CENTER, size.x, 16, Color(Forge.GOLD, 0.8))
+			return
+		if screen.is_step(side, r, c):
+			draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.08))
+			_dashed(rect.grow(-2), Forge.GOLD)
+			draw_string(Forge.tracked(Forge.SC, 2), Vector2(0, size.y / 2 + 6), "step", HORIZONTAL_ALIGNMENT_CENTER, size.x, 16, Forge.GOLD)
+			return
 		if area:
 			draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.28))
 			draw_rect(rect.grow(-1), Forge.GOLD_LIGHT, false, 3.0)
@@ -156,3 +171,10 @@ func float_text(text: String, cls: String) -> void:
 	t.tween_property(l, "position:y", l.position.y - 44, 0.8).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	t.tween_property(l, "modulate:a", 0.0, 0.8).set_delay(0.3)
 	t.chain().tween_callback(l.queue_free)
+
+
+## A dashed frame, for tiles a hero can step to or will leave.
+func _dashed(r: Rect2, color: Color) -> void:
+	var pts := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y), r.position]
+	for i in 4:
+		draw_dashed_line(pts[i], pts[i + 1], color, 2.0, 8.0)

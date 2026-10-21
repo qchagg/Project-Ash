@@ -51,6 +51,9 @@ func _init() -> void:
 		["Rule · Ground: a ranged cross aimed at an empty tile hits above and below it; the AI still aims at units", _b_ground],
 		["Rule · Ground: single-target and melee skills still need a unit; an area stays put when its unit falls first", _b_ground_limits],
 		["Playback · a round marks the ally and enemy turns, and Varuni's Rain of Renewal cues her cut-in", _b_turn_marks],
+		["Plan · a hero steps then acts: Brann steps to the front row and Rockfall lands, though he planned it from the second row", _b_step_then_act],
+		["Plan · queue order holds: Varuni's heal lands on Sorrel before he steps away; he then casts from his new tile", _b_step_order],
+		["Plan · steps reach 2 tiles, never onto a unit or a tile another hero has claimed; stepping home cancels", _b_step_tiles],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -845,3 +848,54 @@ func _b_turn_marks() -> Array:
 	var kinds := b.take_events().filter(func(e): return e.t in ["phase", "cutin"]).map(func(e): return e.get("name", e.t))
 	var ok: bool = kinds.size() >= 3 and kinds[0] == "ally" and kinds[1] == "Rain of Renewal" and "enemy" in kinds
 	return [ok, " → ".join(kinds)]
+
+
+func _b_step_then_act() -> Array:
+	var b := _scenario([["brann", 1, 1]], [[0, 1]], ["reach"])
+	var br := b.unit("P-brann")
+	var rock := b.act(br, "s0")
+	var from_here: bool = b.targets(br, rock).tiles.is_empty()
+	b.plan_step(br.id, Vector2i(0, 1))
+	var aimed: Array = b.targets(b.as_planned(br), rock).tiles
+	b.enqueue(br.id, "s0", 0, 1)
+	b.phase = "plan"
+	b.run_round()
+	var post := b.unit("E-post0")
+	var ok: bool = from_here and aimed == [Vector2i(0, 1)] and Vector2i(br.r, br.c) == Vector2i(0, 1) and _lost(post) > 0
+	return [ok, "blocked from row 2 %s · aim after the planned step %s · Brann ends on %s · post lost %d" % [from_here, aimed, b.lane(br.r, br.c), _lost(post)]]
+
+
+func _b_step_order() -> Array:
+	var b := _scenario([["ilse", 2, 2], ["sorrel", 1, 0]], [[0, 1], [3, 3]], ["ground"])
+	var so := b.unit("P-sorrel")
+	so.hp -= 300
+	b.enqueue("P-ilse", "s1", 2, 2)
+	b.plan_step(so.id, Vector2i(0, 0))
+	b.enqueue(so.id, "s0", 0, 1)
+	b.phase = "plan"
+	b.run_round()
+	var ev := b.take_events()
+	var logs: Array = ev.filter(func(e): return e.t == "log").map(func(e): return e.text)
+	# The heal's number rises off Sorrel's starting tile: he was still standing there when it landed.
+	var healed_home: bool = ev.any(func(e): return e.t == "float" and e.cls == "mend" and e.side == "P" and e.r == 1 and e.c == 0)
+	var heal := logs.find_custom(func(t): return t.contains("Rain of Renewal"))
+	var walk := logs.find_custom(func(t): return t.contains("Sorrel steps"))
+	var cast := logs.find_custom(func(t): return t.contains("Crosswind"))
+	var ok: bool = heal >= 0 and heal < walk and walk < cast and healed_home and Vector2i(so.r, so.c) == Vector2i(0, 0)
+	return [ok, "heal at line %d, step at %d, Crosswind at %d · healed on his first tile %s · ends on %s" % [heal, walk, cast, healed_home, b.lane(so.r, so.c)]]
+
+
+func _b_step_tiles() -> Array:
+	var b := _scenario([["sorrel", 1, 0], ["brann", 0, 0], ["ilse", 2, 3]], [[0, 1]])
+	var so := b.unit("P-sorrel")
+	var t: Array = b.step_tiles(so)
+	var far := Vector2i(3, 1) in t
+	var onto := Vector2i(0, 0) in t
+	var reach2 := Vector2i(1, 2) in t and Vector2i(2, 1) in t
+	b.plan_step("P-ilse", Vector2i(1, 2))
+	var claimed := not Vector2i(1, 2) in b.step_tiles(so)
+	b.plan_step(so.id, Vector2i(2, 0))
+	b.plan_step(so.id, Vector2i(1, 0))
+	var cancelled := not b.steps.has(so.id)
+	var ok: bool = not far and not onto and reach2 and claimed and cancelled
+	return [ok, "3 away %s · onto Brann %s · 2 away %s · claimed by Varuni blocked %s · home cancels %s" % [far, onto, reach2, claimed, cancelled]]

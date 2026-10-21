@@ -10,6 +10,8 @@ const GAP := 8.0
 const TILE_H := 88.0
 ## How long each beat of a resolving round stays on screen.
 const BEAT := 0.42
+## The open action panel's height: the hero line, two rows of buttons, the armed skill and a two-line hint.
+const PANEL_H := 360.0
 
 var b: Battle
 ## The board as currently shown (unit id -> snapshot); it trails the engine during playback.
@@ -25,6 +27,10 @@ var _spoils := ""
 ## Where an area skill is being previewed: tap a tile to place its shape, tap it again to cast. (-1, -1) when unset.
 var _aim_at := Vector2i(-1, -1)
 var _aim_side := ""
+## Whether the action panel docked at the foot is open; folded, it is just its handle.
+var _dock_open := true
+var _dock_label: Label
+var _dock_handle: Button
 var _tiles := {}
 var _tex := {}
 var _round: Label
@@ -48,8 +54,10 @@ func _build() -> void:
 	body.add_child(_grid("E"))
 	body.add_child(_strip())
 	body.add_child(_grid("P"))
-	_panel = Forge.vbox(10)
-	body.add_child(_panel)
+	# The selected hero's actions dock above the tab bar, outside the scroll, and fold down to a handle.
+	var root := body.get_parent().get_parent().get_parent()
+	root.add_child(_dock())
+	root.move_child(root.get_child(root.get_child_count() - 1), root.get_child_count() - 2)
 	refresh()
 	_intro.call_deferred()
 
@@ -109,6 +117,52 @@ func _grid(side: String) -> Control:
 	return g
 
 
+## The docked action panel: a handle (the hero's name and a chevron) over the actions. Tap the handle to fold it.
+func _dock() -> Control:
+	var p := PanelContainer.new()
+	var st := Forge.flat(Color(Forge.PLAQUE_DEEP, 0.97), Color(Forge.GOLD_DEEP, 0.8), 0, Vector4(44, 6, 44, 16))
+	st.border_width_top = 2
+	st.shadow_color = Color(0, 0, 0, 0.5)
+	st.shadow_size = 16
+	p.add_theme_stylebox_override("panel", st)
+	var v := Forge.vbox(8)
+	p.add_child(v)
+	var handle := Button.new()
+	handle.flat = true
+	handle.focus_mode = Control.FOCUS_NONE
+	handle.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	handle.custom_minimum_size.y = 52
+	handle.tooltip_text = "Fold or raise the actions"
+	for state in ["normal", "hover", "pressed"]:
+		handle.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	var row := Forge.hbox(12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	handle.add_child(row)
+	row.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	# A grip bar in the middle, the hero on the left, the chevron on the right.
+	_dock_label = Forge.sc("", 20, Forge.LABEL)
+	_dock_label.size_flags_horizontal = SIZE_EXPAND_FILL
+	_dock_label.size_flags_vertical = SIZE_SHRINK_CENTER
+	row.add_child(_dock_label)
+	_dock_handle = handle
+	handle.draw.connect(func():
+		handle.draw_rect(Rect2(handle.size.x / 2 - 30, 6, 60, 5), Color(Forge.GOLD_DEEP, 0.7))
+		# A chevron on the right: down to fold, up to raise.
+		var m := Vector2(handle.size.x - 12, handle.size.y / 2 + 4)
+		var d := 6.0 if _dock_open else -6.0
+		handle.draw_polyline(PackedVector2Array([m + Vector2(-9, -d), m + Vector2(0, d), m + Vector2(9, -d)]), Forge.GOLD, 2.5, true))
+	handle.pressed.connect(func():
+		_dock_open = not _dock_open
+		refresh())
+	Forge.press_weight(handle, 0.97)
+	v.add_child(handle)
+	_panel = Forge.vbox(10)
+	# One fixed height while open, so the buttons never slide under a thumb as hints or skill details come and go.
+	_panel.custom_minimum_size.y = PANEL_H
+	v.add_child(_panel)
+	return p
+
+
 ## The front line between the grids: round and phase, the queued actions in order, and the one commit button.
 func _strip() -> Control:
 	var v := Forge.vbox(8)
@@ -148,8 +202,46 @@ func refresh() -> void:
 	_go.text = {"form": "begin", "plan": "fight", "run": "fight", "over": "fight again"}[phase]
 	_go.disabled = _playing
 	_log.visible = _playing or b.phase == "over"
+	if not _playing and b.phase == "plan":
+		view = _plan_view()
 	_fill_chips()
 	_fill_panel()
+	_panel.visible = _dock_open
+	_dock_handle.queue_redraw()
+	var u := b.unit(sel_id)
+	_dock_label.text = "actions" if _dock_open or u.is_empty() or b.phase == "over" else "%s · tap to raise" % Battle.name_of(u).to_lower()
+
+
+## The board while planning: heroes stand where their planned step takes them.
+func _plan_view() -> Dictionary:
+	var v := b.snapshot()
+	for id in b.steps:
+		v[id].r = b.steps[id].x
+		v[id].c = b.steps[id].y
+	return v
+
+
+## While planning, the hero who will step away from this tile: drawn as a faded ghost where they stand now.
+func ghost_at(side: String, r: int, c: int) -> Dictionary:
+	if _playing or b.phase != "plan" or side != "P":
+		return {}
+	for id in b.steps:
+		var u := b.unit(id)
+		if u.r == r and u.c == c:
+			return u
+	return {}
+
+
+## While planning with no action armed, the empty tiles the selected hero can step to.
+func is_step(side: String, r: int, c: int) -> bool:
+	if _playing or b.phase != "plan" or sel_act != "" or side != "P":
+		return false
+	var u := b.unit(sel_id)
+	if u.is_empty() or not u.alive or u.st.stun > 0:
+		return false
+	var v := Vector2i(r, c)
+	var shown: Dictionary = view.get(sel_id, {})
+	return v in b.step_tiles(u) and (shown.is_empty() or v != Vector2i(shown.r, shown.c)) and unit_view(side, r, c).is_empty()
 
 
 func _fill_chips() -> void:
@@ -227,7 +319,7 @@ func _fill_panel() -> void:
 		skills.add_child(_act_button(u, "s%d" % i, 64))
 	var basics := Forge.hbox(10)
 	_panel.add_child(basics)
-	for k in ["basic", "move", "guard"]:
+	for k in ["basic", "guard"]:
 		basics.add_child(_act_button(u, k, 56))
 	if sel_act.begins_with("s"):
 		_panel.add_child(_armed(u, b.act(u, sel_act)))
@@ -239,7 +331,7 @@ func _fill_panel() -> void:
 			var a := b.act(u, sel_act)
 			if a.kind == "move":
 				hint = "Tap a lit empty tile to step there."
-			elif b.reach_blocked(u, a):
+			elif b.reach_blocked(b.as_planned(u), a):
 				hint = "Reach: only the enemy across this lane."
 			elif b.aims_ground(a):
 				hint = "Tap any enemy tile to place the %s, then tap it again to cast. Empty tiles count: aim between foes." % b.shape_name(a.pattern).to_lower() if _aim_at.x < 0 else "Tap the same tile again to cast, or another tile to move it."
@@ -247,10 +339,14 @@ func _fill_panel() -> void:
 				hint = "Tap a lit tile."
 		else:
 			for i in u.skills.size():
-				var why := b.blocked_reason(u, b.act(u, "s%d" % i))
+				var why := b.blocked_reason(b.as_planned(u), b.act(u, "s%d" % i))
 				if why != "" and u.cd[i] == 0:
 					hint = "%s: %s" % [u.skills[i].name, why.to_lower()]
 					break
+	if hint == "" and sel_act == "" and b.steps.has(u.id):
+		hint = "Stepping to %s first, then acting. Tap the faded spot to stay put." % b.lane(b.steps[u.id].x, b.steps[u.id].y)
+	if hint == "" and sel_act == "" and b.queued(u.id).is_empty():
+		hint = "Tap a lit tile on your grid to step up to %d tiles, then pick a skill. Moves and skills play out in the order you queue them." % b.tune.step
 	if hint == "":
 		hint = "Each skill in an unbroken run adds %d%% to the next damaging skill." % roundi(b.tune.chain * 100)
 	_note(hint)
@@ -265,6 +361,10 @@ func _act_button(u: Dictionary, key: String, h: int) -> Button:
 			text += " · locked"
 		elif left > 0:
 			text += " · %d" % roundi(left)
+	var q := b.queued(u.id)
+	var is_queued: bool = q.get("key", "") == key
+	if is_queued:
+		text = "%s · #%d" % [a.name, queue_index(u) + 1]
 	var bt := Forge.ember("" if a.is_skill else text, h)
 	bt.size_flags_horizontal = SIZE_EXPAND_FILL
 	bt.add_theme_font_size_override("font_size", 20)
@@ -290,10 +390,17 @@ func _act_button(u: Dictionary, key: String, h: int) -> Button:
 		for k in ["icon_normal_color", "icon_hover_color", "icon_pressed_color"]:
 			bt.add_theme_color_override(k, Forge.LABEL)
 	bt.toggle_mode = true
-	bt.button_pressed = sel_act == key
-	bt.disabled = _playing or b.phase != "plan" or u.st.stun > 0 or (a.is_skill and u.cd[a.idx] > 0) or b.blocked_reason(u, a) != ""
-	bt.tooltip_text = a.get("desc", "")
+	bt.button_pressed = sel_act == key or is_queued
+	bt.disabled = _playing or b.phase != "plan" or u.st.stun > 0 or (a.is_skill and u.cd[a.idx] > 0) or b.blocked_reason(b.as_planned(u), a) != ""
+	bt.tooltip_text = "Queued. Tap to take it back." if is_queued else a.get("desc", "")
 	bt.pressed.connect(func():
+		if is_queued:
+			# Already queued: tapping it again takes it back out of the queue.
+			b.dequeue(u.id)
+			sel_act = ""
+			_aim_at = Vector2i(-1, -1)
+			refresh()
+			return
 		Burst.on(bt, Forge.ELEM[u.elem] if a.is_skill else Forge.GOLD, 54 if a.is_skill else 34, 10 if a.is_skill else 6)
 		_on_action(key))
 	return bt
@@ -357,7 +464,7 @@ func _aim() -> Dictionary:
 	if _playing or b.phase != "plan" or sel_act == "":
 		return {}
 	var u := b.unit(sel_id)
-	return {} if u.is_empty() else b.aim_tiles(u, b.act(u, sel_act))
+	return {} if u.is_empty() else b.aim_tiles(b.as_planned(u), b.act(u, sel_act))
 
 
 func is_lit(side: String, r: int, c: int) -> bool:
@@ -444,7 +551,7 @@ func on_tile(side: String, r: int, c: int) -> void:
 	var u := b.unit(sel_id)
 	if sel_act != "" and not u.is_empty():
 		var a := b.act(u, sel_act)
-		var tg := b.aim_tiles(u, a)
+		var tg := b.aim_tiles(b.as_planned(u), a)
 		if tg.side == side and Vector2i(r, c) in tg.tiles:
 			var tile: BattleTile = _tiles["%s%d%d" % [side, r, c]]
 			if _places_shape() and (_aim_at != Vector2i(r, c) or _aim_side != side):
@@ -460,11 +567,22 @@ func on_tile(side: String, r: int, c: int) -> void:
 			_next_hero()
 			refresh()
 			return
-	var t := b.at(side, r, c)
-	if side == "P" and not t.is_empty():
-		sel_id = t.id
+	# Planning a step: an empty lit tile on your grid, or the faded spot to stay put.
+	if side == "P" and sel_act == "" and not u.is_empty():
+		var ghost := ghost_at(side, r, c)
+		if is_step(side, r, c) or (not ghost.is_empty() and ghost.id == sel_id):
+			b.plan_step(sel_id, Vector2i(r, c))
+			Burst.on(_tiles["P%d%d" % [r, c]], Forge.GOLD, 34, 6)
+			refresh()
+			return
+	var shown := unit_view(side, r, c)
+	if side == "P" and not shown.is_empty() and shown.view.alive:
+		sel_id = shown.id
 		sel_act = ""
 		_aim_at = Vector2i(-1, -1)
+	elif side == "P" and not ghost_at(side, r, c).is_empty():
+		sel_id = ghost_at(side, r, c).id
+		sel_act = ""
 	refresh()
 
 
@@ -475,7 +593,7 @@ func _on_action(key: String) -> void:
 	if u.is_empty() or u.st.stun > 0:
 		return
 	var a := b.act(u, key)
-	_hint = b.blocked_reason(u, a)
+	_hint = b.blocked_reason(b.as_planned(u), a)
 	if _hint != "":
 		refresh()
 		return
@@ -522,6 +640,8 @@ func _commit() -> void:
 				b._finish()
 			await _play()
 		"plan":
+			# Play back from the board as it stands, not as planned: steps happen during the round.
+			view = b.snapshot()
 			b.run_round()
 			await _play()
 		"over":
@@ -537,12 +657,17 @@ func _play() -> void:
 	_playing = true
 	refresh()
 	var pending := []
+	var walks := []
 	for e in b.take_events():
 		match e.t:
 			"flash", "float":
 				pending.append(e)
 			"log":
 				_log.text = e.text
+			"walk":
+				var was: Dictionary = view.get(e.id, {})
+				if not was.is_empty():
+					walks.append({"side": e.id.left(1), "from": Vector2i(was.r, was.c), "to": Vector2i(e.r, e.c)})
 			"phase":
 				var words := {"opening": ["opening volley", "celerity strikes first"], "ally": ["ally turn", "round %d" % b.round_num],
 					"enemy": ["enemy turn", ""]}
@@ -558,6 +683,12 @@ func _play() -> void:
 				view = e.snap
 				for t in _tiles.values():
 					t.queue_redraw()
+				# A hero who stepped walks across from their old tile.
+				for w in walks:
+					var to: BattleTile = _tiles["%s%d%d" % [w.side, w.to.x, w.to.y]]
+					var from: BattleTile = _tiles["%s%d%d" % [w.side, w.from.x, w.from.y]]
+					to.intro(0.0, from.position - to.position)
+				walks = []
 				for p in pending:
 					var tile: BattleTile = _tiles.get("%s%d%d" % [p.side, p.r, p.c])
 					if tile == null:

@@ -52,7 +52,7 @@ const RULE_DEFS := {
 }
 
 ## Tuning: element edge, chain step per link, ranged falloff per row.
-var tune := {"elem": 1.5, "chain": 0.10, "fall": 0.10}
+var tune := {"elem": 1.5, "chain": 0.10, "fall": 0.10, "step": 2}
 var elem_mode := "four"
 var rows := 4
 var cols := 4
@@ -65,6 +65,10 @@ var round_num := 1
 var phase := "plan"
 var units: Array = []
 var queue: Array = []
+## Planned steps, by hero id (Vector2i). Like Enchanted Arms, a hero can step and act in the same round: while planning,
+## the step and the action are both set; when the round resolves, each hero steps and then acts, in queue order.
+## A hero with a step but no queued action steps before their basic attack.
+var steps := {}
 var buffs: Array = []
 var tiles: Array = []
 var trace: Array = []
@@ -133,6 +137,7 @@ func start(heroes: Array, pos := {}) -> void:
 	round_num = 1
 	phase = "plan"
 	queue = []
+	steps = {}
 	buffs = []
 	tiles = []
 	trace = []
@@ -873,6 +878,9 @@ func run_queue() -> Dictionary:
 			ctx.prev = ""
 			ctx.n = 0
 			continue
+		_take_step(u)
+		if not u.alive:
+			continue
 		var a := act(u, q.key)
 		perform(u, a, q.r, q.c, chain if a.is_skill else 0, ctx)
 		chain = next_chain(chain, a)
@@ -946,6 +954,9 @@ func run_round() -> void:
 		if u.st.stun > 0:
 			_stunned_skip(u)
 			continue
+		_take_step(u)
+		if not u.alive:
+			continue
 		var a := act(u, "basic")
 		var p: Variant = pick(u, a)
 		if p != null:
@@ -967,7 +978,62 @@ func run_round() -> void:
 		return
 	round_num += 1
 	queue = []
+	steps = {}
 	phase = "plan"
+
+
+## Where a hero can plan to step: empty tiles on their grid within `tune.step` tiles (counted across, not diagonally),
+## not already claimed by another hero's planned step. Their own tile is included, to cancel a step.
+func step_tiles(u: Dictionary) -> Array:
+	var claimed := {}
+	for id in steps:
+		if id != u.id:
+			claimed[steps[id]] = true
+	var out := []
+	for v in all_tiles():
+		var here: bool = v == Vector2i(u.r, u.c)
+		if absi(v.x - u.r) + absi(v.y - u.c) > tune.step or claimed.has(v):
+			continue
+		if here or (at(u.side, v.x, v.y).is_empty() and downed_at(u.side, v.x, v.y).is_empty()):
+			out.append(v)
+	return out
+
+
+## Plans a step for a hero; stepping to their own tile clears it.
+func plan_step(id: String, to: Vector2i) -> void:
+	var u := unit(id)
+	if u.is_empty() or not to in step_tiles(u):
+		return
+	if to == Vector2i(u.r, u.c):
+		steps.erase(id)
+	else:
+		steps[id] = to
+
+
+## The hero as they will stand when their turn comes, for aiming while planning (Reach, melee exposure).
+func as_planned(u: Dictionary) -> Dictionary:
+	if not steps.has(u.id):
+		return u
+	var p := u.duplicate()
+	p.r = steps[u.id].x
+	p.c = steps[u.id].y
+	return p
+
+
+## Resolving: the hero walks to their planned tile, unless someone got there first.
+func _take_step(u: Dictionary) -> void:
+	if not steps.has(u.id):
+		return
+	var to: Vector2i = steps[u.id]
+	steps.erase(u.id)
+	if not at(u.side, to.x, to.y).is_empty():
+		_log("%s can’t step to %s: it’s taken." % [name_of(u), lane(to.x, to.y)])
+		_step()
+		return
+	_log("%s steps to %s." % [name_of(u), lane(to.x, to.y)])
+	move_unit(u, to.x, to.y, {})
+	events.append({"t": "walk", "id": u.id, "r": to.x, "c": to.y})
+	_step()
 
 
 ## Plans an action for a hero, replacing any it already had queued.
@@ -978,3 +1044,11 @@ func enqueue(id: String, key: String, r: int, c: int) -> void:
 
 func dequeue(id: String) -> void:
 	queue = queue.filter(func(q): return q.id != id)
+
+
+## The queued entry for a hero, or empty.
+func queued(id: String) -> Dictionary:
+	for q in queue:
+		if q.id == id:
+			return q
+	return {}
