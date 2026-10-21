@@ -12,7 +12,7 @@ A turn-based squad battler with a roguelite run structure. You queue your heroes
 | --- | --- |
 | `game/` | The Godot 4.7 project. Open `game/project.godot` in the Godot editor and press Play. |
 | `game/core/` | Game rules in GDScript (`data.gd`, `collection.gd`), ported from the sandbox. |
-| `game/ui/` | Screens. `collection.tscn` is the Collection with merging and the Ashcrown. |
+| `game/ui/` | Screens, all built from `forge.gd` (palette, Alegreya Sans SC type, icons, the three button roles). `app.tscn` runs Roster → hero sheet (stats, skills, feeding, the Ashcrown) → character view. |
 | `game/tests/run_checks.gd` | The Godot acceptance checks. |
 | `sandbox/index.html` | The combat prototype: one self-contained page. Open it in a browser. |
 | `sandbox/portraits/` | Character portraits the sandbox loads (1024×1024 webp). |
@@ -29,7 +29,7 @@ A turn-based squad battler with a roguelite run structure. You queue your heroes
 
 ## Working on the Godot game
 
-Install [Godot 4.7.2](https://godotengine.org/download) (the standard build, not .NET), open `game/project.godot`, and press Play (F5). The editor's Play window is 720×1280, a phone held upright.
+Install [Godot 4.7.2](https://godotengine.org/download) (the standard build, not .NET), open `game/project.godot`, and press Play (F5). The game is fixed at 720×1560, a modern phone held upright (9:19.5); larger windows letterbox instead of stretching.
 
 ```sh
 tools/setup-godot.sh         # installs Godot and the web export templates (the cloud environment's Setup script runs this)

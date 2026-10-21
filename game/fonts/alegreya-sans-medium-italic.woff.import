@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://cfjh1dmqjthxm"
-path="res://.godot/imported/cinzel-bold.woff-8bc91bbad7ea23f57a502a69c42d2013.fontdata"
+uid="uid://cgvf7bfj5tvi5"
+path="res://.godot/imported/alegreya-sans-medium-italic.woff-65e5ae46dcf7a74e8399180c144b0c6d.fontdata"
 
 [deps]
 
-source_file="res://fonts/cinzel-bold.woff"
-dest_files=["res://.godot/imported/cinzel-bold.woff-8bc91bbad7ea23f57a502a69c42d2013.fontdata"]
+source_file="res://fonts/alegreya-sans-medium-italic.woff"
+dest_files=["res://.godot/imported/alegreya-sans-medium-italic.woff-65e5ae46dcf7a74e8399180c144b0c6d.fontdata"]
 
 [params]
 

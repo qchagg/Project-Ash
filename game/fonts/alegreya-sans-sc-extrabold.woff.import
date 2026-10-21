@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://do34gqarnxm4r"
-path="res://.godot/imported/cinzel-black.woff-a9e39f524785211412209792fe29d3d7.fontdata"
+uid="uid://dp6vf1eqgbfr7"
+path="res://.godot/imported/alegreya-sans-sc-extrabold.woff-5a943db8151360c3ed31300869ed9d47.fontdata"
 
 [deps]
 
-source_file="res://fonts/cinzel-black.woff"
-dest_files=["res://.godot/imported/cinzel-black.woff-a9e39f524785211412209792fe29d3d7.fontdata"]
+source_file="res://fonts/alegreya-sans-sc-extrabold.woff"
+dest_files=["res://.godot/imported/alegreya-sans-sc-extrabold.woff-5a943db8151360c3ed31300869ed9d47.fontdata"]
 
 [params]
 
