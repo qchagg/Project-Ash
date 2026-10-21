@@ -29,7 +29,7 @@ const ELEM_COLORS := {
 const HEROES := [
 	{"key": "kaede", "name": "Surya", "title": "Desert Fox", "elem": "fire", "range": "ranged",
 		"max_hp": 820, "atk": 150, "def": 40, "spd": 92, "r": 1, "c": 1,
-		"portrait": {"src": "res://art/portraits/kaede.webp", "x": 58, "y": 48, "zoom": 2.0}, "skills": [
+		"portrait": {"src": "res://art/portraits/kaede.webp", "x": 58, "y": 48, "zoom": 2.0}, "full": {"src": "res://art/full/kaede.webp", "x": 65, "w": 1.5}, "skills": [
 		{"name": "Foxfire Lance", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.25, "cd": 2, "fx": {"burn": 2}, "desc": "Spears an entire lane, front to back. Burns for 2 rounds."},
 		{"name": "Ninefold Blaze", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.7, "cd": 4, "fx": {"burn": 1}, "desc": "Nine tails of fire hit every enemy tile."}]},
 	{"key": "brann", "name": "Brann", "title": "Eternal Rider", "elem": "earth", "legacy_elem": "water", "range": "melee",

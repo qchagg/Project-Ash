@@ -11,6 +11,9 @@ var uid := ""
 var _matchups := false
 var _art: Control
 var _tex: Texture2D
+## A full-body cutout, when the hero has one; otherwise the square portrait fills the page.
+var _full: Texture2D
+var _full_info := {}
 var _tags: VBoxContainer
 var _t := 0.0
 var _arrow_btn: Button
@@ -29,6 +32,9 @@ func _ready() -> void:
 	var h := Data.hero(hero)
 	var c := app.col.by(uid)
 	_tex = load(h.portrait.src)
+	if h.has("full"):
+		_full_info = h.full
+		_full = load(h.full.src)
 
 	var bd := Backdrop.new()
 	bd.elem = h.elem
@@ -184,6 +190,9 @@ func _process(delta: float) -> void:
 
 
 func _draw_art() -> void:
+	if _full:
+		_draw_full()
+		return
 	# A slow 12-second drift and zoom, like the mockup's Ken Burns pass.
 	var k := 0.5 - 0.5 * cos(_t * TAU / 12.0)
 	var s := 1270.0 * (1.06 + 0.04 * k)
@@ -199,3 +208,26 @@ func _draw_art() -> void:
 	# A soft shade under the top bar so the links read over light art.
 	_art.draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(720, 0), Vector2(720, 220), Vector2(0, 220)]),
 		PackedColorArray([Color(Forge.INK, 0.75), Color(Forge.INK, 0.75), Color(Forge.INK, 0), Color(Forge.INK, 0)]))
+
+
+## The cutout stands over the backdrop and breathes: a slow rise and fall, a little sway, anchored at the hips.
+func _draw_full() -> void:
+	var ts := _full.get_size()
+	var w: float = 720.0 * _full_info.get("w", 1.5)
+	var h := w * ts.y / ts.x
+	var breathe := sin(_t * TAU / 5.0)
+	var sway := sin(_t * TAU / 9.0)
+	var scale := 1.0 + 0.012 * breathe
+	var size := Vector2(w, h) * scale
+	# Centre the figure (its x focus) a little right of the page centre, leaving the left for the name.
+	var cx := 400.0 + 6.0 * sway
+	# The cut at the hips lands below the fade, where the page is already solid ink.
+	var top := 1310.0 - size.y
+	var pos := Vector2(cx - size.x * _full_info.get("x", 50) / 100.0, top)
+	_art.draw_texture_rect(_full, Rect2(pos, size), false)
+	# The image is cut at the hips: fade it into the ink under the name.
+	var a := 1560.0 * 0.55
+	var b := 1560.0 * 0.78
+	_art.draw_polygon(PackedVector2Array([Vector2(0, a), Vector2(720, a), Vector2(720, b), Vector2(0, b)]),
+		PackedColorArray([Color(Forge.INK, 0), Color(Forge.INK, 0), Forge.INK, Forge.INK]))
+	_art.draw_rect(Rect2(0, b - 1, 720, 1560 - b + 1), Forge.INK)
