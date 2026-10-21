@@ -18,6 +18,8 @@ var sel_id := ""
 var sel_act := ""
 var _hint := ""
 var _playing := false
+## Embers paid to the town for this fight's win, so the reward is paid once.
+var _paid := 0
 var _tiles := {}
 var _tex := {}
 var _round: Label
@@ -48,6 +50,7 @@ func _build() -> void:
 
 ## A fresh fight with the squad on the field, standing where the formation left them. Reach is on here.
 func _new_fight() -> void:
+	_paid = 0
 	b = Battle.new()
 	b.rules.reach = true
 	var heroes := []
@@ -161,6 +164,11 @@ func _fill_panel() -> void:
 		_panel.add_child(Forge.sc("victory" if win else "defeat", 44, Forge.GOLD if win else Forge.MUTED, true, 0.16))
 		_panel.add_child(Forge.label("%s on round %d. Your squad dealt %d and took %d." % ["Cleared" if win else "Wiped", b.round_num, b.dealt, b.taken],
 			24, Forge.PARCHMENT, Forge.SANS_ITALIC))
+		if win:
+			if _paid == 0:
+				_paid = app.town.battle_reward()
+				app.town.earn(_paid)
+			_panel.add_child(Forge.sc("+%d embers to the town" % _paid, 22, Forge.GAIN))
 		return
 	var u := b.unit(sel_id)
 	if u.is_empty() or not u.alive:
