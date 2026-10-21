@@ -7,6 +7,9 @@ extends RefCounted
 const MAX_SQUAD := 4
 const DEFAULT_SQUAD := ["kaede", "brann", "sorrel", "ilse"]
 const STAR_BONUS := 0.10
+## Each side's grid, as the sandbox's default: rows from the front (0) back, columns are lanes.
+const ROWS := 4
+const COLS := 4
 
 ## best: a merge keeps the higher of each stat and every star adds STAR_BONUS. sum: the two cards' stats add up.
 var merge_mode := "best"
@@ -159,6 +162,9 @@ func toggle_field(uid: String) -> String:
 	if squad.size() >= MAX_SQUAD:
 		return "The field is full at %d. Bench a card first." % MAX_SQUAD
 	squad.append(uid)
+	# A card joining on a taken tile steps to the first free one, front row first.
+	if at(tile(uid), uid) != "":
+		formation[uid] = free_tile()
 	return ""
 
 
@@ -168,3 +174,35 @@ func tile(uid: String) -> Vector2i:
 		return formation[uid]
 	var h := Data.hero(by(uid).hero)
 	return Vector2i(h.r, h.c)
+
+
+## The fielded card standing on `t`, ignoring `except`; "" when the tile is empty.
+func at(t: Vector2i, except := "") -> String:
+	for u in squad:
+		if u != except and tile(u) == t:
+			return u
+	return ""
+
+
+## The first tile no fielded card stands on, scanning from the front row, left to right.
+func free_tile() -> Vector2i:
+	for r in ROWS:
+		for c in COLS:
+			if at(Vector2i(r, c)) == "":
+				return Vector2i(r, c)
+	return Vector2i(-1, -1)
+
+
+## Moves a fielded card to `t`. A card already there swaps onto the mover's old tile.
+## Returns an empty string on success, or the reason it can't move.
+func place(uid: String, t: Vector2i) -> String:
+	if not uid in squad:
+		return "Only cards on the field take a place in the formation."
+	if t.x < 0 or t.x >= ROWS or t.y < 0 or t.y >= COLS:
+		return "That tile is off the grid."
+	var from := tile(uid)
+	var other := at(t, uid)
+	if other != "":
+		formation[other] = from
+	formation[uid] = t
+	return ""

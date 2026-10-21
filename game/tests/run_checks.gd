@@ -15,6 +15,7 @@ func _init() -> void:
 		["Elements · four-way cycle: each element beats one, loses to one, and is neutral with its opposite", _four_way],
 		["Visuals · augments name the skill and pick the aura: most augments wins, ties go to the first slotted", _aura_names],
 		["Celerity · fits damage, heal and shield skills, renames with Fleet, and marks the skill as an opener", _celerity_fits],
+		["Squad · formation: placing moves a card, a taken tile swaps, off-grid and benched cards are refused, a joining card never stacks", _formation],
 		["Regions · every hero's home is a region with a dark and a light colorway and its own sigil", _regions],
 		["Lore · thirty archetypes, every region has two or more, every element at least seven, each linked hero exists", _archetypes],
 		["Cards · every portrait crops to Brann's eye line: eyes at the same height, the face the same size", _eye_line],
@@ -157,6 +158,25 @@ func _celerity_fits() -> Array:
 		for s in Data.hero(h).skills:
 			fits_all = fits_all and Data.fits("celerity", s)
 	return [k[1].get("celerity", false) and not k[0].has("celerity") and k[1].name == "Fleet Ninefold Blaze" and fits_all, "%s · fits every starter skill %s" % [k[1].name, fits_all]]
+
+
+func _formation() -> Array:
+	var col := Collection.new()
+	var moved := col.place("kaede", Vector2i(3, 3)) == "" and col.tile("kaede") == Vector2i(3, 3)
+	var b := col.tile("brann")
+	var swapped := col.place("kaede", b) == "" and col.tile("kaede") == b and col.tile("brann") == Vector2i(3, 3)
+	var off := col.place("kaede", Vector2i(4, 0)) != "" and col.tile("kaede") == b
+	var benched := col.place("rock", Vector2i(2, 0)) != ""
+	# Basalt's own spot (0, 2): put Sorrel there first, then field Basalt in Varuni's seat.
+	col.place("sorrel", Vector2i(0, 2))
+	col.toggle_field("ilse")
+	col.toggle_field("rock")
+	var tiles := {}
+	for u in col.squad:
+		tiles[col.tile(u)] = true
+	var apart: bool = tiles.size() == col.squad.size() and col.tile("rock") != Vector2i(0, 2)
+	var ok: bool = moved and swapped and off and benched and apart
+	return [ok, "move %s · swap %s · off-grid refused %s · benched refused %s · joiner on a free tile %s (%s)" % [moved, swapped, off, benched, apart, col.tile("rock")]]
 
 
 func _regions() -> Array:
