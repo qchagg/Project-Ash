@@ -12,7 +12,11 @@ const TILE_H := {3: 112.0, 4: 88.0}
 ## How long each beat of a resolving round stays on screen.
 const BEAT := 0.42
 ## The open action panel's height: the hero line, two rows of buttons, the armed skill and a two-line hint.
-const PANEL_H := 360.0
+const PANEL_H := 300.0
+## The freeze before a heavy hit's shake, in seconds.
+const HIT_STOP := 0.09
+## The strip's middle: the queue chips, the forecast bar or the round's log, whichever is showing.
+const MID_H := 104.0
 
 var b: Battle
 ## The board as currently shown (unit id -> snapshot); it trails the engine during playback.
@@ -25,10 +29,17 @@ var _playing := false
 var _paid := 0
 ## The augment this win dropped into the loose pile ("" until paid).
 var _spoils := ""
-## Where an area skill is being previewed: tap a tile to place its shape, tap it again to cast. (-1, -1) when unset.
+## Where the armed action is aimed: it starts on the best target, a tap moves it, a second tap on it casts.
+## (-1, -1) when nothing is armed.
 var _aim_at := Vector2i(-1, -1)
 var _aim_side := ""
-## Whether the action panel docked at the foot is open; folded, it is just its handle.
+## What the aimed action would do, target by target (Battle.forecast), and which target the forecast bar shows.
+var _fc: Array = []
+var _fc_i := 0
+## Danger view: each foe's intended action and the tiles it threatens.
+var _danger := false
+var _intents: Array = []
+var _danger_btn: Button
 ## The tab bar, hidden from the moment the fight begins until it ends: nothing in it is needed mid-battle.
 var _nav: Control
 var _retreat: Button
@@ -37,6 +48,8 @@ var _tex := {}
 var _round: Label
 var _phase: Label
 var _chips: HFlowContainer
+var _mid: Control
+var _forecast: Control
 var _go: Button
 var _panel: VBoxContainer
 var _log: Label
@@ -92,6 +105,7 @@ func _new_fight() -> void:
 	_paid = 0
 	_spoils = ""
 	_aim_at = Vector2i(-1, -1)
+	_fc = []
 	b = Battle.new()
 	b.rules.reach = true
 	b.rules.ground = true
@@ -149,7 +163,8 @@ func _dock() -> Control:
 	return p
 
 
-## The front line between the grids: round and phase, the queued actions in order, and the one commit button.
+## The front line between the grids: round and phase, the danger toggle and the one commit button; under them either
+## the queue or, while aiming, the forecast. That middle keeps one height so the board never moves.
 func _strip() -> Control:
 	var v := Forge.vbox(8)
 	v.add_child(Forge.rule())
@@ -161,19 +176,33 @@ func _strip() -> Control:
 	row.add_child(words)
 	_phase = Forge.label("", 22, Forge.MUTED, Forge.SANS_ITALIC)
 	words.add_child(_phase)
+	_danger_btn = Forge.link("danger", "", 20)
+	_danger_btn.custom_minimum_size.y = 56
+	_danger_btn.tooltip_text = "Show what each foe means to do this round"
+	_danger_btn.pressed.connect(func():
+		_danger = not _danger
+		refresh())
+	row.add_child(_danger_btn)
 	_go = Forge.studs("fight", true, 64)
-	_go.custom_minimum_size.x = 220
+	_go.custom_minimum_size.x = 200
 	_go.pressed.connect(_commit)
 	row.add_child(_go)
+	_mid = Control.new()
+	_mid.custom_minimum_size = Vector2(632, MID_H)
+	v.add_child(_mid)
 	_chips = HFlowContainer.new()
 	_chips.add_theme_constant_override("h_separation", 8)
 	_chips.add_theme_constant_override("v_separation", 8)
-	v.add_child(_chips)
+	_chips.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_mid.add_child(_chips)
+	_forecast = Forge.vbox(0)
+	_forecast.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_mid.add_child(_forecast)
 	# What just happened, line by line, while a round plays out.
 	_log = Forge.label("", 20, Forge.PARCHMENT, Forge.SANS_ITALIC)
 	_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_log.custom_minimum_size.x = 632
-	v.add_child(_log)
+	_log.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_mid.add_child(_log)
 	v.add_child(Forge.rule())
 	return v
 
@@ -190,6 +219,12 @@ func refresh() -> void:
 	_log.visible = _playing or b.phase == "over"
 	if not _playing and b.phase == "plan":
 		view = _plan_view()
+	_intents = b.intents() if _danger and b.phase == "plan" and not _playing else []
+	_danger_btn.visible = b.phase == "plan" and not _playing
+	_danger_btn.add_theme_color_override("font_color", Forge.HARM if _danger else Forge.DIM)
+	_fill_forecast()
+	_chips.visible = not _log.visible and _fc.is_empty()
+	_forecast.visible = not _log.visible and not _fc.is_empty()
 	_fill_chips()
 	_fill_panel()
 	var fighting: bool = _playing or b.phase in ["plan", "run"]
@@ -229,6 +264,105 @@ func is_step(side: String, r: int, c: int) -> bool:
 	var v := Vector2i(r, c)
 	var shown: Dictionary = view.get(sel_id, {})
 	return v in b.step_tiles(u) and (shown.is_empty() or v != Vector2i(shown.r, shown.c)) and unit_view(side, r, c).is_empty()
+
+
+## The forecast bar, Fire Emblem style: who acts, what with, and the target's HP before and after. With several
+## targets in the shape, the arrows (or a tap on a numbered tile) step through them.
+func _fill_forecast() -> void:
+	for ch in _forecast.get_children():
+		ch.queue_free()
+	if _fc.is_empty():
+		return
+	_fc_i = clampi(_fc_i, 0, _fc.size() - 1)
+	var e: Dictionary = _fc[_fc_i]
+	var me := b.unit(sel_id)
+	var a := b.act(me, sel_act)
+	var t := b.unit(e.id)
+	var tint: Color = Forge.MEND if e.kind != "dmg" else Forge.HARM
+	var row := Forge.hbox(14)
+	row.size_flags_vertical = SIZE_EXPAND_FILL
+	_forecast.add_child(row)
+	row.add_child(Forge.skill_icon(a, me.elem, 58))
+	var left := Forge.vbox(0)
+	left.size_flags_vertical = SIZE_SHRINK_CENTER
+	left.custom_minimum_size.x = 150
+	left.add_child(Forge.sc(Battle.name_of(me), 18, Forge.LABEL))
+	var an := Forge.sc(a.name, 20, Forge.GOLD)
+	an.clip_text = true
+	an.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	an.custom_minimum_size.x = 150
+	left.add_child(an)
+	row.add_child(left)
+	var arrow := Forge.sc("→", 26, tint)
+	arrow.size_flags_vertical = SIZE_SHRINK_CENTER
+	row.add_child(arrow)
+	var right := Forge.vbox(2)
+	right.size_flags_horizontal = SIZE_EXPAND_FILL
+	right.size_flags_vertical = SIZE_SHRINK_CENTER
+	row.add_child(right)
+	var top := Forge.hbox(8)
+	right.add_child(top)
+	top.add_child(Forge.sc(Battle.name_of(t), 20, Forge.PARCHMENT))
+	if e.edge != "":
+		top.add_child(Forge.sc(e.edge, 16, Forge.GAIN if e.edge == "weak" else Forge.MUTED))
+	if e.ko:
+		top.add_child(Forge.sc("knocked out", 16, Forge.HARM, true))
+	var nums := Forge.hbox(8)
+	right.add_child(nums)
+	if e.kind == "shield":
+		nums.add_child(Forge.sc("shield +%d" % e.shield, 26, Forge.MEND, true, 0.04))
+	else:
+		nums.add_child(Forge.sc("hp %d" % e.before, 22, Forge.MUTED, false, 0.04))
+		nums.add_child(Forge.sc("→ %d" % e.after, 28, tint, true, 0.04))
+		var diff: int = e.after - e.before
+		nums.add_child(Forge.sc("(%+d)" % diff, 18, Forge.MUTED, false, 0.04))
+	right.add_child(_hp_bar(e))
+	if _fc.size() > 1:
+		var cyc := Forge.hbox(0)
+		cyc.size_flags_vertical = SIZE_SHRINK_CENTER
+		row.add_child(cyc)
+		for d in [-1, 1]:
+			var bt := Forge.link("‹" if d < 0 else "›", "", 30)
+			bt.custom_minimum_size = Vector2(44, 64)
+			bt.pressed.connect(func():
+				_fc_i = (_fc_i + d + _fc.size()) % _fc.size()
+				_fill_forecast()
+				_redraw_tiles())
+			cyc.add_child(bt)
+			if d < 0:
+				var n := Forge.sc("%d/%d" % [_fc_i + 1, _fc.size()], 18, Forge.LABEL)
+				n.size_flags_vertical = SIZE_SHRINK_CENTER
+				cyc.add_child(n)
+
+
+## An HP bar showing the part an attack takes (red) or a heal restores (green).
+func _hp_bar(e: Dictionary) -> Control:
+	var bar := Control.new()
+	bar.custom_minimum_size = Vector2(0, 10)
+	bar.draw.connect(func():
+		var w := bar.size.x
+		var mx := float(e.max_hp)
+		bar.draw_rect(Rect2(0, 0, w, 8), Color(Forge.INK, 0.9))
+		var lo := minf(e.before, e.after) / mx
+		var hi := maxf(e.before, e.after) / mx
+		bar.draw_rect(Rect2(0, 0, w * lo, 8), Forge.GAIN if lo > 0.35 else BattleTile.HP_LOW)
+		bar.draw_rect(Rect2(w * lo, 0, w * (hi - lo), 8), Forge.HARM if e.after < e.before else Forge.MEND))
+	return bar
+
+
+## A short, sharp shake of the whole screen that settles back where it was.
+func _shake(strength := 10.0) -> void:
+	var home := position
+	var t := create_tween()
+	for i in 6:
+		var k := strength * (1.0 - i / 6.0)
+		t.tween_property(self, "position", home + Vector2(randf_range(-k, k), randf_range(-k, k)), 0.035)
+	t.tween_property(self, "position", home, 0.05)
+
+
+func _redraw_tiles() -> void:
+	for t in _tiles.values():
+		t.queue_redraw()
 
 
 func _fill_chips() -> void:
@@ -308,8 +442,6 @@ func _fill_panel() -> void:
 	_panel.add_child(basics)
 	for k in ["basic", "guard"]:
 		basics.add_child(_act_button(u, k, 56))
-	if sel_act.begins_with("s"):
-		_panel.add_child(_armed(u, b.act(u, sel_act)))
 	var hint := _hint
 	if hint == "":
 		if u.st.stun > 0:
@@ -321,9 +453,11 @@ func _fill_panel() -> void:
 			elif b.reach_blocked(b.as_planned(u), a):
 				hint = "Reach: only the enemy across this lane."
 			elif b.aims_ground(a):
-				hint = "Tap any enemy tile to place the %s, then tap it again to cast. Empty tiles count: aim between foes." % b.shape_name(a.pattern).to_lower() if _aim_at.x < 0 else "Tap the same tile again to cast, or another tile to move it."
+				hint = "Aimed at the best spot. Tap any enemy tile to move the %s (empty tiles count), then tap it or the skill again to cast." % b.shape_name(a.pattern).to_lower()
+			elif a.get("pattern", "") == "all":
+				hint = "Covers the whole grid. Tap the skill again to cast."
 			else:
-				hint = "Tap a lit tile."
+				hint = "Aimed at the best target. Tap another to switch, then tap it or the skill again to cast."
 		else:
 			for i in u.skills.size():
 				var why := b.blocked_reason(b.as_planned(u), b.act(u, "s%d" % i))
@@ -333,7 +467,7 @@ func _fill_panel() -> void:
 	if hint == "" and sel_act == "" and b.steps.has(u.id):
 		hint = "Stepping to %s first, then acting. Tap the faded spot to stay put." % b.lane(b.steps[u.id].x, b.steps[u.id].y)
 	if hint == "" and sel_act == "" and b.queued(u.id).is_empty():
-		hint = "Tap a lit tile on your grid to step up to %d tiles, then pick a skill. Moves and skills play out in the order you queue them." % b.tune.step
+		hint = "Blue tiles: step up to %d tiles first, if you like. Then pick a skill: it plays out in the order you queue it." % b.tune.step
 	if hint == "":
 		hint = "Each skill in an unbroken run adds %d%% to the next damaging skill." % roundi(b.tune.chain * 100)
 	_note(hint)
@@ -384,36 +518,16 @@ func _act_button(u: Dictionary, key: String, h: int) -> Button:
 		if is_queued:
 			# Already queued: tapping it again takes it back out of the queue.
 			b.dequeue(u.id)
-			sel_act = ""
-			_aim_at = Vector2i(-1, -1)
+			_disarm()
 			refresh()
 			return
 		Burst.on(bt, Forge.ELEM[u.elem] if a.is_skill else Forge.GOLD, 54 if a.is_skill else 34, 10 if a.is_skill else 6)
+		if sel_act == key and _aim_at.x >= 0:
+			# Armed already: a second tap casts where it is aimed.
+			_cast(u, _aim_side, _aim_at)
+			return
 		_on_action(key))
 	return bt
-
-
-## The armed skill, spelled out: its icon, the shape it hits on the grid, its numbers and its type.
-func _armed(u: Dictionary, a: Dictionary) -> Control:
-	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.PLAQUE, 0.85), Color(Forge.ELEM[u.elem], 0.6), 2, Vector4(18, 12, 18, 12)))
-	var row := Forge.hbox(16)
-	p.add_child(row)
-	row.add_child(Forge.skill_icon(a, u.elem, 60))
-	var words := Forge.vbox(2)
-	words.size_flags_horizontal = SIZE_EXPAND_FILL
-	words.size_flags_vertical = SIZE_SHRINK_CENTER
-	row.add_child(words)
-	var top := Forge.hbox(10)
-	words.add_child(top)
-	top.add_child(Forge.sc(a.name, 22, Forge.GOLD))
-	top.add_child(Forge.type_glyph(a, 20))
-	top.add_child(Forge.sc(Forge.TYPE_NAME[Forge.skill_type(a)], 16, Forge.LABEL))
-	var m := Forge.label(HeroSheet.meta(a) + ("" if a.pattern in ["single", "all"] else " · " + b.shape_name(a.pattern)), 20, Forge.MUTED)
-	m.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	words.add_child(m)
-	row.add_child(HeroSheet.pattern_grid(a.pattern, Forge.ELEM[u.elem]))
-	return p
 
 
 func _note(text: String) -> void:
@@ -454,6 +568,11 @@ func _aim() -> Dictionary:
 	return {} if u.is_empty() else b.aim_tiles(b.as_planned(u), b.act(u, sel_act))
 
 
+func _armed_act() -> Dictionary:
+	return b.act(b.unit(sel_id), sel_act) if sel_act != "" and not b.unit(sel_id).is_empty() else {}
+
+
+## Tiles the armed action can be aimed at: a thin outline in the action's colour.
 func is_lit(side: String, r: int, c: int) -> bool:
 	if b.phase == "form" and not _playing:
 		var u := b.unit(sel_id)
@@ -462,34 +581,91 @@ func is_lit(side: String, r: int, c: int) -> bool:
 	return not tg.is_empty() and tg.side == side and Vector2i(r, c) in tg.tiles
 
 
-## The previewed shape: where an area skill would land if cast on the tile being aimed at.
-func in_area(side: String, r: int, c: int) -> bool:
-	var tg := _aim()
-	if tg.is_empty() or tg.side != side or _aim_at.x < 0 or _aim_side != side:
-		return false
-	var a := b.act(b.unit(sel_id), sel_act)
-	return Vector2i(r, c) in b.area_of(a, _aim_at.x, _aim_at.y)
+## The colour an armed action paints a tile it would cover: "harm" for attacks, "mend" for heals and shields, else "".
+func area_kind(side: String, r: int, c: int) -> String:
+	if _aim_at.x < 0 or _aim_side != side or _aim().is_empty():
+		return ""
+	var a := _armed_act()
+	var hit: bool = a.get("pattern", "") == "all" or Vector2i(r, c) in b.area_of(a, _aim_at.x, _aim_at.y)
+	return ("harm" if a.kind == "dmg" else "mend") if hit else ""
 
 
-## Whether an armed action places a shape (a lane, a row, a cross), so a tap previews before it casts.
-func _places_shape() -> bool:
-	if sel_act == "" or b.phase != "plan" or _playing:
-		return false
-	var a := b.act(b.unit(sel_id), sel_act)
-	return a.get("pattern", "single") in ["cross", "sweep", "pierce"]
+func aim_center(side: String, r: int, c: int) -> bool:
+	return _aim_side == side and _aim_at == Vector2i(r, c) and _armed_act().get("pattern", "") != "all"
 
 
-## Hovering a tile with a mouse previews the shape there; a tap does the same on a phone.
-func on_hover(side: String, r: int, c: int) -> void:
-	if not _places_shape():
+## The forecast for the unit shown on a tile, and whether it is the one the bar is showing.
+func preview_at(side: String, r: int, c: int) -> Dictionary:
+	for i in _fc.size():
+		var e: Dictionary = _fc[i]
+		var shown: Dictionary = view.get(e.id, {})
+		if e.side == side and not shown.is_empty() and shown.r == r and shown.c == c:
+			var out := e.duplicate()
+			out.current = i == _fc_i
+			return out
+	return {}
+
+
+## Danger view: how many foes' intended attacks cover this tile.
+func threat_at(side: String, r: int, c: int) -> int:
+	var n := 0
+	for i in _intents:
+		if not i.stunned and i.kind == "dmg" and i.side == side and Vector2i(r, c) in i.tiles:
+			n += 1
+	return n
+
+
+func intent_of(id: String) -> Dictionary:
+	for i in _intents:
+		if i.id == id:
+			return i
+	return {}
+
+
+## Arms an action: aimed straight away at the best target (the AI's own pick), its area painted and forecast shown.
+func _arm(key: String) -> void:
+	sel_act = key
+	var u := b.unit(sel_id)
+	var a := b.act(u, key)
+	var me := b.as_planned(u)
+	var tg := b.aim_tiles(me, a)
+	_aim_side = tg.side
+	if a.get("pattern", "") == "all":
+		_aim_at = Vector2i(me.r, me.c)
+	else:
+		var p: Variant = b.pick(me, a)
+		_aim_at = p if p != null else (tg.tiles[0] if tg.tiles.size() else Vector2i(-1, -1))
+	_update_forecast()
+
+
+func _update_forecast() -> void:
+	_fc = []
+	_fc_i = 0
+	if sel_act == "" or _aim_at.x < 0:
 		return
+	_fc = b.forecast(sel_id, sel_act, _aim_at.x, _aim_at.y)
+
+
+func _disarm() -> void:
+	sel_act = ""
+	_aim_at = Vector2i(-1, -1)
+	_fc = []
+
+
+## Hovering a tile with a mouse moves the aim there (a tap does the same on a phone); the forecast follows.
+func on_hover(side: String, r: int, c: int) -> void:
 	var tg := _aim()
-	if tg.is_empty() or tg.side != side or not Vector2i(r, c) in tg.tiles:
+	if tg.is_empty() or tg.side != side or not Vector2i(r, c) in tg.tiles or _armed_act().get("pattern", "") == "all":
+		return
+	if _aim_at == Vector2i(r, c) and _aim_side == side:
 		return
 	_aim_at = Vector2i(r, c)
 	_aim_side = side
-	for t in _tiles.values():
-		t.queue_redraw()
+	_update_forecast()
+	_fill_forecast()
+	_chips.visible = _fc.is_empty()
+	_forecast.visible = not _fc.is_empty()
+	_redraw_tiles()
 
 
 func is_selected(u: Dictionary) -> bool:
@@ -540,19 +716,16 @@ func on_tile(side: String, r: int, c: int) -> void:
 		var a := b.act(u, sel_act)
 		var tg := b.aim_tiles(b.as_planned(u), a)
 		if tg.side == side and Vector2i(r, c) in tg.tiles:
-			var tile: BattleTile = _tiles["%s%d%d" % [side, r, c]]
-			if _places_shape() and (_aim_at != Vector2i(r, c) or _aim_side != side):
-				# First tap places the shape; the second on the same tile casts.
+			var whole: bool = a.get("pattern", "") == "all"
+			if not whole and (_aim_at != Vector2i(r, c) or _aim_side != side):
+				# A tap elsewhere moves the aim; a tap on the aimed tile casts.
 				_aim_at = Vector2i(r, c)
 				_aim_side = side
-				Burst.on(tile, Forge.GOLD, 30, 6)
+				_update_forecast()
+				Burst.on(_tiles["%s%d%d" % [side, r, c]], Forge.GOLD, 30, 6)
 				refresh()
 				return
-			for v in b.area_of(a, r, c) if _places_shape() else [Vector2i(r, c)]:
-				Burst.on(_tiles["%s%d%d" % [side, v.x, v.y]], Forge.ELEM[u.elem], 44, 8)
-			b.enqueue(u.id, sel_act, r, c)
-			_next_hero()
-			refresh()
+			_cast(u, side, _aim_at)
 			return
 	# Planning a step: an empty lit tile on your grid, or the faded spot to stay put.
 	if side == "P" and sel_act == "" and not u.is_empty():
@@ -565,11 +738,23 @@ func on_tile(side: String, r: int, c: int) -> void:
 	var shown := unit_view(side, r, c)
 	if side == "P" and not shown.is_empty() and shown.view.alive:
 		sel_id = shown.id
-		sel_act = ""
-		_aim_at = Vector2i(-1, -1)
+		_disarm()
 	elif side == "P" and not ghost_at(side, r, c).is_empty():
 		sel_id = ghost_at(side, r, c).id
-		sel_act = ""
+		_disarm()
+	refresh()
+
+
+## Queues the armed action where it is aimed, with a spark on every tile it covers.
+func _cast(u: Dictionary, side: String, at: Vector2i) -> void:
+	var a := b.act(u, sel_act)
+	var cover: Array = b.all_tiles() if a.get("pattern", "") == "all" else b.area_of(a, at.x, at.y)
+	for v in cover:
+		var t: BattleTile = _tiles.get("%s%d%d" % [side, v.x, v.y])
+		if t:
+			Burst.on(t, Forge.HARM if a.kind == "dmg" else Forge.MEND, 44, 8)
+	b.enqueue(u.id, sel_act, at.x, at.y)
+	_next_hero()
 	refresh()
 
 
@@ -584,19 +769,17 @@ func _on_action(key: String) -> void:
 	if _hint != "":
 		refresh()
 		return
-	if a.kind == "guard" or a.get("pattern", "") == "all":
+	if a.kind == "guard":
 		b.enqueue(u.id, key, u.r, u.c)
 		_next_hero()
 	else:
-		sel_act = "" if sel_act == key else key
-		_aim_at = Vector2i(-1, -1)
+		_arm(key)
 	refresh()
 
 
 ## After queueing, the next hero who still needs orders.
 func _next_hero() -> void:
-	sel_act = ""
-	_aim_at = Vector2i(-1, -1)
+	_disarm()
 	for u in b.living("P"):
 		if u.st.stun == 0 and queue_index(u) < 0:
 			sel_id = u.id
@@ -614,7 +797,7 @@ func _commit() -> void:
 	if _playing:
 		return
 	_hint = ""
-	sel_act = ""
+	_disarm()
 	match b.phase:
 		"form":
 			_keep_formation()
@@ -668,6 +851,11 @@ func _play() -> void:
 				if not is_inside_tree():
 					return
 			"step":
+				# A hit on a weakness or a knockout lands with weight: a beat of freeze, then the screen shakes.
+				var heavy: bool = pending.any(func(p): return p.t == "float" and p.cls == "crit")
+				for id in e.snap:
+					if view.get(id, {}).get("alive", false) and not e.snap[id].alive:
+						heavy = true
 				view = e.snap
 				for t in _tiles.values():
 					t.queue_redraw()
@@ -687,6 +875,9 @@ func _play() -> void:
 					else:
 						tile.float_text(p.txt, p.cls)
 				pending = []
+				if heavy:
+					await get_tree().create_timer(HIT_STOP).timeout
+					_shake()
 				await get_tree().create_timer(BEAT).timeout
 				if not is_inside_tree():
 					return

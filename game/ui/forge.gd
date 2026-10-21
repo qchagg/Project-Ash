@@ -17,6 +17,11 @@ const MUTED := Color("#cbbd9f")
 const LABEL := Color("#b39c6a")
 const DIM := Color("#9d8a63")
 const GAIN := Color("#a9dd92")
+# Battle colour language, shared with Enchanted Arms and Fire Emblem: blue is where you can move, red is what an attack
+# will hit, green is what a heal or shield will cover; gold stays the colour of your own choice.
+const MOVE := Color("#4f8dff")
+const HARM := Color("#ec4a3c")
+const MEND := Color("#5fd38a")
 # Saturated enough to read apart from the gold everywhere they appear; earth leans clay so it isn't mistaken for gold.
 const ELEM := {"fire": Color("#ff5a1f"), "water": Color("#22b4ff"), "earth": Color("#c8602e"), "wind": Color("#52e06a")}
 const STAT_TINT := {"max_hp": Color("#e86a5a"), "atk": Color("#f6dc94"), "def": Color("#9fb3c8"), "spd": Color("#8ad46f")}

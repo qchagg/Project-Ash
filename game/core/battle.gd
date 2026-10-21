@@ -758,6 +758,21 @@ func enemy_turn(u: Dictionary) -> void:
 	if u.st.stun > 0:
 		_stunned_skip(u)
 		return
+	var plan := enemy_plan(u)
+	var a: Dictionary = plan.a
+	var p: Variant = plan.p
+	if p == null and reach_blocked(u, a) and _approach(u):
+		return
+	if p == null:
+		_log("%s can’t find a target." % name_of(u))
+		_step()
+		return
+	perform(u, a, p.x, p.y, 0)
+
+
+## What a foe would do as the board stands: its first ready skill that has a use (a heal only when an ally is under
+## 60%, a damaging skill only with something to hit), else its basic attack, aimed by `pick` (null if nothing to aim at).
+func enemy_plan(u: Dictionary) -> Dictionary:
 	var a := {}
 	for i in u.skills.size():
 		if u.cd[i] > 0:
@@ -771,14 +786,81 @@ func enemy_turn(u: Dictionary) -> void:
 		break
 	if a.is_empty():
 		a = act(u, "basic")
-	var p: Variant = pick(u, a)
-	if p == null and reach_blocked(u, a) and _approach(u):
-		return
-	if p == null:
-		_log("%s can’t find a target." % name_of(u))
-		_step()
-		return
-	perform(u, a, p.x, p.y, 0)
+	return {"a": a, "p": pick(u, a)}
+
+
+# ---------- previews: nothing here changes the fight ----------
+
+## A copy of the fight to try things on: same rules, board and state. Nothing done to it touches this one.
+func clone() -> Battle:
+	var c := Battle.new()
+	c.tune = tune.duplicate()
+	c.elem_mode = elem_mode
+	c.rows = rows
+	c.cols = cols
+	c.scaled = scaled
+	c.rules = rules.duplicate()
+	c.round_num = round_num
+	c.phase = phase
+	c.units = units.map(func(u): return u.duplicate(true))
+	c.buffs = buffs.duplicate(true)
+	c.tiles = tiles.duplicate(true)
+	c.queue = queue.duplicate(true)
+	c.steps = steps.duplicate()
+	return c
+
+
+## The chain links a hero's skill would carry if queued now, at the back of the queue (their own entry set aside).
+func links_if_queued(id: String) -> int:
+	var chain := 0
+	for q in queue:
+		if q.id != id:
+			chain = next_chain(chain, act(unit(q.id), q.key))
+	return chain
+
+
+## What an action would do if it landed now, from the hero's planned tile: for each unit it touches, HP and shield
+## before and after, whether it falls, and the element edge. The tile it was aimed at comes first.
+func forecast(id: String, key: String, r: int, c: int) -> Array:
+	var sim := clone()
+	var u := sim.unit(id)
+	if steps.has(id):
+		u.r = steps[id].x
+		u.c = steps[id].y
+	var a := sim.act(u, key)
+	var before := {}
+	for t in sim.units:
+		before[t.id] = [t.hp, t.st.shield, t.alive]
+	sim.perform(u, a, r, c, links_if_queued(id) if a.is_skill else 0)
+	var out := []
+	for t in sim.units:
+		var was: Array = before[t.id]
+		if t.hp == was[0] and t.st.shield == was[1] and t.alive == was[2]:
+			continue
+		var em := elem_mult(a.get("elem", u.elem), t.elem) if a.kind == "dmg" else 1.0
+		var e := {"id": t.id, "side": t.side, "r": t.r, "c": t.c, "kind": a.kind, "before": was[0], "after": t.hp, "max_hp": t.max_hp,
+			"shield": t.st.shield - was[1], "ko": was[2] and not t.alive, "edge": "weak" if em > 1 else "resists" if em < 1 else ""}
+		if t.r == r and t.c == c:
+			out.push_front(e)
+		else:
+			out.append(e)
+	return out
+
+
+## What each foe means to do this round if the board stood as it is now, fastest first: {id, name, kind, side, tiles}.
+## A stunned foe shows {stunned: true}. Your own actions resolve first and can change their minds.
+func intents() -> Array:
+	var out := []
+	for u in _by_speed(living("E")):
+		if u.st.stun > 0:
+			out.append({"id": u.id, "stunned": true})
+			continue
+		var plan := enemy_plan(u)
+		var a: Dictionary = plan.a
+		var side: String = opp(u.side) if a.kind == "dmg" else u.side
+		var tiles_hit: Array = all_tiles() if a.get("pattern", "") == "all" else [] if plan.p == null else area_of(a, plan.p.x, plan.p.y)
+		out.append({"id": u.id, "name": a.name, "kind": a.kind, "side": side, "tiles": tiles_hit, "stunned": false})
+	return out
 
 
 ## Under Reach, a melee foe with nobody across its lane steps toward the front row and the nearest lane with a target.

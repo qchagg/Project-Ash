@@ -54,6 +54,9 @@ func _init() -> void:
 		["Plan · a hero steps then acts: Brann steps to the front row and Rockfall lands, though he planned it from the second row", _b_step_then_act],
 		["Plan · queue order holds: Varuni's heal lands on Sorrel before he steps away; he then casts from his new tile", _b_step_order],
 		["Plan · steps reach 2 tiles, never onto a unit or a tile another hero has claimed; stepping home cancels", _b_step_tiles],
+		["Forecast · matches what the action then does, target by target, and changes nothing in the fight", _b_forecast],
+		["Forecast · counts the chain the skill would carry at the back of the queue, and marks a knockout", _b_forecast_chain],
+		["Intents · each foe's preview is the action and area it then uses when nothing changes first", _b_intents],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -899,3 +902,49 @@ func _b_step_tiles() -> Array:
 	var cancelled := not b.steps.has(so.id)
 	var ok: bool = not far and not onto and reach2 and claimed and cancelled
 	return [ok, "3 away %s · onto Brann %s · 2 away %s · claimed by Varuni blocked %s · home cancels %s" % [far, onto, reach2, claimed, cancelled]]
+
+
+func _b_forecast() -> Array:
+	var b := _scenario([["sorrel", 1, 1]], [[0, 1], [2, 1], [1, 3]], ["ground"])
+	var so := b.unit("P-sorrel")
+	var before := b.snapshot()
+	var fc := b.forecast(so.id, "s0", 1, 1)
+	var untouched: bool = b.snapshot() == before and b.events.is_empty()
+	b.phase = "run"
+	b.perform(so, b.act(so, "s0"), 1, 1, 0)
+	var ok := untouched and fc.size() == 3
+	for e in fc:
+		ok = ok and b.unit(e.id).hp == e.after
+	return [ok, "untouched %s · %s" % [untouched, ", ".join(fc.map(func(e): return "%s %d→%d" % [e.id, e.before, e.after]))]]
+
+
+func _b_forecast_chain() -> Array:
+	var b := _scenario([["kaede", 1, 1], ["sorrel", 1, 0]], [[0, 1]])
+	var post := b.unit("E-post0")
+	var alone: int = b.forecast("P-sorrel", "s1", 0, 1)[0].after
+	b.enqueue("P-kaede", "s0", 0, 1)
+	var linked: int = b.forecast("P-sorrel", "s1", 0, 1)[0].after
+	post.hp = 50
+	var ko: bool = b.forecast("P-sorrel", "s1", 0, 1)[0].ko
+	return [linked < alone and ko and b.links_if_queued("P-sorrel") == 1, "Pinning Shot alone leaves %d, after Kaede's skill %d · knockout flagged %s" % [alone, linked, ko]]
+
+
+func _b_intents() -> Array:
+	var b := Battle.new()
+	b.start(b.pristine_heroes())
+	var want := {}
+	for i in b.intents():
+		if not i.stunned:
+			want[i.id] = i.name
+	# Let the foes really act, with nothing queued before them, and read what each one used from the log.
+	var c := b.clone()
+	c.phase = "run"
+	var used := {}
+	for u in c._by_speed(c.living("E")):
+		c.take_events()
+		c.enemy_turn(u)
+		var said: String = " ".join(c.take_events().filter(func(e): return e.t == "log").map(func(e): return e.text))
+		for k in want:
+			if k == u.id and said.contains(want[k]):
+				used[k] = want[k]
+	return [want == used and want.size() == 4, str(want)]

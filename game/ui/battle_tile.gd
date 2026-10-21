@@ -46,7 +46,9 @@ func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, size)
 	var u := screen.unit_view(side, r, c)
 	var lit := screen.is_lit(side, r, c)
-	var area := screen.in_area(side, r, c)
+	var area := screen.area_kind(side, r, c)
+	var tint: Color = Forge.HARM if area == "harm" else Forge.MEND
+	var threat := screen.threat_at(side, r, c)
 	if u.is_empty():
 		draw_style_box(Forge.flat(Color(Forge.PLAQUE, 0.55), Color(Forge.BRONZE, 0.3), 1), rect)
 		var fx := screen.b.effects_at(side, r, c)
@@ -54,27 +56,24 @@ func _draw() -> void:
 			_tag(Vector2(8, 8), fx[0].label.to_lower(), Color("#ff7a3d"))
 		var ghost := screen.ghost_at(side, r, c)
 		if not ghost.is_empty():
-			# The spot a hero will step away from: their portrait, faded, in a dashed frame.
+			# The spot a hero will step away from: their portrait, faded, in a dashed blue frame.
 			if ghost.has("portrait"):
-				draw_set_transform(Vector2.ZERO)
 				Forge.portrait(self, screen.tex(ghost.portrait.src), rect.grow(-6), ghost.portrait)
 				draw_rect(rect.grow(-6), Color(Forge.INK, 0.72))
-			_dashed(rect.grow(-3), Color(Forge.GOLD, 0.7))
-			draw_string(Forge.tracked(Forge.SC, 2), Vector2(0, size.y / 2 + 6), "stay", HORIZONTAL_ALIGNMENT_CENTER, size.x, 16, Color(Forge.GOLD, 0.8))
-			return
-		if screen.is_step(side, r, c):
-			draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.08))
-			_dashed(rect.grow(-2), Forge.GOLD)
-			draw_string(Forge.tracked(Forge.SC, 2), Vector2(0, size.y / 2 + 6), "step", HORIZONTAL_ALIGNMENT_CENTER, size.x, 16, Forge.GOLD)
-			return
-		if area:
-			draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.28))
-			draw_rect(rect.grow(-1), Forge.GOLD_LIGHT, false, 3.0)
-			Forge.diamond(self, size / 2, 10, Forge.GOLD_LIGHT)
+			_dashed(rect.grow(-3), Color(Forge.MOVE, 0.8))
+		elif screen.is_step(side, r, c):
+			# Blue: where the selected hero can step.
+			draw_rect(rect.grow(-2), Color(Forge.MOVE, 0.28))
+			draw_rect(rect.grow(-1), Color(Forge.MOVE, 0.9), false, 2.0)
+		elif area != "":
+			draw_rect(rect.grow(-2), Color(tint, 0.30))
+			draw_rect(rect.grow(-1), tint, false, 3.0)
 		elif lit:
-			draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.10))
-			draw_rect(rect, Forge.GOLD, false, 2.0)
-			Forge.diamond(self, size / 2, 8, Color(Forge.GOLD, 0.8), false)
+			draw_rect(rect.grow(-1), Color(tint if screen._armed_act().get("kind", "dmg") != "dmg" else Forge.HARM, 0.55), false, 1.5)
+		if screen.aim_center(side, r, c):
+			_crosshair(tint)
+		if threat > 0:
+			_threat(rect, threat)
 		return
 	if enter < 1.0:
 		# Marching in: the empty tile waits underneath while the card steps in, a bob for each stride.
@@ -96,11 +95,13 @@ func _draw() -> void:
 	var sel := screen.is_selected(u)
 	var edge: Color = Forge.GOLD_LIGHT if sel else Forge.ELEM[u.elem].darkened(0.2) if side == "E" else Color(Forge.BRONZE, 0.9)
 	draw_rect(rect, edge, false, 4.0 if sel else 2.0)
-	if area:
-		draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.26))
-		draw_rect(rect.grow(-1), Forge.GOLD_LIGHT, false, 3.0)
-	if lit:
-		draw_rect(rect.grow(-3), Forge.GOLD, false, 2.0)
+	if area != "":
+		draw_rect(rect.grow(-2), Color(tint, 0.26))
+		draw_rect(rect.grow(-1), tint, false, 3.0)
+	elif lit:
+		draw_rect(rect.grow(-3), Color(Forge.HARM if screen._armed_act().get("kind", "dmg") == "dmg" else Forge.MEND, 0.7), false, 2.0)
+	if threat > 0:
+		_threat(rect, threat)
 	# Element sigil: a black disc with a gold ring, top-left.
 	var sc := Vector2(17, 17)
 	draw_circle(sc, 13, Forge.INK)
@@ -114,7 +115,7 @@ func _draw() -> void:
 	draw_rect(bar, Color(Forge.INK, 0.9))
 	var pct := clampf(float(hp) / u.max_hp, 0, 1)
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * pct, bar.size.y)), HP_LOW if pct < 0.35 else Forge.GAIN)
-	# Statuses, top-right, newest rule first.
+	# Statuses, top-right.
 	var st: Dictionary = u.view.st
 	var tags := []
 	if not alive: st = {}
@@ -125,20 +126,79 @@ func _draw() -> void:
 	var x := size.x - 6
 	for t in tags:
 		x = _tag(Vector2(x, 6), t[0], t[1], true) - 4
-	# Queue order for planned heroes.
+	# Turn order, big on the portrait, like Enchanted Arms' numbers over its units.
 	var qi := screen.queue_index(u)
 	if qi >= 0:
-		var q := Vector2(size.x - 16, size.y * 0.5 - 6)
-		Forge.diamond(self, q, 14, Forge.INK)
-		Forge.diamond(self, q, 13, Forge.GOLD, false)
-		draw_string(Forge.SANS_BOLD, q + Vector2(-10, 6), str(qi + 1), HORIZONTAL_ALIGNMENT_CENTER, 20, 16, Forge.GOLD_LIGHT)
-	var edge_note := screen.edge_note(u)
-	if edge_note != "":
-		_tag(Vector2(36, 6), edge_note, Forge.GAIN if edge_note == "weak" else Forge.MUTED)
+		var q := Vector2(size.x - 24, size.y * 0.5 - 4)
+		Forge.diamond(self, q, 21, Forge.INK)
+		Forge.diamond(self, q, 19, Forge.GOLD, false)
+		draw_string_outline(Forge.SC_HEAVY, q + Vector2(-14, 10), str(qi + 1), HORIZONTAL_ALIGNMENT_CENTER, 28, 28, 4, Forge.INK)
+		draw_string(Forge.SC_HEAVY, q + Vector2(-14, 10), str(qi + 1), HORIZONTAL_ALIGNMENT_CENTER, 28, 28, Forge.GOLD_LIGHT)
+	# Danger view: what this foe means to do.
+	var intent := screen.intent_of(u.id)
+	if not intent.is_empty() and alive:
+		var word: String = "stunned" if intent.stunned else intent.name.to_lower()
+		_tag(Vector2(6, 34), word, Forge.MUTED if intent.stunned else (Forge.HARM if intent.kind == "dmg" else Forge.MEND))
+	if screen.aim_center(side, r, c):
+		_crosshair(tint)
+	# Forecast: the number this tile would take, big, and a skull for a knockout.
+	var pv := screen.preview_at(side, r, c)
+	if not pv.is_empty():
+		_preview(pv)
 	if not alive:
 		draw_rect(rect, Color(Forge.INK, 0.72))
 		var word := "down %d" % u.view.downed if u.view.downed > 0 else "ko"
 		draw_string(Forge.tracked(Forge.SC_HEAVY, 4), Vector2(0, size.y / 2 + 8), word, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, Color(Forge.PARCHMENT, 0.7))
+
+
+## The forecast number over a unit: red for damage, green for healing or shield; the one in the bar gets a frame.
+func _preview(pv: Dictionary) -> void:
+	var dmg: bool = pv.kind == "dmg"
+	var col: Color = Forge.HARM if dmg else Forge.MEND
+	var txt: String = "+%d" % pv.shield if pv.kind == "shield" else "%+d" % (pv.after - pv.before)
+	var f := Forge.tracked(Forge.SC_HEAVY, 1)
+	var px := 30
+	var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 18
+	var box := Rect2((size.x - w) / 2, size.y * 0.5 - 26, w, 38)
+	draw_rect(box, Color(Forge.INK, 0.86))
+	draw_rect(box, col if pv.current else Color(col, 0.5), false, 3.0 if pv.current else 1.5)
+	draw_string(f, box.position + Vector2(9, 29), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, px, col.lightened(0.15))
+	if pv.ko:
+		_skull(Vector2(box.end.x + 14, box.position.y + 19))
+
+
+## A small skull: the forecast says this hit knocks the unit out.
+func _skull(cpt: Vector2) -> void:
+	draw_circle(cpt, 12, Forge.INK)
+	draw_circle(cpt + Vector2(0, -2), 9, Forge.PARCHMENT)
+	draw_rect(Rect2(cpt + Vector2(-5, 4), Vector2(10, 6)), Forge.PARCHMENT)
+	draw_circle(cpt + Vector2(-3.5, -2), 2.6, Forge.INK)
+	draw_circle(cpt + Vector2(3.5, -2), 2.6, Forge.INK)
+
+
+## The aimed tile: corner brackets in the action's colour.
+func _crosshair(col: Color) -> void:
+	var l := 16.0
+	var g := 5.0
+	for cn in [[Vector2(g, g), Vector2(1, 1)], [Vector2(size.x - g, g), Vector2(-1, 1)], [Vector2(g, size.y - g), Vector2(1, -1)], [Vector2(size.x - g, size.y - g), Vector2(-1, -1)]]:
+		var o: Vector2 = cn[0]
+		var d: Vector2 = cn[1]
+		draw_polyline(PackedVector2Array([o + Vector2(0, l * d.y), o, o + Vector2(l * d.x, 0)]), col.lightened(0.25), 4.0)
+
+
+## Danger view: a tile a foe means to hit wears red hatching, with the count when more than one.
+func _threat(rect: Rect2, n: int) -> void:
+	var col := Color(Forge.HARM, 0.55)
+	var step := 16.0
+	var x := -size.y
+	while x < size.x:
+		var a := Vector2(maxf(x, 0), maxf(0, -x))
+		var b := Vector2(minf(x + size.y, size.x), minf(size.y, size.x - x))
+		draw_line(a, b, Color(col, 0.35), 2.0)
+		x += step
+	draw_rect(rect.grow(-1), col, false, 2.0)
+	if n > 1:
+		_tag(Vector2(size.x - 6, size.y - 26), "×%d" % n, Forge.HARM, true)
 
 
 ## A small status tag. Anchored at its left edge, or its right edge when `from_right`; returns the far edge's x.
