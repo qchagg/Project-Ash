@@ -16,6 +16,9 @@ func _init() -> void:
 		["Visuals · augments name the skill and pick the aura: most augments wins, ties go to the first slotted", _aura_names],
 		["Celerity · fits damage, heal and shield skills, renames with Fleet, and marks the skill as an opener", _celerity_fits],
 		["Regions · every hero's home is a region with a dark and a light colorway and its own sigil", _regions],
+		["Town · every level costs more than the last, in tens; the Hearth raises the battle reward", _town_costs],
+		["Town · nothing rises without the embers or above the Hearth, and a blocked upgrade changes nothing", _town_blocked],
+		["Town · buildings stop at their top level; routes open two then one a level; envoys sit in region order", _town_caps],
 		["Cards · every portrait crops to Brann's eye line: eyes at the same height, the face the same size", _eye_line],
 	]
 	var failed := 0
@@ -168,6 +171,58 @@ func _regions() -> Array:
 		ok = ok and good
 		lines.append("%s → %s" % [h.name, r.get("name", "none")])
 	return [ok, " · ".join(lines)]
+
+
+func _town_costs() -> Array:
+	var t := Town.new()
+	var ok := true
+	var lines := []
+	for k in Town.BUILDINGS:
+		var costs := []
+		for lvl in Town.BUILDINGS[k].max:
+			t.levels[k] = lvl
+			costs.append(t.cost(k))
+		for i in costs.size():
+			ok = ok and costs[i] % 10 == 0 and (i == 0 or costs[i] > costs[i - 1])
+		lines.append("%s %s" % [k, costs])
+	t.reset()
+	var base := t.battle_reward()
+	t.levels.hearth = 3
+	ok = ok and base == Town.BATTLE_EMBERS and t.battle_reward() == roundi(Town.BATTLE_EMBERS * 1.2)
+	return [ok, " · ".join(lines) + " · reward %d → %d at Hearth 3" % [base, t.battle_reward()]]
+
+
+func _town_blocked() -> Array:
+	var t := Town.new()
+	t.embers = 0
+	var broke := t.upgrade("archive")
+	var same: bool = t.level("archive") == 0 and t.embers == 0
+	t.earn(10000)
+	var built := t.upgrade("archive")
+	var above := t.upgrade("archive")   # Hearth 1 holds it at 1
+	var why := t.blocked("archive")
+	var hearth := t.upgrade("hearth")
+	var after := t.upgrade("archive")
+	var ok: bool = not broke and same and built and not above and why == "Raise the Ashen Hearth first." and hearth and after \
+		and t.level("archive") == 2 and t.embers == 10000 - 100 - 320 - 160
+	return [ok, "broke %s · built %s · above the Hearth %s (%s) · Hearth up %s · then %s · %d embers left" % [broke, built, above, why, hearth, after, t.embers]]
+
+
+func _town_caps() -> Array:
+	var t := Town.new()
+	t.earn(1000000)
+	for i in 10:
+		t.upgrade("hearth")
+	for k in Town.BUILDINGS:
+		for i in 10:
+			t.upgrade(k)
+	var ok := true
+	for k in Town.BUILDINGS:
+		ok = ok and t.level(k) == Town.BUILDINGS[k].max and t.blocked(k) == "At its highest level."
+	var regions := Data.REGIONS.keys()
+	ok = ok and t.routes_at(1) == regions.slice(0, 2) and t.routes_at(2).size() == 3 and t.routes() == regions \
+		and t.envoys() == regions.slice(0, mini(Town.BUILDINGS.envoys.max, regions.size()))
+	return [ok, "levels %s · routes at 1: %s · envoys: %s" % [t.levels, t.routes_at(1), t.envoys()]]
 
 
 func _eye_line() -> Array:

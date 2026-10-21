@@ -4,6 +4,8 @@ extends Control
 ## Roster → a hero (character view, sheet below, swipe for the next), each built from the Forge kit.
 
 var col := Collection.new()
+## The town between fights; kept for the session while you move between tabs.
+var town := Town.new()
 ## The roster's element filter, kept while you visit a hero.
 var filter := ""
 ## Each hero's zoom on the character view (0 full body, 1 face), kept between visits.
