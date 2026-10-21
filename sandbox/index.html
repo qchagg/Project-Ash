@@ -385,6 +385,8 @@ const RULES = {
   lastStand:{on:false, name:'Last Stand', rounds:2, reviveHp:0.25, desc:r=>`A hero at 0 HP stays downed for ${r.rounds} rounds. A heal that covers their tile revives them at ${pct(r.reviveHp)} HP; otherwise they fall for the run.`},
   // Ashfall is the tracker's turn limit, not a v0.2 proposal; it shares the toggle list so it can be tested with the rest.
   ashfall:{on:false, name:'Ashfall', from:8, desc:r=>`From round ${r.from}, every unit takes the Burn tick each round. A unit already Burning ticks once, not twice; cleansing can't stop it.`},
+  // Reach is the positional rule from the design notes (think Enchanted Arms): line up before you swing.
+  reach:{on:false, name:'Reach', desc:()=>`Single-target melee only reaches the front-most enemy in the attacker's own lane, and only from the front row. Move to line up a hit; a melee foe with nobody across its lane steps toward one.`},
 };
 const rule = k => RULES[k].on ? RULES[k] : null;
 
@@ -721,7 +723,19 @@ function targets(u,a){
   const side = (a.kind==='dmg' || a.kind==='buff') ? opp(u.side) : u.side;
   let us = living(side);
   if(a.kind==='dmg' && a.range==='melee' && !teamFlag(u.side,'meleeReachAll')) us = us.filter(t=>exposed(side,t.r,t.c));
+  if(reachBlocked(u,a)) us = us.filter(t=>u.r===0 && t.c===u.c);
   return {side, tiles:us.map(t=>[t.r,t.c])};
+}
+// Reach: single-target melee needs the attacker in its front row, and only the front-most enemy in its lane.
+const reachBlocked = (u,a) => !!rule('reach') && a.kind==='dmg' && a.range==='melee' && a.pattern==='single' && !teamFlag(u.side,'meleeReachAll');
+// Under Reach, a melee foe with nobody across its lane steps toward the front row and the nearest lane with a target.
+// Returns the tile to step to, or null if no step gets it closer.
+function approach(u){
+  const foes = living(opp(u.side)); if(!foes.length) return null;
+  const score = (r,c) => r + Math.min(...foes.map(t=>Math.abs(c-t.c)));
+  let best = null, bs = score(u.r,u.c);
+  for(const [r,c] of targets(u,act(u,'move')).tiles){ const s = score(r,c); if(s<bs){ bs = s; best = [r,c]; } }
+  return best;
 }
 function pick(u,a){
   const {side,tiles} = targets(u,a);
@@ -920,6 +934,7 @@ async function enemyTurn(u){
   }
   if(!a) a = act(u,'basic');
   const p = pick(u,a);
+  if(!p && reachBlocked(u,a)){ const to = approach(u); if(to) return perform(u, act(u,'move'), to[0], to[1], 0); }
   if(!p){ addLog(`${tagName(u)} can’t find a target.`); return step(); }
   return perform(u,a,p[0],p[1],0);
 }
@@ -1217,7 +1232,9 @@ function renderPanel(){
     const a = act(u,S.sel.act);
     if(a.kind==='move') hint = a.reach==='any' ? 'Tap any highlighted empty tile in your formation.' : 'Tap a highlighted empty tile in your formation.';
     else if(a.kind==='tile') hint = 'Tap any enemy tile, occupied or empty.';
-    else if(a.kind==='dmg') hint = a.range==='melee' ? (teamFlag(u.side,'meleeReachAll') ? 'A team buff is queued ahead: melee can reach any enemy this round.' : 'Tap a highlighted enemy. Melee only reaches the front-most enemy in each lane.') : 'Tap any highlighted enemy. Hover to preview the area.';
+    else if(a.kind==='dmg') hint = a.range==='melee' ? (teamFlag(u.side,'meleeReachAll') ? 'A team buff is queued ahead: melee can reach any enemy this round.'
+      : reachBlocked(u,a) ? (targets(u,a).tiles.length ? 'Reach: only the enemy across this lane.' : 'Reach: move to the front of a lane with an enemy.')
+      : 'Tap a highlighted enemy. Melee only reaches the front-most enemy in each lane.') : 'Tap any highlighted enemy. Hover to preview the area.';
     else hint = 'Tap a highlighted ally.';
   } else hint = `Queued actions fire in order. Each skill in an unbroken run adds ${Math.round(T.chain*100)}% to the next damaging skill.`;
   const passive = Object.values(u.stacks).map(s=>`<p class="passive"><b>${s.name} ${s.n}/${s.max}</b> · next damaging action +${Math.round(s.perStack*s.n*100)}%. Gains a stack each round she ends unmoved and unhit; a hit or a normal move clears it.</p>`).join('')
@@ -1540,6 +1557,19 @@ const CHECKS = [
     const tick = u => Math.round(u.maxHp*0.06);
     const ok = at7[0]===0 && at7[2]===0 && at7[1]===tick(units[1]) && units.every((u,i)=>at8[i]-at7[i]===tick(u));
     return [ok, `HP lost after round 7: ${at7.join('/')} (Brann was already burning) · after round 8: ${at8.join('/')} · one tick each = ${units.map(tick).join('/')}`];
+  })],
+  ['Rule · Reach: single-target melee hits only across its own lane from the front row; a melee foe steps up to strike', ()=>withRules({reach:true}, async()=>{
+    // Brann one row back can't reach anything; on the front row he reaches only across his own lane.
+    const g = scenario([['brann',1,1]],[[0,1],[0,2]]); const b = g('P-brann'), rock = act(b,'s0');
+    const tiles = () => targets(b,rock).tiles.map(t=>t.join(',')).join(' ');
+    const backRow = tiles();
+    b.r = 0; const front = tiles(), basic = targets(b,act(b,'basic')).tiles.map(t=>t.join(',')).join(' ');
+    RULES.reach.on = false; const off = targets(b,rock).tiles.length; RULES.reach.on = true;
+    // A melee foe with nobody across its lane steps toward one instead of standing idle.
+    const e = scenario([['sorrel',0,2]],[[0,0]]); const post = e('E-post0'); S.phase = 'run';
+    await enemyTurn(post);
+    const ok = backRow==='' && front==='0,1' && basic==='0,1' && off===2 && post.r===0 && post.c===1;
+    return [ok, `from the second row [${backRow}] · from the front [${front}], basic [${basic}] · rule off ${off} targets · idle post steps to ${lane(post.r,post.c)}`];
   })],
   ['Cards · best-of merge: two 1★ copies make a 2★ with the higher of each stat +10%; the fodder augment carries and is set', ()=>withCollection(async()=>{
     const k1 = cardBy('kaede'), k2 = CARDS.find(c=>c.hero==='kaede' && c!==k1);
