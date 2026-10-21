@@ -3,6 +3,7 @@ extends RefCounted
 ## The player's cards: each copy of a hero has its own rolled stats, a star level and augments.
 ## Ported from the sandbox's cards section; the checks in tests/run_checks.gd hold it to the same results.
 
+## Four on the field for now. Design target (2026-10-21): five per team, six in rare cases; keep the code at four until then.
 const MAX_SQUAD := 4
 const DEFAULT_SQUAD := ["kaede", "brann", "sorrel", "ilse"]
 const STAR_BONUS := 0.10
@@ -13,6 +14,8 @@ var cards: Array = []
 var loose: Array = []
 var crowns := 0
 var squad: Array = []   # card uids on the field; a starter card's uid is its hero key
+## Where each card stands on its side's grid (uid -> Vector2i(row, col), row 0 is the front). Unset cards use their hero's spot.
+var formation := {}
 
 var _seed := 7
 var _seq := 0
@@ -34,6 +37,7 @@ func reset() -> void:
 	loose = Data.AUGS.keys()
 	crowns = 1
 	squad = DEFAULT_SQUAD.duplicate()
+	formation = {}
 
 
 func _rand() -> float:
@@ -156,3 +160,11 @@ func toggle_field(uid: String) -> String:
 		return "The field is full at %d. Bench a card first." % MAX_SQUAD
 	squad.append(uid)
 	return ""
+
+
+## The tile a card starts a fight on: where the formation put it, or its hero's default spot.
+func tile(uid: String) -> Vector2i:
+	if formation.has(uid):
+		return formation[uid]
+	var h := Data.hero(by(uid).hero)
+	return Vector2i(h.r, h.c)
