@@ -55,6 +55,18 @@ func _ready() -> void:
 	motes.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(motes)
 
+	# Tapping the art plays the hero's cut-in, when they have one. It sits under the text and buttons.
+	if h.has("cutin"):
+		var tap := Button.new()
+		tap.flat = true
+		tap.focus_mode = Control.FOCUS_NONE
+		tap.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		tap.tooltip_text = "Play %s’s cut-in" % h.name
+		tap.position = Vector2(0, 110)
+		tap.size = Vector2(720, 900)
+		tap.pressed.connect(func(): CutIn.play(app, h.cutin))
+		add_child(tap)
+
 	var foot := Forge.margins(MarginContainer.new(), 44, 0, 44, 190)
 	foot.set_anchors_preset(PRESET_BOTTOM_WIDE)
 	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN
