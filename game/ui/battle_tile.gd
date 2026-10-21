@@ -12,14 +12,34 @@ var screen: BattleScreen
 var side := "P"
 var r := 0
 var c := 0
+## 0 → 1 as the unit here walks onto the field at the start of a fight; 1 when settled.
+var enter := 1.0
+var _from := Vector2.ZERO
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	Forge.press_weight(self, 0.95)
 	gui_input.connect(func(e: InputEvent):
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
 			screen.on_tile(side, r, c))
+	mouse_entered.connect(func(): screen.on_hover(side, r, c))
+
+
+## The unit here marches in from `from` (an offset), bobbing in step, and sparks as it lands.
+func intro(delay: float, from: Vector2) -> void:
+	if screen.unit_view(side, r, c).is_empty():
+		return
+	_from = from
+	enter = 0.0
+	queue_redraw()
+	var t := create_tween()
+	t.tween_interval(delay)
+	t.tween_method(func(v): enter = v; queue_redraw(), 0.0, 1.0, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_callback(func():
+		var u := screen.unit_view(side, r, c)
+		Burst.on(self, Forge.ELEM.get(u.get("elem", ""), Forge.GOLD), 46, 10))
 
 
 func _draw() -> void:
@@ -32,11 +52,22 @@ func _draw() -> void:
 		var fx := screen.b.effects_at(side, r, c)
 		if fx.size():
 			_tag(Vector2(8, 8), fx[0].label.to_lower(), Color("#ff7a3d"))
-		if lit:
+		if area:
+			draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.28))
+			draw_rect(rect.grow(-1), Forge.GOLD_LIGHT, false, 3.0)
+			Forge.diamond(self, size / 2, 10, Forge.GOLD_LIGHT)
+		elif lit:
 			draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.10))
 			draw_rect(rect, Forge.GOLD, false, 2.0)
 			Forge.diamond(self, size / 2, 8, Color(Forge.GOLD, 0.8), false)
 		return
+	if enter < 1.0:
+		# Marching in: the empty tile waits underneath while the card steps in, a bob for each stride.
+		draw_style_box(Forge.flat(Color(Forge.PLAQUE, 0.55), Color(Forge.BRONZE, 0.3), 1), rect)
+		var k := 1.0 - enter
+		var s := 0.7 + 0.3 * enter
+		var bob := -absf(sin(enter * PI * 3)) * 10 * k
+		draw_set_transform(size / 2 * (1 - s) + _from * k + Vector2(0, bob), 0, Vector2(s, s))
 	var tex := screen.tex(u.portrait.src) if u.has("portrait") else null
 	if tex:
 		Forge.portrait(self, tex, rect.grow(-2), u.portrait)
@@ -51,7 +82,8 @@ func _draw() -> void:
 	var edge: Color = Forge.GOLD_LIGHT if sel else Forge.ELEM[u.elem].darkened(0.2) if side == "E" else Color(Forge.BRONZE, 0.9)
 	draw_rect(rect, edge, false, 4.0 if sel else 2.0)
 	if area:
-		draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.16))
+		draw_rect(rect.grow(-2), Color(Forge.GOLD, 0.26))
+		draw_rect(rect.grow(-1), Forge.GOLD_LIGHT, false, 3.0)
 	if lit:
 		draw_rect(rect.grow(-3), Forge.GOLD, false, 2.0)
 	# Element sigil: a black disc with a gold ring, top-left.

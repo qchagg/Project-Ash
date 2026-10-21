@@ -55,7 +55,7 @@ const HEROES := [
 		"home": "jaladesh",
 		"lore": "For years the delta ports sang of Varuni as a sea-witch: the chantress who called the tide down on a settler warship and drowned every man aboard. The songs never said what that ship was chasing. Three boats of refugees, fleeing the colonists who had burned their villages, slipped through the storm she raised and reached the mangroves alive. When the survivors' children finally told the truth, the same ports that had cursed her name hung lotus lamps along the water for her. By then she was gone again. Varuni has no use for being celebrated; she prefers the deep water, where no one calls her anything at all.", "skills": [
 		{"name": "Riptide", "flavor": "The tide turns wherever she points.", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
-		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
+		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "cutin": true, "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
 	# Playable versions of the Basalt Golem and Galeblade foes: same stats and kits, their own keys and art.
 	{"key": "rock", "favored": ["might", "resolve"], "bio": "A mountain that woke up, and has not yet decided whether it likes people.", "name": "Basalt", "title": "Living Mountain", "elem": "earth", "range": "melee",
 		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 2,

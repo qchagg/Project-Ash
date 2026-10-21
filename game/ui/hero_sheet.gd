@@ -102,6 +102,11 @@ func refresh() -> void:
 	var kind := Forge.sc("%s · %s" % [Data.ELEMS[h.elem].label, h.range], 20, Forge.LABEL)
 	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	names.add_child(kind)
+	# Role tags: lit when the equipped kit fills the role, greyed when it could but doesn't.
+	var roles := HBoxContainer.new()
+	roles.alignment = BoxContainer.ALIGNMENT_CENTER
+	roles.add_child(Forge.role_tag("healer", Forge.has_role(app.col.skills(c), "healer")))
+	names.add_child(roles)
 
 	col.add_child(_stats(c))
 	var acts := Forge.hbox(20)
@@ -239,6 +244,10 @@ func _skill_pop(c: Dictionary) -> void:
 		var t := Forge.vbox(4)
 		mid.add_child(t)
 		t.add_child(Forge.label(meta(s), 26, Forge.PARCHMENT, Forge.SANS_BOLD))
+		var ty := Forge.hbox(8)
+		t.add_child(ty)
+		ty.add_child(Forge.type_glyph(s, 20, Forge.GOLD))
+		ty.add_child(Forge.sc(Forge.TYPE_NAME[Forge.skill_type(s)], 18, Forge.GOLD))
 		t.add_child(Forge.label("Cooldown %d round%s" % [s.cd, "" if s.cd == 1 else "s"], 22, Forge.MUTED))
 		if s.get("augs", []).size() > 0:
 			lines.add_child(Forge.label("Augments: " + ", ".join(s.augs.map(func(a): return Data.AUGS[a].name)), 22, Forge.GAIN)))
@@ -292,13 +301,19 @@ func _slot(s: Dictionary, i: int) -> Control:
 	var h := Forge.hbox(26)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(h)
-	h.add_child(pattern_grid(s.pattern, Forge.ELEM[Data.hero(hero).elem]))
+	h.add_child(Forge.skill_icon(s, Data.hero(hero).elem, 76))
 	var txt := Forge.vbox(0)
 	txt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	txt.size_flags_horizontal = SIZE_EXPAND_FILL
 	txt.size_flags_vertical = SIZE_SHRINK_CENTER
 	h.add_child(txt)
-	txt.add_child(Forge.sc(s.name, 32, Forge.PARCHMENT, false, 0.08))
+	var nm := Forge.hbox(12)
+	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	txt.add_child(nm)
+	nm.add_child(Forge.sc(s.name, 32, Forge.PARCHMENT, false, 0.08))
+	var tg := Forge.type_glyph(s, 22)
+	tg.size_flags_vertical = SIZE_SHRINK_CENTER
+	nm.add_child(tg)
 	var fl := Forge.label(s.get("flavor", s.desc), 24, Color("#e2d5b6"), Forge.SANS_ITALIC)
 	fl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	fl.custom_minimum_size.x = 420

@@ -139,7 +139,101 @@ static func _button(text: String, px: int, styles: Dictionary, colors: Dictionar
 		b.add_theme_color_override(k, colors[k])
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	b.focus_mode = Control.FOCUS_NONE
+	press_weight(b)
 	return b
+
+
+## Gives a control a physical press: it sinks and brightens while held, then springs back past its size.
+## Every Forge button has it; tiles and cards call it for themselves.
+static func press_weight(c: Control, depth := 0.93) -> void:
+	var tw := [null]
+	var go := func(scale: float, glow: float, t: float, spring: bool):
+		if not c.is_inside_tree():
+			return
+		c.pivot_offset = c.size / 2
+		if tw[0]:
+			tw[0].kill()
+		var t2 := c.create_tween().set_parallel()
+		t2.tween_property(c, "scale", Vector2.ONE * scale, t).set_trans(Tween.TRANS_BACK if spring else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		t2.tween_property(c, "modulate", Color(glow, glow, glow * 0.95), t)
+		tw[0] = t2
+	if c is BaseButton:
+		c.button_down.connect(func(): go.call(depth, 1.25, 0.06, false))
+		c.button_up.connect(func(): go.call(1.0, 1.0, 0.28, true))
+	else:
+		c.gui_input.connect(func(e: InputEvent):
+			if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+				go.call(depth if e.pressed else 1.0, 1.25 if e.pressed else 1.0, 0.06 if e.pressed else 0.28, not e.pressed))
+
+
+# ---------- skills: type, temporary icons, roles ----------
+
+const TYPE_NAME := {"ranged": "ranged", "physical": "physical", "support": "support"}
+
+
+## What kind of action a skill is, for its type icon: support (heals, shields, buffs, guard), physical (melee) or ranged.
+static func skill_type(s: Dictionary) -> String:
+	if s.get("kind", "dmg") in ["heal", "shield", "buff", "guard"]:
+		return "support"
+	return "physical" if s.get("range", "ranged") == "melee" else "ranged"
+
+
+static func type_glyph(s: Dictionary, px: int, color := LABEL) -> TextureRect:
+	var g := glyph("type_" + skill_type(s), px, color)
+	g.tooltip_text = TYPE_NAME[skill_type(s)]
+	return g
+
+
+## A placeholder skill icon until the painted ones exist: an element-lit diamond with the skill's initials,
+## its type glyph in the corner. Initials skip small words ("Rain of Renewal" → RR).
+static func skill_icon(s: Dictionary, elem: String, px := 64) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(px, px)
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var words: Array = s.get("base_name", s.name).split(" ")
+	var initials := "".join(words.filter(func(w): return not w.to_lower() in ["of", "the", "and", "a"]).map(func(w): return w.left(1))).left(2)
+	var tint: Color = ELEM.get(elem, GOLD)
+	c.draw.connect(func():
+		var m := c.size / 2
+		var r := minf(m.x, m.y) - 2
+		diamond(c, m, r, tint.darkened(0.55))
+		diamond(c, m, r * 0.78, tint.darkened(0.25))
+		diamond(c, m + Vector2(0, -r * 0.1), r * 0.5, Color(tint.lightened(0.35), 0.35))
+		diamond(c, m, r, GOLD_DEEP, false)
+		var f := tracked(SC_HEAVY, 1)
+		var fs := roundi(r * 0.62)
+		c.draw_string_outline(f, Vector2(0, m.y + fs * 0.36), initials.to_lower(), HORIZONTAL_ALIGNMENT_CENTER, c.size.x, fs, 6, Color(INK, 0.8))
+		c.draw_string(f, Vector2(0, m.y + fs * 0.36), initials.to_lower(), HORIZONTAL_ALIGNMENT_CENTER, c.size.x, fs, PARCHMENT)
+		var b := Vector2(c.size.x - r * 0.42, c.size.y - r * 0.42)
+		c.draw_circle(b, r * 0.34, INK)
+		c.draw_arc(b, r * 0.34, 0, TAU, 20, GOLD_DEEP, 1.5, true)
+		var g := r * 0.4
+		c.draw_texture_rect(icon("type_" + skill_type(s)), Rect2(b - Vector2(g, g) / 2, Vector2(g, g)), false, GOLD_LIGHT))
+	return c
+
+
+## Roles a kit can fill. A hero holds a role while a skill that fills it is equipped.
+const ROLES := {"healer": {"glyph": "role_healer", "kinds": ["heal"], "desc": "Mends allies. Only heroes with a healing skill equipped are healers."}}
+
+
+static func has_role(skills: Array, role: String) -> bool:
+	return skills.any(func(s): return s.get("kind", "") in ROLES[role].kinds)
+
+
+## A role tag: lit when the kit fills the role, greyed (a slot the kit could fill) when it doesn't.
+static func role_tag(role: String, on: bool, px := 20) -> Control:
+	var p := PanelContainer.new()
+	var col := GAIN if on else Color(DIM, 0.45)
+	p.add_theme_stylebox_override("panel", flat(Color(INK, 0.6), Color(col, 0.8 if on else 0.4), 1, Vector4(10, 3, 12, 3)))
+	p.tooltip_text = ROLES[role].desc
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var h := hbox(6)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(h)
+	h.add_child(glyph(ROLES[role].glyph, px, col))
+	h.add_child(sc(role, px, col, true))
+	return p
 
 
 ## Commit: a hairline gold frame with a diamond stud at each end. Filled gold studs mark the primary commit.

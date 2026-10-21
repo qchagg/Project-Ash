@@ -47,6 +47,7 @@ const RULE_DEFS := {
 	"shatter": {"name": "Shatter", "overshoot": 0.5, "desc": "A killing blow that overshoots by 50% of max HP shatters the target: counted for rewards, and it can never be revived."},
 	"last_stand": {"name": "Last Stand", "rounds": 2, "revive_hp": 0.25, "desc": "A hero at 0 HP stays downed for 2 rounds. A heal that covers their tile revives them at 25% HP; otherwise they fall for the run."},
 	"ashfall": {"name": "Ashfall", "from": 8, "desc": "From round 8, every unit takes the Burn tick each round. A unit already Burning ticks once, not twice; cleansing can't stop it."},
+	"ground": {"name": "Ground", "desc": "A ranged area skill (cross, row or lane) can be aimed at any enemy tile, empty or not, to catch the units its shape covers. It stays on that tile even if the unit beside it falls first."},
 	"reach": {"name": "Reach", "desc": "Single-target melee only reaches the front-most enemy in the attacker's own lane, and only from the front row. Move to line up a hit."},
 }
 
@@ -433,6 +434,20 @@ func targets(u: Dictionary, a: Dictionary) -> Dictionary:
 	return {"side": side, "tiles": us.map(func(t): return Vector2i(t.r, t.c))}
 
 
+## Ground: a ranged area skill whose shape is worth placing (a cross, a row, a lane) can aim at any enemy tile.
+func aims_ground(a: Dictionary) -> bool:
+	return rules.get("ground", false) and a.kind == "dmg" and a.get("range", "ranged") == "ranged" \
+		and a.get("pattern", "") in ["cross", "sweep", "pierce"]
+
+
+## Where the player can aim an action: every enemy tile for a ground skill, otherwise the same tiles as `targets`.
+## The AI keeps aiming at units through `targets` and `pick`.
+func aim_tiles(u: Dictionary, a: Dictionary) -> Dictionary:
+	if aims_ground(a):
+		return {"side": opp(u.side), "tiles": all_tiles()}
+	return targets(u, a)
+
+
 ## Why an action has nothing to aim at, for the screen to say; empty when it can be used.
 func blocked_reason(u: Dictionary, a: Dictionary) -> String:
 	if a.kind in ["guard"] or a.get("pattern", "") == "all":
@@ -596,6 +611,9 @@ func perform(u: Dictionary, a: Dictionary, r: int, c: int, links: int, ctx: Vari
 	var nm := name_of(u)
 	if not _trigger_tiles("on_act", u):
 		return
+	# A hero's signature skill plays their cut-in before it lands.
+	if a.get("is_skill", false) and a.get("cutin", false) and u.has("cutin"):
+		events.append({"t": "cutin", "src": u.cutin, "id": u.id, "name": a.name})
 	if a.kind == "guard":
 		u.st.guard = true
 		_flash(u.side, u.r, u.c)
@@ -644,7 +662,7 @@ func perform(u: Dictionary, a: Dictionary, r: int, c: int, links: int, ctx: Vari
 		_step()
 		return
 	var side: String = opp(u.side) if a.kind == "dmg" else u.side
-	if a.pattern != "all" and not Vector2i(r, c) in targets(u, a).tiles:
+	if a.pattern != "all" and not Vector2i(r, c) in aim_tiles(u, a).tiles:
 		var p: Variant = pick(u, a)
 		if p == null:
 			_log("%s’s %s has no target." % [nm, a.name])
@@ -810,6 +828,7 @@ func run_openers() -> bool:
 	if openers.is_empty():
 		return false
 	phase = "run"
+	events.append({"t": "phase", "name": "opening"})
 	_log("Opening volley", "sys")
 	for o in openers:
 		var u: Dictionary = o[0]
@@ -916,6 +935,7 @@ func run_round() -> void:
 		return
 	phase = "run"
 	_log("Round %d" % round_num, "sys")
+	events.append({"t": "phase", "name": "ally"})
 	var q := run_queue()
 	if q.done:
 		_finish()
@@ -933,6 +953,7 @@ func run_round() -> void:
 		if over():
 			_finish()
 			return
+	events.append({"t": "phase", "name": "enemy"})
 	for u in _by_speed(living("E")):
 		if not u.alive:
 			continue

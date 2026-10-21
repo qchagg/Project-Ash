@@ -48,6 +48,9 @@ func _init() -> void:
 		["Elements · Brann is Earth: his Rockfall hits Water ×1.5, and the v0.1 triangle restores him to Water", _b_brann_earth],
 		["Celerity · fires before round 1, not as a chain link; then locked at 1★, double cooldown at 2★, normal at 3★, ready at 4★", _b_celerity],
 		["Celerity · an opener stun lasts 1 round even with Lingering; the same skill in the queue keeps its 2", _b_celerity_stun],
+		["Rule · Ground: a ranged cross aimed at an empty tile hits above and below it; the AI still aims at units", _b_ground],
+		["Rule · Ground: single-target and melee skills still need a unit; an area stays put when its unit falls first", _b_ground_limits],
+		["Playback · a round marks the ally and enemy turns, and Varuni's Rain of Renewal cues her cut-in", _b_turn_marks],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -799,3 +802,46 @@ func _b_celerity_stun() -> Array:
 	b.phase = "run"
 	b.perform(br, b.act(br, "s0"), post.r, post.c, 0)
 	return [opened == 1 and post.st.stun == 2, "%s: opener stun %d, queued stun %d" % [br.skills[0].name, opened, post.st.stun]]
+
+
+func _b_ground() -> Array:
+	# Posts above and below B·Mid; Sorrel's Crosswind aimed at the empty tile between them.
+	var b := _scenario([["sorrel", 1, 1]], [[0, 1], [2, 1]], ["ground"])
+	var so := b.unit("P-sorrel")
+	var cross := b.act(so, "s0")
+	var aim: bool = Vector2i(1, 1) in b.aim_tiles(so, cross).tiles
+	var ai: bool = Vector2i(1, 1) in b.targets(so, cross).tiles
+	b.phase = "run"
+	var a0 := _lost(b.unit("E-post0"))
+	b.perform(so, cross, 1, 1, 0)
+	var hit := [_lost(b.unit("E-post0")) > a0, _lost(b.unit("E-post1")) > 0]
+	b.rules.ground = false
+	var off: bool = Vector2i(1, 1) in b.aim_tiles(so, cross).tiles
+	return [aim and not ai and hit == [true, true] and not off, "aim at empty B·Mid %s · AI aims there %s · hits above and below %s · rule off %s" % [aim, ai, hit, off]]
+
+
+func _b_ground_limits() -> Array:
+	var b := _scenario([["sorrel", 1, 1], ["brann", 0, 0]], [[0, 1]], ["ground"])
+	var so := b.unit("P-sorrel")
+	var single: bool = Vector2i(2, 2) in b.aim_tiles(so, b.act(so, "s1")).tiles
+	var br := b.unit("P-brann")
+	var melee: bool = Vector2i(2, 2) in b.aim_tiles(br, b.act(br, "s0")).tiles
+	# Aimed at Post 1, which falls before the cross lands: the cross stays on A·Front instead of chasing.
+	var c := _scenario([["sorrel", 1, 1]], [[0, 0], [3, 3]], ["ground"])
+	var s2 := c.unit("P-sorrel")
+	c.unit("E-post0").alive = false
+	c.phase = "run"
+	c.perform(s2, c.act(s2, "s0"), 0, 0, 0)
+	var far := _lost(c.unit("E-post1"))
+	return [not single and not melee and far == 0, "single shot on an empty tile %s · melee on an empty tile %s · far post hit for %d" % [single, melee, far]]
+
+
+func _b_turn_marks() -> Array:
+	var b := Battle.new()
+	b.start(b.pristine_heroes())
+	var v := b.unit("P-ilse")
+	b.enqueue(v.id, "s1", v.r, v.c)
+	b.run_round()
+	var kinds := b.take_events().filter(func(e): return e.t in ["phase", "cutin"]).map(func(e): return e.get("name", e.t))
+	var ok: bool = kinds.size() >= 3 and kinds[0] == "ally" and kinds[1] == "Rain of Renewal" and "enemy" in kinds
+	return [ok, " → ".join(kinds)]

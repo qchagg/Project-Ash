@@ -385,6 +385,7 @@ const RULES = {
   lastStand:{on:false, name:'Last Stand', rounds:2, reviveHp:0.25, desc:r=>`A hero at 0 HP stays downed for ${r.rounds} rounds. A heal that covers their tile revives them at ${pct(r.reviveHp)} HP; otherwise they fall for the run.`},
   // Ashfall is the tracker's turn limit, not a v0.2 proposal; it shares the toggle list so it can be tested with the rest.
   ashfall:{on:false, name:'Ashfall', from:8, desc:r=>`From round ${r.from}, every unit takes the Burn tick each round. A unit already Burning ticks once, not twice; cleansing can't stop it.`},
+  ground:{on:false, name:'Ground', desc:()=>`A ranged area skill (cross, row or lane) can be aimed at any enemy tile, empty or not, to catch the units its shape covers. It stays on that tile even if the unit beside it falls first.`},
   // Reach is the positional rule from the design notes (think Enchanted Arms): line up before you swing.
   reach:{on:false, name:'Reach', desc:()=>`Single-target melee only reaches the front-most enemy in the attacker's own lane, and only from the front row. Move to line up a hit; a melee foe with nobody across its lane steps toward one.`},
 };
@@ -714,6 +715,9 @@ function act(u,key){
 }
 // Skills add a chain link, other actions break it, and anything flagged breaksChain:false passes through untouched.
 const nextChain = (chain,a) => a.breaksChain===false ? chain : a.isSkill ? chain+1 : 0;
+// Ground: the player can aim a ranged cross, row or lane at any enemy tile; the AI keeps aiming at units.
+const aimsGround = a => !!rule('ground') && a.kind==='dmg' && (a.range||'ranged')==='ranged' && ['cross','sweep','pierce'].includes(a.pattern);
+const aimTiles = (u,a) => aimsGround(a) ? {side:opp(u.side), tiles:allTiles()} : targets(u,a);
 function targets(u,a){
   if(a.kind==='move'){
     const cand = a.reach==='any' ? allTiles() : [[u.r-1,u.c],[u.r+1,u.c],[u.r,u.c-1],[u.r,u.c+1]];
@@ -862,7 +866,7 @@ async function perform(u,a,r,c,links,ctx){
   }
   const side = a.kind==='dmg' ? opp(u.side) : u.side;
   if(a.pattern!=='all'){
-    const ok = targets(u,a).tiles.some(([rr,cc])=>rr===r && cc===c);
+    const ok = aimTiles(u,a).tiles.some(([rr,cc])=>rr===r && cc===c);
     if(!ok){
       const p = pick(u,a);
       if(!p){ addLog(`${nm}’s ${a.name} has no target.`); return step(); }
@@ -1051,7 +1055,7 @@ function onTile(side,r,c){
   if(S.phase!=='plan') return;
   const u = selUnit();
   if(S.sel.act && u){
-    const a = act(u,S.sel.act); const tg = targets(u,a);
+    const a = act(u,S.sel.act); const tg = aimTiles(u,a);
     if(tg.side===side && tg.tiles.some(([rr,cc])=>rr===r && cc===c)){ enqueue(u.id,S.sel.act,r,c); return; }
   }
   const t = at(side,r,c);
@@ -1070,7 +1074,7 @@ function onHover(side,r,c){
   document.querySelectorAll('.tile.aoe').forEach(e=>e.classList.remove('aoe','mend'));
   if(S.phase!=='plan' || side==null) return;
   const u = selUnit(); if(!u || !S.sel.act) return;
-  const a = act(u,S.sel.act); const tg = targets(u,a);
+  const a = act(u,S.sel.act); const tg = aimTiles(u,a);
   if(tg.side!==side || !tg.tiles.some(([rr,cc])=>rr===r && cc===c)) return;
   for(const [rr,cc] of areaOf(a,r,c)){
     const el = document.querySelector(`[data-tile="${tk(side,rr,cc)}"]`);
@@ -1140,7 +1144,7 @@ function cardArt(u){
 function renderGrids(){
   const u = selUnit();
   const a = (S.phase==='plan' && u && S.sel.act) ? act(u,S.sel.act) : null;
-  const tg = a ? targets(u,a) : null;
+  const tg = a ? aimTiles(u,a) : null;
   const placing = S.phase==='form' && S.sel.pick && u;
   for(const side of ['E','P']){
     const validSet = placing
@@ -1557,6 +1561,14 @@ const CHECKS = [
     const tick = u => Math.round(u.maxHp*0.06);
     const ok = at7[0]===0 && at7[2]===0 && at7[1]===tick(units[1]) && units.every((u,i)=>at8[i]-at7[i]===tick(u));
     return [ok, `HP lost after round 7: ${at7.join('/')} (Brann was already burning) · after round 8: ${at8.join('/')} · one tick each = ${units.map(tick).join('/')}`];
+  })],
+  ['Rule · Ground: a ranged cross aimed at an empty tile hits above and below it; the AI still aims at units', ()=>withRules({ground:true}, async()=>{
+    const g = scenario([['sorrel',1,1]],[[0,1],[2,1]]); const s = g('P-sorrel'), a = act(s,'s0'); S.phase='run';
+    const aim = aimTiles(s,a).tiles.some(([r,c])=>r===1&&c===1), ai = targets(s,a).tiles.some(([r,c])=>r===1&&c===1);
+    await perform(s,a,1,1,0);
+    const hit = [lost(g('E-post0'))>0, lost(g('E-post1'))>0];
+    RULES.ground.on = false; const off = aimTiles(s,a).tiles.some(([r,c])=>r===1&&c===1);
+    return [aim && !ai && hit.every(Boolean) && !off, `aim at empty B·Mid ${aim} · AI aims there ${ai} · hits above and below ${hit} · rule off ${off}`];
   })],
   ['Rule · Reach: single-target melee hits only across its own lane from the front row; a melee foe steps up to strike', ()=>withRules({reach:true}, async()=>{
     // Brann one row back can't reach anything; on the front row he reaches only across his own lane.

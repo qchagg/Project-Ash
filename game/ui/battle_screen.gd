@@ -20,6 +20,11 @@ var _hint := ""
 var _playing := false
 ## Embers paid to the town for this fight's win, so the reward is paid once.
 var _paid := 0
+## The augment this win dropped into the loose pile ("" until paid).
+var _spoils := ""
+## Where an area skill is being previewed: tap a tile to place its shape, tap it again to cast. (-1, -1) when unset.
+var _aim_at := Vector2i(-1, -1)
+var _aim_side := ""
 var _tiles := {}
 var _tex := {}
 var _round: Label
@@ -46,13 +51,29 @@ func _build() -> void:
 	_panel = Forge.vbox(10)
 	body.add_child(_panel)
 	refresh()
+	_intro.call_deferred()
+
+
+## The squads march onto the field: foes from the top, heroes from the bottom, one after another.
+func _intro() -> void:
+	var i := 0
+	for side in ["E", "P"]:
+		for r in b.rows:
+			for c in b.cols:
+				var t: BattleTile = _tiles["%s%d%d" % [side, r, c]]
+				if not unit_view(side, r, c).is_empty():
+					t.intro(0.1 + i * 0.09, Vector2(0, -520 if side == "E" else 520))
+					i += 1
 
 
 ## A fresh fight with the squad on the field, standing where the formation left them. Reach is on here.
 func _new_fight() -> void:
 	_paid = 0
+	_spoils = ""
+	_aim_at = Vector2i(-1, -1)
 	b = Battle.new()
 	b.rules.reach = true
+	b.rules.ground = true
 	var heroes := []
 	var pos := {}
 	for uid in app.col.squad:
@@ -169,6 +190,16 @@ func _fill_panel() -> void:
 				_paid = app.town.battle_reward()
 				app.town.earn(_paid)
 			_panel.add_child(Forge.sc("+%d embers to the town" % _paid, 22, Forge.GAIN))
+			if _spoils == "":
+				var keys := Data.AUGS.keys()
+				_spoils = keys[randi() % keys.size()]
+				app.col.loose.append(_spoils)
+			var aug: Dictionary = Data.AUGS[_spoils]
+			var row := Forge.hbox(10)
+			row.add_child(Forge.glyph("augment", 22, Forge.ELEM[aug.fam]))
+			row.add_child(Forge.sc("+1 augment · %s" % aug.name, 22, Forge.GAIN))
+			row.tooltip_text = aug.desc
+			_panel.add_child(row)
 		return
 	var u := b.unit(sel_id)
 	if u.is_empty() or not u.alive:
@@ -185,6 +216,8 @@ func _fill_panel() -> void:
 	var where := Forge.sc("%s · %s · %s" % [Data.ELEMS[u.elem].label, u.range, b.lane(u.r, u.c)], 18, Forge.LABEL)
 	where.size_flags_vertical = SIZE_SHRINK_CENTER
 	head.add_child(where)
+	if Forge.has_role(u.skills, "healer"):
+		head.add_child(Forge.role_tag("healer", true, 18))
 	if b.phase == "form":
 		_note("Front-row heroes shield their lane from melee. Deeper rows take less from ranged attacks. Reach is on: single-target melee only hits across its own lane, from the front row.")
 		return
@@ -196,13 +229,22 @@ func _fill_panel() -> void:
 	_panel.add_child(basics)
 	for k in ["basic", "move", "guard"]:
 		basics.add_child(_act_button(u, k, 56))
+	if sel_act.begins_with("s"):
+		_panel.add_child(_armed(u, b.act(u, sel_act)))
 	var hint := _hint
 	if hint == "":
 		if u.st.stun > 0:
 			hint = "Stunned: %s loses the next action." % Battle.name_of(u)
 		elif sel_act != "":
 			var a := b.act(u, sel_act)
-			hint = "Tap a lit empty tile to step there." if a.kind == "move" else "Reach: only the enemy across this lane." if b.reach_blocked(u, a) else "Tap a lit tile."
+			if a.kind == "move":
+				hint = "Tap a lit empty tile to step there."
+			elif b.reach_blocked(u, a):
+				hint = "Reach: only the enemy across this lane."
+			elif b.aims_ground(a):
+				hint = "Tap any enemy tile to place the %s, then tap it again to cast. Empty tiles count: aim between foes." % b.shape_name(a.pattern).to_lower() if _aim_at.x < 0 else "Tap the same tile again to cast, or another tile to move it."
+			else:
+				hint = "Tap a lit tile."
 		else:
 			for i in u.skills.size():
 				var why := b.blocked_reason(u, b.act(u, "s%d" % i))
@@ -223,15 +265,61 @@ func _act_button(u: Dictionary, key: String, h: int) -> Button:
 			text += " · locked"
 		elif left > 0:
 			text += " · %d" % roundi(left)
-	var bt := Forge.ember(text, h)
+	var bt := Forge.ember("" if a.is_skill else text, h)
 	bt.size_flags_horizontal = SIZE_EXPAND_FILL
 	bt.add_theme_font_size_override("font_size", 20)
+	if a.is_skill:
+		# Skill buttons carry the skill's icon and its name; the icon shows ranged, physical or support.
+		var row := Forge.hbox(10)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_child(Forge.skill_icon(a, u.elem, h - 12))
+		var l := Forge.sc(text, 20, Forge.PARCHMENT)
+		l.size_flags_vertical = SIZE_SHRINK_CENTER
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		l.clip_text = true
+		l.size_flags_horizontal = SIZE_EXPAND_FILL
+		row.add_child(l)
+		bt.add_child(row)
+		row.set_anchors_and_offsets_preset(PRESET_FULL_RECT, PRESET_MODE_MINSIZE, 6)
+		row.offset_left = 10
+		row.offset_right = -10
+	elif a.kind != "move":
+		bt.icon = Forge.icon("type_" + Forge.skill_type(a))
+		bt.add_theme_constant_override("icon_max_width", 22)
+		for k in ["icon_normal_color", "icon_hover_color", "icon_pressed_color"]:
+			bt.add_theme_color_override(k, Forge.LABEL)
 	bt.toggle_mode = true
 	bt.button_pressed = sel_act == key
 	bt.disabled = _playing or b.phase != "plan" or u.st.stun > 0 or (a.is_skill and u.cd[a.idx] > 0) or b.blocked_reason(u, a) != ""
 	bt.tooltip_text = a.get("desc", "")
-	bt.pressed.connect(_on_action.bind(key))
+	bt.pressed.connect(func():
+		Burst.on(bt, Forge.ELEM[u.elem] if a.is_skill else Forge.GOLD, 54 if a.is_skill else 34, 10 if a.is_skill else 6)
+		_on_action(key))
 	return bt
+
+
+## The armed skill, spelled out: its icon, the shape it hits on the grid, its numbers and its type.
+func _armed(u: Dictionary, a: Dictionary) -> Control:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.PLAQUE, 0.85), Color(Forge.ELEM[u.elem], 0.6), 2, Vector4(18, 12, 18, 12)))
+	var row := Forge.hbox(16)
+	p.add_child(row)
+	row.add_child(Forge.skill_icon(a, u.elem, 60))
+	var words := Forge.vbox(2)
+	words.size_flags_horizontal = SIZE_EXPAND_FILL
+	words.size_flags_vertical = SIZE_SHRINK_CENTER
+	row.add_child(words)
+	var top := Forge.hbox(10)
+	words.add_child(top)
+	top.add_child(Forge.sc(a.name, 22, Forge.GOLD))
+	top.add_child(Forge.type_glyph(a, 20))
+	top.add_child(Forge.sc(Forge.TYPE_NAME[Forge.skill_type(a)], 16, Forge.LABEL))
+	var m := Forge.label(HeroSheet.meta(a) + ("" if a.pattern in ["single", "all"] else " · " + b.shape_name(a.pattern)), 20, Forge.MUTED)
+	m.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	words.add_child(m)
+	row.add_child(HeroSheet.pattern_grid(a.pattern, Forge.ELEM[u.elem]))
+	return p
 
 
 func _note(text: String) -> void:
@@ -269,7 +357,7 @@ func _aim() -> Dictionary:
 	if _playing or b.phase != "plan" or sel_act == "":
 		return {}
 	var u := b.unit(sel_id)
-	return {} if u.is_empty() else b.targets(u, b.act(u, sel_act))
+	return {} if u.is_empty() else b.aim_tiles(u, b.act(u, sel_act))
 
 
 func is_lit(side: String, r: int, c: int) -> bool:
@@ -280,18 +368,34 @@ func is_lit(side: String, r: int, c: int) -> bool:
 	return not tg.is_empty() and tg.side == side and Vector2i(r, c) in tg.tiles
 
 
-## Lit tiles show their whole area when the action has one (a lane, a row, a cross).
+## The previewed shape: where an area skill would land if cast on the tile being aimed at.
 func in_area(side: String, r: int, c: int) -> bool:
 	var tg := _aim()
-	if tg.is_empty() or tg.side != side or tg.tiles.is_empty():
+	if tg.is_empty() or tg.side != side or _aim_at.x < 0 or _aim_side != side:
 		return false
 	var a := b.act(b.unit(sel_id), sel_act)
-	if a.get("pattern", "single") == "single":
+	return Vector2i(r, c) in b.area_of(a, _aim_at.x, _aim_at.y)
+
+
+## Whether an armed action places a shape (a lane, a row, a cross), so a tap previews before it casts.
+func _places_shape() -> bool:
+	if sel_act == "" or b.phase != "plan" or _playing:
 		return false
-	for v in tg.tiles:
-		if Vector2i(r, c) in b.area_of(a, v.x, v.y):
-			return true
-	return false
+	var a := b.act(b.unit(sel_id), sel_act)
+	return a.get("pattern", "single") in ["cross", "sweep", "pierce"]
+
+
+## Hovering a tile with a mouse previews the shape there; a tap does the same on a phone.
+func on_hover(side: String, r: int, c: int) -> void:
+	if not _places_shape():
+		return
+	var tg := _aim()
+	if tg.is_empty() or tg.side != side or not Vector2i(r, c) in tg.tiles:
+		return
+	_aim_at = Vector2i(r, c)
+	_aim_side = side
+	for t in _tiles.values():
+		t.queue_redraw()
 
 
 func is_selected(u: Dictionary) -> bool:
@@ -340,8 +444,18 @@ func on_tile(side: String, r: int, c: int) -> void:
 	var u := b.unit(sel_id)
 	if sel_act != "" and not u.is_empty():
 		var a := b.act(u, sel_act)
-		var tg := b.targets(u, a)
+		var tg := b.aim_tiles(u, a)
 		if tg.side == side and Vector2i(r, c) in tg.tiles:
+			var tile: BattleTile = _tiles["%s%d%d" % [side, r, c]]
+			if _places_shape() and (_aim_at != Vector2i(r, c) or _aim_side != side):
+				# First tap places the shape; the second on the same tile casts.
+				_aim_at = Vector2i(r, c)
+				_aim_side = side
+				Burst.on(tile, Forge.GOLD, 30, 6)
+				refresh()
+				return
+			for v in b.area_of(a, r, c) if _places_shape() else [Vector2i(r, c)]:
+				Burst.on(_tiles["%s%d%d" % [side, v.x, v.y]], Forge.ELEM[u.elem], 44, 8)
 			b.enqueue(u.id, sel_act, r, c)
 			_next_hero()
 			refresh()
@@ -350,6 +464,7 @@ func on_tile(side: String, r: int, c: int) -> void:
 	if side == "P" and not t.is_empty():
 		sel_id = t.id
 		sel_act = ""
+		_aim_at = Vector2i(-1, -1)
 	refresh()
 
 
@@ -369,12 +484,14 @@ func _on_action(key: String) -> void:
 		_next_hero()
 	else:
 		sel_act = "" if sel_act == key else key
+		_aim_at = Vector2i(-1, -1)
 	refresh()
 
 
 ## After queueing, the next hero who still needs orders.
 func _next_hero() -> void:
 	sel_act = ""
+	_aim_at = Vector2i(-1, -1)
 	for u in b.living("P"):
 		if u.st.stun == 0 and queue_index(u) < 0:
 			sel_id = u.id
@@ -396,6 +513,10 @@ func _commit() -> void:
 	match b.phase:
 		"form":
 			_keep_formation()
+			_playing = true
+			refresh()
+			await Banner.play(app, "battle start", "round 1").finished
+			_playing = false
 			b.phase = "plan"
 			if b.run_openers() and b.over():
 				b._finish()
@@ -408,6 +529,7 @@ func _commit() -> void:
 			b.phase = "plan"
 			_log.text = ""
 			refresh()
+			_intro()
 
 
 ## Plays back what the engine just resolved, a beat at a time, then settles on the board as it stands.
@@ -421,6 +543,17 @@ func _play() -> void:
 				pending.append(e)
 			"log":
 				_log.text = e.text
+			"phase":
+				var words := {"opening": ["opening volley", "celerity strikes first"], "ally": ["ally turn", "round %d" % b.round_num],
+					"enemy": ["enemy turn", ""]}
+				var w: Array = words.get(e.name, [e.name, ""])
+				await Banner.play(app, w[0], w[1], Forge.GOLD if e.name != "enemy" else Color("#e86a5a")).finished
+				if not is_inside_tree():
+					return
+			"cutin":
+				await CutIn.play(app, e.src).finished
+				if not is_inside_tree():
+					return
 			"step":
 				view = e.snap
 				for t in _tiles.values():
@@ -431,6 +564,7 @@ func _play() -> void:
 						continue
 					if p.t == "flash":
 						tile.flash()
+						Burst.on(tile, Forge.GOLD_LIGHT, 30, 5)
 					else:
 						tile.float_text(p.txt, p.cls)
 				pending = []
@@ -438,6 +572,9 @@ func _play() -> void:
 				if not is_inside_tree():
 					return
 	view = b.snapshot()
+	if b.phase == "over":
+		var win := b.result == "win"
+		await Banner.play(app, "victory" if win else "defeat", "round %d" % b.round_num, Forge.GOLD if win else Forge.MUTED).finished
 	_playing = false
 	var first := b.living("P").filter(func(u): return u.st.stun == 0)
 	if first.size():
