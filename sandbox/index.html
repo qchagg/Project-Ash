@@ -363,6 +363,15 @@ const HEROES = [
     portrait:{src:'portraits/ilse.webp', x:40, y:36, zoom:2.1}, skills:[
     {name:'Riptide', kind:'dmg', range:'ranged', pattern:'sweep', power:0.95, cd:2, desc:'Washes across a full row.'},
     {name:'Rain of Renewal', kind:'heal', pattern:'all', power:1.6, cd:3, fx:{cleanse:true}, desc:'Heals every ally and clears burns.'}]},
+  // Playable versions of the Basalt Golem and Galeblade foes: same stats and kits, their own keys and art.
+  {key:'rock', name:'Basalt', title:'Living Mountain', elem:'earth', range:'melee', maxHp:1500, atk:115, def:85, spd:60, r:0, c:2,
+    portrait:{src:'portraits/golem.webp', x:46, y:42, zoom:2.0}, skills:[
+    {name:'Magma Fist', kind:'dmg', range:'melee', pattern:'single', power:1.5, cd:3, fx:{burn:2}, desc:'A molten blow to one exposed enemy. Burns for 2 rounds.'},
+    {name:'Quake', kind:'dmg', range:'melee', pattern:'sweep', power:0.8, cd:3, desc:'Shakes a full row.'}]},
+  {key:'leaf', name:'Galeblade', title:'Thicket Duelist', elem:'wind', range:'melee', maxHp:950, atk:145, def:40, spd:110, r:0, c:0,
+    portrait:{src:'portraits/blade.webp', x:42, y:44, zoom:2.0}, skills:[
+    {name:'Gust Step', kind:'dmg', range:'melee', pattern:'single', power:1.6, cd:4, fx:{stun:1}, desc:'Steps through the wind to strike one enemy. Stuns it for its next action.'},
+    {name:'Cyclone Cut', kind:'dmg', range:'melee', pattern:'sweep', power:1.0, cd:2, desc:'A spinning cut across a full row.'}]},
 ];
 
 /* v0.2 rule proposals (design tracker, "Rules we adopt"). All start off, so the v0.1 fight stays the reference. */

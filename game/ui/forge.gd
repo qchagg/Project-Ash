@@ -17,7 +17,8 @@ const MUTED := Color("#cbbd9f")
 const LABEL := Color("#b39c6a")
 const DIM := Color("#9d8a63")
 const GAIN := Color("#a9dd92")
-const ELEM := {"fire": Color("#ff7b47"), "water": Color("#43b8de"), "earth": Color("#c4925f"), "wind": Color("#8ad46f")}
+# Saturated enough to read apart from the gold everywhere they appear; earth leans clay so it isn't mistaken for gold.
+const ELEM := {"fire": Color("#ff5a1f"), "water": Color("#22b4ff"), "earth": Color("#c8602e"), "wind": Color("#52e06a")}
 const STAT_TINT := {"max_hp": Color("#e86a5a"), "atk": Color("#f6dc94"), "def": Color("#9fb3c8"), "spd": Color("#8ad46f")}
 const STAT_ICON := {"max_hp": "hp", "atk": "atk", "def": "def", "spd": "spd"}
 const STAT_NAME := {"max_hp": "health", "atk": "attack", "def": "defense", "spd": "speed"}

@@ -51,10 +51,11 @@ func _draw() -> void:
 		Forge.filigree(self, r, Color("#d9a777"), 60.0)
 	var s := minf(size.x * 0.16, 56.0)
 	var c := Vector2(s * 0.5 + 16, s * 0.5 + 16)
+	# Black and gold, like the frames: the glyph's shape says the element.
 	draw_circle(c, s * 0.5 + 4, Forge.INK)
 	draw_circle(c, s * 0.5 + 2, Forge.GOLD)
-	draw_circle(c, s * 0.5 - 1, Forge.ELEM[h.elem])
-	draw_texture_rect(Forge.sigil(h.elem), Rect2(c - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), false, Forge.INK)
+	draw_circle(c, s * 0.5, Color("#0b0806"))
+	draw_texture_rect(Forge.sigil(h.elem), Rect2(c - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), false, Forge.GOLD_LIGHT)
 	if showcase:
 		_sparkles(r)
 	if overlay.is_valid():

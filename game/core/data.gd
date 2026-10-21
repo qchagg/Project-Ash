@@ -44,12 +44,23 @@ const HEROES := [
 		{"name": "Pinning Shot", "flavor": "One arrow, and the target forgets how to move.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
 	{"key": "ilse", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
 		"max_hp": 850, "atk": 95, "def": 50, "spd": 88, "r": 2, "c": 2,
-		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "x": 45, "y": 47, "zoom": 6.0}, "full": {"src": "res://art/full/ilse.webp", "x": 71, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
+		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "x": 53, "y": 47, "zoom": 6.0}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
 		"cutin": "res://art/video/ilse-wave.ogv", "celebrate": "res://art/video/ilse-celebrate.ogv",
 		"home": {"name": "Jaladesh", "desc": "A delta of a thousand channels, stilt villages and lotus lamps on the water."},
 		"lore": "For years the delta ports sang of Varuni as a sea-witch: the chantress who called the tide down on a settler warship and drowned every man aboard. The songs never said what that ship was chasing. Three boats of refugees, fleeing the colonists who had burned their villages, slipped through the storm she raised and reached the mangroves alive. When the survivors' children finally told the truth, the same ports that had cursed her name hung lotus lamps along the water for her. By then she was gone again. Varuni has no use for being celebrated; she prefers the deep water, where no one calls her anything at all.", "skills": [
 		{"name": "Riptide", "flavor": "The tide turns wherever she points.", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
 		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
+	# Playable versions of the Basalt Golem and Galeblade foes: same stats and kits, their own keys and art.
+	{"key": "rock", "name": "Basalt", "title": "Living Mountain", "elem": "earth", "range": "melee",
+		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 2,
+		"portrait": {"src": "res://art/portraits/rock.webp", "x": 47, "y": 43, "zoom": 4.6}, "full": {"src": "res://art/full/rock.webp", "x": 49, "w": 1.5, "face": [44, 16]}, "skills": [
+		{"name": "Magma Fist", "flavor": "Stone, heated until it remembers being lava.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.5, "cd": 3, "fx": {"burn": 2}, "desc": "A molten blow to one exposed enemy. Burns for 2 rounds."},
+		{"name": "Quake", "flavor": "He stamps once, and the whole row loses its footing.", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 0.8, "cd": 3, "desc": "Shakes a full row."}]},
+	{"key": "leaf", "name": "Galeblade", "title": "Thicket Duelist", "elem": "wind", "range": "melee",
+		"max_hp": 950, "atk": 145, "def": 40, "spd": 110, "r": 0, "c": 0,
+		"portrait": {"src": "res://art/portraits/leaf.webp", "x": 53, "y": 43, "zoom": 4.6}, "full": {"src": "res://art/full/leaf.webp", "x": 50, "w": 1.35, "face": [56, 35]}, "skills": [
+		{"name": "Gust Step", "flavor": "A rustle of leaves, and he is already behind you.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.6, "cd": 4, "fx": {"stun": 1}, "desc": "Steps through the wind to strike one enemy. Stuns it for its next action."},
+		{"name": "Cyclone Cut", "flavor": "The thicket spins, and everything in it is cut.", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 1.0, "cd": 2, "desc": "A spinning cut across a full row."}]},
 ]
 
 # Bonds between heroes: friends, rivals or lovers. Each side has its own line about the other.

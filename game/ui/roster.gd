@@ -103,7 +103,9 @@ func _tile(h: Dictionary, copies: Array) -> Control:
 			var r := Rect2(ci.size.x - w - 16, ci.size.y - 58, w, 42)
 			ci.draw_rect(r.grow(5), Forge.INK)
 			ci.draw_rect(r.grow(1), Forge.GOLD_DEEP, false, 2.0)
-			ci.draw_string(f, Vector2(r.position.x, r.position.y + 31), t, HORIZONTAL_ALIGNMENT_CENTER, w, 26, Forge.PARCHMENT)
+			# Centre on the glyphs' real height, not a hand-set baseline.
+			var base := r.position.y + (r.size.y + f.get_ascent(26) - f.get_descent(26)) / 2.0
+			ci.draw_string(f, Vector2(r.position.x, base), t, HORIZONTAL_ALIGNMENT_CENTER, w, 26, Forge.PARCHMENT)
 
 	var plate := Forge.vbox(6)
 	tile.add_child(plate)
