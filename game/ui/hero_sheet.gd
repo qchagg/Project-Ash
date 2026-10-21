@@ -312,29 +312,32 @@ func _slot(s: Dictionary, i: int) -> Control:
 		open_stat = ""
 		open_skill = -1 if open_skill == i else i
 		refresh())
-	var m := Forge.margins(MarginContainer.new(), 22, 18, 22, 18)
+	var m := Forge.margins(MarginContainer.new(), 32, 28, 32, 28)
 	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.set_anchors_preset(PRESET_FULL_RECT)
 	b.add_child(m)
-	var h := Forge.hbox(22)
+	var h := Forge.hbox(26)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(h)
 	h.add_child(pattern_grid(s.pattern, Forge.ELEM[Data.hero(hero).elem]))
-	var txt := Forge.vbox(4)
+	var txt := Forge.vbox(0)
 	txt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	txt.size_flags_horizontal = SIZE_EXPAND_FILL
+	txt.size_flags_vertical = SIZE_SHRINK_CENTER
 	h.add_child(txt)
-	txt.add_child(Forge.sc(s.name, 30, Forge.PARCHMENT, false, 0.08))
-	var fl := Forge.label(s.get("flavor", s.desc), 23, Color("#e2d5b6"), Forge.SANS_ITALIC)
+	txt.add_child(Forge.sc(s.name, 32, Forge.PARCHMENT, false, 0.08))
+	var fl := Forge.label(s.get("flavor", s.desc), 24, Color("#e2d5b6"), Forge.SANS_ITALIC)
 	fl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	fl.custom_minimum_size.x = 380
+	fl.custom_minimum_size.x = 420
+	fl.add_theme_constant_override("line_spacing", -2)
 	txt.add_child(fl)
-	var cd := Forge.hbox(6)
+	# The cooldown sits faint in the top-right corner; the numbers are one tap away.
+	var cd := Forge.hbox(4)
 	cd.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cd.size_flags_vertical = SIZE_SHRINK_CENTER
-	cd.add_child(Forge.glyph("cooldown", 24, Forge.MUTED))
-	cd.add_child(Forge.label(str(s.cd), 26, Forge.MUTED, Forge.SANS_BOLD))
-	h.add_child(cd)
+	cd.add_child(Forge.glyph("cooldown", 18, Color(Forge.DIM, 0.7)))
+	cd.add_child(Forge.label(str(s.cd), 20, Color(Forge.DIM, 0.8), Forge.SANS_BOLD))
+	b.add_child(cd)
+	cd.set_anchors_and_offsets_preset(PRESET_TOP_RIGHT, PRESET_MODE_MINSIZE, 14)
 	if swapping:
 		h.add_child(_round_button("swap", "Swap %s" % s.name, _no_swap, 66))
 	# A button doesn't grow to its children, so follow the content's height.

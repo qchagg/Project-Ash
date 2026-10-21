@@ -34,6 +34,8 @@ var _tween: Tween
 var _dots: Control
 ## The evolve or equip screen while it is open; the pager ignores gestures meanwhile.
 var _modal: Control
+## The page to stay lined up with while page heights settle after building (-1 once the user scrolls).
+var _pin := -1
 
 
 func setup(a: App, hero_key: String, card_uid: String, start_level := 0) -> HeroPager:
@@ -107,6 +109,7 @@ func _open(from: int) -> void:
 	sheet.down_requested.connect(func(): _snap(_top(2)))
 	sheet.open_requested.connect(func(m: String): _open_modal(m, sheet))
 	var chronicle := ChroniclePage.new().setup(app, key, card_uid)
+	chronicle.visit.connect(_visit)
 	_pages = [view, sheet, chronicle]
 	_heights = [PAGE_H, PAGE_H, PAGE_H]
 	for i in _pages.size():
@@ -117,9 +120,8 @@ func _open(from: int) -> void:
 				_heights[i] = h
 				_layout())
 		_page.add_child(p)
+	_pin = level
 	_layout()
-	_oy = _top(level)
-	_set_oy(_oy)
 	if _dots:
 		_dots.queue_redraw()
 	if old and from != 0:
@@ -178,7 +180,7 @@ func _layout() -> void:
 		_pages[i].position.y = y
 		y += _heights[i]
 	_page.size.y = y
-	_set_oy(_oy)
+	_set_oy(_top(_pin) if _pin >= 0 else _oy)
 
 
 func _top(i: int) -> float:
@@ -203,6 +205,7 @@ func _set_oy(v: float) -> void:
 
 
 func _snap(to: float) -> void:
+	_pin = -1
 	if _tween:
 		_tween.kill()
 	_vel = 0.0
@@ -216,6 +219,19 @@ func _inside() -> int:
 		if _oy >= _top(i) - 0.5 and _oy <= _bottom(i) + 0.5:
 			return i
 	return -1
+
+
+## Jumps to another hero (from a bond), landing on their character view.
+func _visit(key: String) -> void:
+	var i := heroes.find(key)
+	if i < 0:
+		heroes.append(key)
+		i = heroes.size() - 1
+	var step := 1 if i > index else -1
+	index = i
+	uid = ""
+	level = 0
+	_open(step)
 
 
 func _go(step: int) -> void:
@@ -238,6 +254,7 @@ func _input(e: InputEvent) -> void:
 	if not is_visible_in_tree() or _modal:
 		return
 	if e is InputEventMouseButton and e.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_UP] and e.pressed:
+		_pin = -1
 		_wheel(e.button_index == MOUSE_BUTTON_WHEEL_DOWN)
 		get_viewport().set_input_as_handled()
 		return
@@ -248,6 +265,7 @@ func _input(e: InputEvent) -> void:
 			if p and p.has_method("blocks_drag") and p.blocks_drag(e.position):
 				return
 			_press = true
+			_pin = -1
 			_start = e.position
 			_last = e.position
 			_axis = ""

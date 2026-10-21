@@ -44,11 +44,32 @@ const HEROES := [
 		{"name": "Pinning Shot", "flavor": "One arrow, and the target forgets how to move.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
 	{"key": "ilse", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
 		"max_hp": 850, "atk": 95, "def": 50, "spd": 88, "r": 2, "c": 2,
-		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "x": 45, "y": 47, "zoom": 6.0}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
-		"cutin": "res://art/video/ilse-wave.ogv", "celebrate": "res://art/video/ilse-celebrate.ogv", "skills": [
+		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "x": 45, "y": 47, "zoom": 6.0}, "full": {"src": "res://art/full/ilse.webp", "x": 71, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
+		"cutin": "res://art/video/ilse-wave.ogv", "celebrate": "res://art/video/ilse-celebrate.ogv",
+		"home": {"name": "Jaladesh", "desc": "A delta of a thousand channels, stilt villages and lotus lamps on the water."},
+		"lore": "For years the delta ports sang of Varuni as a sea-witch: the chantress who called the tide down on a settler warship and drowned every man aboard. The songs never said what that ship was chasing. Three boats of refugees, fleeing the colonists who had burned their villages, slipped through the storm she raised and reached the mangroves alive. When the survivors' children finally told the truth, the same ports that had cursed her name hung lotus lamps along the water for her. By then she was gone again. Varuni has no use for being celebrated; she prefers the deep water, where no one calls her anything at all.", "skills": [
 		{"name": "Riptide", "flavor": "The tide turns wherever she points.", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
 		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
 ]
+
+# Bonds between heroes: friends, rivals or lovers. Each side has its own line about the other.
+const BONDS := [
+	{"a": "ilse", "b": "kaede", "kind": "best friends",
+		"about_b": "The only one who never asked about the ship. He just kept the fire going.",
+		"about_a": "The one woman who laughs at his charm instead of falling for it."},
+]
+
+
+## A hero's bonds, each as {other, kind, line}, written from that hero's side.
+static func bonds(key: String) -> Array:
+	var out := []
+	for b in BONDS:
+		if b.a == key:
+			out.append({"other": b.b, "kind": b.kind, "line": b.about_b})
+		elif b.b == key:
+			out.append({"other": b.a, "kind": b.kind, "line": b.about_a})
+	return out
+
 
 # Augments slot into a skill whose tags they fit. Numbers add up; durations take the higher value.
 # Each augment is a bound elemental spirit (Paracelsus's four): its family sets the card's aura, its prefix renames the skill.
