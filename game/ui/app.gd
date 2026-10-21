@@ -11,6 +11,7 @@ var _screen: Control
 
 func _ready() -> void:
 	Forge.setup()
+	_showcase()
 	var bg := ColorRect.new()
 	bg.color = Forge.INK
 	bg.set_anchors_preset(PRESET_FULL_RECT)
@@ -19,13 +20,21 @@ func _ready() -> void:
 	show_roster()
 
 
+## Playtest only: Varuni's starter card is a 4★ Ashcrown so the top tier can be seen without grinding.
+## The rules and checks build their own collections, so they are unaffected.
+func _showcase() -> void:
+	var c := col.by("ilse")
+	if not c.is_empty():
+		c.stars = 4
+
+
 func show_roster() -> void:
 	_open(Roster.new().setup(self))
 
 
-## A hero opens on the character view; the sheet is one scroll below, other heroes a swipe away.
-func show_hero(hero_key: String, uid := "", sheet := false) -> void:
-	_open(HeroPager.new().setup(self, hero_key, uid, sheet))
+## A hero opens on the character view; the sheet and evolve pages are below, other heroes a swipe away.
+func show_hero(hero_key: String, uid := "", page := 0) -> void:
+	_open(HeroPager.new().setup(self, hero_key, uid, page))
 
 
 func _open(screen: Control) -> void:

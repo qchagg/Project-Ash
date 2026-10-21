@@ -1,25 +1,28 @@
 class_name HeroPager
 extends Control
-## A hero's two pages stacked vertically: the character view fills the first screen, the sheet sits below it.
-## Drag or scroll down past the arrow and the page snaps to the sheet; inside the sheet it scrolls freely.
-## Swipe sideways for the next or previous hero, at the same level.
+## A hero's pages stacked vertically: the character view, the sheet (card, stats, skills), then evolve and equip.
+## Drag, scroll or tap an arrow to move down a page; pages snap into place, and a page taller than the screen
+## scrolls freely inside. Swipe sideways for the next or previous hero, on the same page.
 
 const PAGE_H := 1560.0
 const W := 720.0
 ## How far a drag must travel before it counts as a swipe or a scroll rather than a tap.
 const SLOP := 18.0
 const SWIPE := 140.0
+## How far past a page's edge a drag must go before letting go moves to the next page.
+const PULL := 120.0
 
 var app: App
 var heroes: Array = []
 var index := 0
 var uid := ""
-var on_sheet := false
+## Which page is showing (0 character view, 1 sheet, 2 evolve and equip); kept when swiping between heroes.
+var level := 0
 
 var _page: Control
-var _sheet: HeroSheet
+var _pages: Array = []
+var _heights: Array = []
 var _oy := 0.0
-var _max_oy := PAGE_H
 var _vel := 0.0
 var _press := false
 var _start := Vector2.ZERO
@@ -30,7 +33,7 @@ var _tween: Tween
 var _dots: Control
 
 
-func setup(a: App, hero_key: String, card_uid: String, sheet := false) -> HeroPager:
+func setup(a: App, hero_key: String, card_uid: String, start_level := 0) -> HeroPager:
 	app = a
 	heroes = []
 	for h in Data.HEROES:
@@ -40,7 +43,7 @@ func setup(a: App, hero_key: String, card_uid: String, sheet := false) -> HeroPa
 		heroes.append(hero_key)
 	index = heroes.find(hero_key)
 	uid = card_uid
-	on_sheet = sheet
+	level = start_level
 	return self
 
 
@@ -48,7 +51,25 @@ func _ready() -> void:
 	clip_contents = true
 	_open(0)
 
-	# Fixed over both pages: the way back and where you are in the roster.
+	# Fixed over every page: the way back and where you are in the roster, on a shade so scrolled content fades under them.
+	var g := Gradient.new()
+	g.set_color(0, Color(Forge.INK, 0.95))
+	g.set_color(1, Color(Forge.INK, 0.0))
+	g.add_point(0.55, Color(Forge.INK, 0.85))
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill_from = Vector2(0, 0)
+	tex.fill_to = Vector2(0, 1)
+	tex.width = 4
+	tex.height = 64
+	var shade := TextureRect.new()
+	shade.texture = tex
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.position = Vector2.ZERO
+	shade.size = Vector2(W, 160)
+	add_child(shade)
 	var back := Forge.link("roster")
 	back.position = Vector2(30, 12)
 	back.pressed.connect(app.show_roster)
@@ -70,26 +91,36 @@ func _open(from: int) -> void:
 	var old := _page
 	var key: String = heroes[index]
 	var card_uid: String = uid if uid != "" and app.col.by(uid).get("hero", "") == key else app.copies(key)[0].uid
-	uid = ""
+	uid = card_uid
 
 	_page = Control.new()
-	_page.size = Vector2(W, PAGE_H * 2)
+	_page.size = Vector2(W, PAGE_H * 3)
 	add_child(_page)
 	move_child(_page, 0)
 	var view := CharacterView.new().setup(app, key, card_uid)
 	view.size = Vector2(W, PAGE_H)
-	view.down_requested.connect(func(): _snap(PAGE_H))
-	_page.add_child(view)
-	_sheet = HeroSheet.new().setup(app, key, card_uid)
-	_sheet.position = Vector2(0, PAGE_H)
-	_sheet.size = Vector2(W, PAGE_H)
-	_sheet.height_changed.connect(func(h: float):
-		_page.size.y = PAGE_H + h
-		_max_oy = maxf(PAGE_H, PAGE_H + h - PAGE_H)
-		_set_oy(_oy))
-	_page.add_child(_sheet)
-
-	_oy = PAGE_H if on_sheet else 0.0
+	view.down_requested.connect(func(): _snap(_top(1)))
+	var sheet := HeroSheet.new().setup(app, key, card_uid)
+	sheet.down_requested.connect(func(): _snap(_top(2)))
+	var evolve := EvolvePage.new().setup(app, key, card_uid)
+	# Merging, crowning, equipping or viewing another copy changes what the pages above show.
+	evolve.changed.connect(func(): sheet.refresh())
+	evolve.viewing.connect(func(u: String):
+		uid = u
+		sheet.uid = u
+		sheet.refresh())
+	_pages = [view, sheet, evolve]
+	_heights = [PAGE_H, PAGE_H, PAGE_H]
+	for i in _pages.size():
+		var p: Control = _pages[i]
+		p.size = Vector2(W, PAGE_H)
+		if p.has_signal("height_changed"):
+			p.height_changed.connect(func(h: float):
+				_heights[i] = h
+				_layout())
+		_page.add_child(p)
+	_layout()
+	_oy = _top(level)
 	_set_oy(_oy)
 	if _dots:
 		_dots.queue_redraw()
@@ -103,29 +134,63 @@ func _open(from: int) -> void:
 		old.queue_free()
 
 
+func _layout() -> void:
+	var y := 0.0
+	for i in _pages.size():
+		_pages[i].position.y = y
+		y += _heights[i]
+	_page.size.y = y
+	_set_oy(_oy)
+
+
+func _top(i: int) -> float:
+	var y := 0.0
+	for j in i:
+		y += _heights[j]
+	return y
+
+
+## The lowest scroll position that still shows page i: its top, or further for a page taller than the screen.
+func _bottom(i: int) -> float:
+	return _top(i) + maxf(0.0, _heights[i] - PAGE_H)
+
+
 func _set_oy(v: float) -> void:
-	_oy = clampf(v, 0.0, _max_oy)
+	_oy = clampf(v, 0.0, _bottom(_pages.size() - 1))
 	if _page:
 		_page.position.y = -_oy
-	on_sheet = _oy >= PAGE_H - 1
+	for i in _pages.size():
+		if _oy >= _top(i) - 1:
+			level = i
 
 
 func _snap(to: float) -> void:
 	if _tween:
 		_tween.kill()
+	_vel = 0.0
 	_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_tween.tween_method(_set_oy, _oy, to, 0.38)
 
 
+## The page whose free-scroll range holds the scroll position, or -1 when between two pages.
+func _inside() -> int:
+	for i in _pages.size():
+		if _oy >= _top(i) - 0.5 and _oy <= _bottom(i) + 0.5:
+			return i
+	return -1
+
+
 func _go(step: int) -> void:
 	index = posmod(index + step, heroes.size())
+	uid = ""
 	_open(step)
 
 
 func _process(delta: float) -> void:
-	# A little glide after a flick inside the sheet.
-	if not _press and absf(_vel) > 5 and _oy > PAGE_H:
-		_set_oy(maxf(PAGE_H, _oy + _vel * delta))
+	# A little glide after a flick, inside a tall page only.
+	var i := _inside()
+	if not _press and absf(_vel) > 5 and i >= 0 and _bottom(i) > _top(i):
+		_set_oy(clampf(_oy + _vel * delta, _top(i), _bottom(i)))
 		_vel *= pow(0.04, delta)
 	elif not _press:
 		_vel = 0.0
@@ -135,13 +200,7 @@ func _input(e: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
 	if e is InputEventMouseButton and e.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_UP] and e.pressed:
-		var down: bool = e.button_index == MOUSE_BUTTON_WHEEL_DOWN
-		if _oy < PAGE_H - 1:
-			_snap(PAGE_H if down else 0.0)
-		elif not down and _oy <= PAGE_H + 1:
-			_snap(0.0)
-		else:
-			_set_oy(maxf(PAGE_H, _oy + (90.0 if down else -90.0)))
+		_wheel(e.button_index == MOUSE_BUTTON_WHEEL_DOWN)
 		get_viewport().set_input_as_handled()
 		return
 	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
@@ -175,13 +234,41 @@ func _input(e: InputEvent) -> void:
 			_page.position.x = _dx * 0.9
 
 
+## Inside a tall page the wheel scrolls it; at a page's edge it moves to the next page.
+func _wheel(down: bool) -> void:
+	var i := _inside()
+	if i >= 0 and down and _oy < _bottom(i) - 1:
+		_set_oy(minf(_oy + 90.0, _bottom(i)))
+	elif i >= 0 and not down and _oy > _top(i) + 1:
+		_set_oy(maxf(_oy - 90.0, _top(i)))
+	elif down:
+		_snap(_top(mini(_page_at(_oy) + 1, _pages.size() - 1)))
+	else:
+		var p := _page_at(_oy)
+		_snap(_bottom(p - 1) if _oy <= _top(p) + 1 and p > 0 else _top(p))
+
+
+func _page_at(y: float) -> int:
+	var p := 0
+	for i in _pages.size():
+		if y >= _top(i) - 1:
+			p = i
+	return p
+
+
 func _release() -> void:
 	if _axis == "x":
 		if absf(_dx) > SWIPE and heroes.size() > 1:
 			_go(-1 if _dx > 0 else 1)
 		else:
 			create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT).tween_property(_page, "position:x", 0.0, 0.25)
-	elif _axis == "y" and _oy < PAGE_H:
-		# Between the two pages: settle on whichever the drag was heading for.
+	elif _axis == "y" and _inside() < 0:
+		# Between two pages: settle on whichever the drag was heading for.
+		var p := _page_at(_oy)
 		var going_down := _last.y < _start.y
-		_snap(PAGE_H if (going_down and _oy > 120) or _oy > PAGE_H - 120 else 0.0)
+		var past_end := _oy - _bottom(p)
+		var before_next := _top(p + 1) - _oy
+		if going_down:
+			_snap(_top(p + 1) if past_end > PULL or before_next < PULL else _bottom(p))
+		else:
+			_snap(_bottom(p) if before_next > PULL or past_end < PULL else _top(p + 1))

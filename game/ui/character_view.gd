@@ -16,7 +16,6 @@ var _full: Texture2D
 var _full_info := {}
 var _tags: VBoxContainer
 var _t := 0.0
-var _arrow_btn: Button
 
 signal down_requested
 
@@ -101,25 +100,11 @@ func _ready() -> void:
 	add_child(_arrow())
 
 
-## The bobbing arrow at the foot of the page: the sheet is one scroll (or one tap) below.
 func _arrow() -> Control:
-	var b := Button.new()
-	b.flat = true
-	b.focus_mode = Control.FOCUS_NONE
-	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var b := DownArrow.make("stats")
 	b.tooltip_text = "Stats and skills"
-	b.custom_minimum_size = Vector2(200, 130)
-	b.position = Vector2(260, 1560 - 150)
-	b.size = Vector2(200, 130)
+	b.position = Vector2(200, 1560 - 150)
 	b.pressed.connect(func(): down_requested.emit())
-	b.draw.connect(func():
-		var bob := 8.0 * sin(_t * TAU / 1.6)
-		var f := Forge.tracked(Forge.SC, 3)
-		b.draw_string(f, Vector2(0, 34), "stats", HORIZONTAL_ALIGNMENT_CENTER, b.size.x, 22, Forge.GOLD)
-		var c := Vector2(b.size.x / 2, 74 + bob)
-		b.draw_polyline(PackedVector2Array([c + Vector2(-20, -8), c + Vector2(0, 12), c + Vector2(20, -8)]), Forge.GOLD_LIGHT, 3.0, true)
-		b.draw_polyline(PackedVector2Array([c + Vector2(-14, 10), c + Vector2(0, 24), c + Vector2(14, 10)]), Color(Forge.GOLD, 0.45), 2.0, true))
-	_arrow_btn = b
 	return b
 
 
@@ -197,8 +182,7 @@ func _line(text: String, elem: String) -> Control:
 func _process(delta: float) -> void:
 	_t += delta
 	_art.queue_redraw()
-	if _arrow_btn:
-		_arrow_btn.queue_redraw()
+
 
 
 func _draw_art() -> void:

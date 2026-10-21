@@ -44,7 +44,7 @@ const HEROES := [
 		{"name": "Pinning Shot", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
 	{"key": "ilse", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
 		"max_hp": 850, "atk": 95, "def": 50, "spd": 88, "r": 2, "c": 2,
-		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "x": 47, "y": 55, "zoom": 2.8}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6},
+		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "x": 46, "y": 50, "zoom": 3.6}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6},
 		"cutin": "res://art/video/ilse-wave.ogv", "celebrate": "res://art/video/ilse-celebrate.ogv", "skills": [
 		{"name": "Riptide", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
 		{"name": "Rain of Renewal", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
