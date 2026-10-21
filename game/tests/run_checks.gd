@@ -15,6 +15,7 @@ func _init() -> void:
 		["Elements · four-way cycle: each element beats one, loses to one, and is neutral with its opposite", _four_way],
 		["Visuals · augments name the skill and pick the aura: most augments wins, ties go to the first slotted", _aura_names],
 		["Celerity · fits damage, heal and shield skills, renames with Fleet, and marks the skill as an opener", _celerity_fits],
+		["Regions · every hero's home is a region with a dark and a light colorway and its own sigil", _regions],
 		["Cards · every portrait crops to Brann's eye line: eyes at the same height, the face the same size", _eye_line],
 	]
 	var failed := 0
@@ -155,6 +156,18 @@ func _celerity_fits() -> Array:
 		for s in Data.hero(h).skills:
 			fits_all = fits_all and Data.fits("celerity", s)
 	return [k[1].get("celerity", false) and not k[0].has("celerity") and k[1].name == "Fleet Ninefold Blaze" and fits_all, "%s · fits every starter skill %s" % [k[1].name, fits_all]]
+
+
+func _regions() -> Array:
+	var ok := true
+	var lines := []
+	for h in Data.HEROES:
+		var r: Dictionary = Data.REGIONS.get(h.get("home", ""), {})
+		var good: bool = not r.is_empty() and r.dark.get_luminance() < 0.15 and r.light.get_luminance() > 0.5 \
+			and ResourceLoader.exists("res://art/icons/ui/region_%s.svg" % h.home)
+		ok = ok and good
+		lines.append("%s → %s" % [h.name, r.get("name", "none")])
+	return [ok, " · ".join(lines)]
 
 
 func _eye_line() -> Array:

@@ -181,49 +181,22 @@ func _stats(c: Dictionary) -> Control:
 	return row
 
 
-## A translucent card floating under `anchor`, with a notch pointing at `point` (x within the page).
-## A tap anywhere outside it closes it.
+## Details for a tapped stat or skill, floating over the page (see Tooltip), its notch at `point_x` on screen.
 func _float(anchor: Control, point_x: float, fill: Callable) -> void:
 	if not is_instance_valid(anchor):
 		return
-	var at := anchor.global_position - global_position + Vector2(0, anchor.size.y + 12)
-	_pop = Control.new()
-	_pop.set_anchors_preset(PRESET_FULL_RECT)
-	add_child(_pop)
-	var catcher := Button.new()
-	catcher.flat = true
-	catcher.focus_mode = Control.FOCUS_NONE
-	catcher.set_anchors_preset(PRESET_FULL_RECT)
-	catcher.pressed.connect(func():
+	_pop = Tooltip.open(anchor, fill, point_x)
+	_pop.closed.connect(func():
+		_pop = null
 		open_stat = ""
 		open_skill = -1
 		refresh())
-	_pop.add_child(catcher)
-	var p := PanelContainer.new()
-	var st := Forge.flat(Color(Forge.INK, 0.84), Color(Forge.GOLD, 0.85), 2, Vector4(26, 18, 26, 20))
-	st.shadow_color = Color(0, 0, 0, 0.45)
-	st.shadow_size = 18
-	st.shadow_offset = Vector2(0, 8)
-	p.add_theme_stylebox_override("panel", st)
-	p.position = Vector2(44, at.y)
-	p.custom_minimum_size.x = 632
-	p.mouse_filter = Control.MOUSE_FILTER_STOP
-	_pop.add_child(p)
-	var lines := Forge.vbox(10)
-	p.add_child(lines)
-	fill.call(lines)
-	var notch := Control.new()
-	notch.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	notch.position = Vector2(point_x, at.y)
-	notch.draw.connect(func():
-		notch.draw_colored_polygon(PackedVector2Array([Vector2(-12, 1), Vector2(0, -11), Vector2(12, 1)]), Color(Forge.GOLD, 0.85)))
-	_pop.add_child(notch)
 
 
 func _stat_pop(c: Dictionary) -> void:
 	var s := app.col.stats(c)
 	var chip: Control = _row.get_child(Data.STATS.find(open_stat))
-	var x := chip.global_position.x - global_position.x + chip.size.x / 2
+	var x := chip.get_global_rect().get_center().x
 	_float(_row, x, func(lines: VBoxContainer):
 		lines.add_child(Forge.sc(Forge.STAT_NAME[open_stat], 22, Forge.GOLD))
 		lines.add_child(_kv("This copy", str(s[open_stat]), Forge.PARCHMENT))
@@ -239,7 +212,7 @@ func _skill_pop(c: Dictionary) -> void:
 	var s: Dictionary = app.col.skills(c)[open_skill]
 	var h := Data.hero(hero)
 	var row: Control = _skill_rows[open_skill]
-	_float(row, 120.0, func(lines: VBoxContainer):
+	_float(row, row.global_position.x + 76.0, func(lines: VBoxContainer):
 		var head := Forge.hbox(14)
 		lines.add_child(head)
 		var g := TextureRect.new()

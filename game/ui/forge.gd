@@ -75,6 +75,35 @@ static func sigil(elem: String) -> Texture2D:
 	return icon("elem_" + elem)
 
 
+## A home region's badge: its sigil in the region's light, on a disc of its dark, ringed in gold.
+static func region_badge(key: String, px: int) -> Control:
+	var r: Dictionary = Data.REGIONS[key]
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(px, px)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var m := c.size / 2
+		var rad := minf(m.x, m.y)
+		c.draw_circle(m, rad, r.dark)
+		c.draw_arc(m, rad - 1.5, 0, TAU, 48, GOLD_DEEP, 3.0, true)
+		c.draw_arc(m, rad - 6, 0, TAU, 48, Color(r.light, 0.35), 1.5, true)
+		var s := rad * 1.2
+		c.draw_texture_rect(icon("region_" + key), Rect2(m - Vector2(s, s) / 2, Vector2(s, s)), false, r.light))
+	return c
+
+
+## A region's colorway as a panel: the dark, cut by a diagonal of the light rising to the top-right corner.
+static func region_swatch(key: String, size: Vector2) -> Control:
+	var r: Dictionary = Data.REGIONS[key]
+	var c := Control.new()
+	c.custom_minimum_size = size
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		c.draw_rect(Rect2(Vector2.ZERO, c.size), r.dark)
+		c.draw_colored_polygon(PackedVector2Array([Vector2(c.size.x, 0), c.size, Vector2(0, c.size.y)]), r.light))
+	return c
+
+
 ## An icon tinted to a colour, sized in a fixed box.
 static func glyph(name: String, px: int, color: Color) -> TextureRect:
 	var t := TextureRect.new()

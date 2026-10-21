@@ -15,6 +15,8 @@ var elem := "fire"
 ## Where the glow centres, as a fraction of the size.
 var focus := Vector2(0.5, 0.3)
 var strength := 1.0
+## Overrides the element's glow colour, such as a home region's colorway on the chronicle.
+var tint := Color.TRANSPARENT
 ## Off for a motes-only layer laid over the art.
 var glow := true
 var _motes := []
@@ -67,7 +69,7 @@ func _draw() -> void:
 	var breathe := 0.75 + 0.25 * sin(_t * TAU / 7.0)
 	var rad := Vector2(size.x * 0.95, size.y * 0.42) * (1.0 + 0.04 * breathe)
 	if glow:
-		draw_texture_rect(_glow, Rect2(c - rad, rad * 2), false, Color(look.glow, minf(1.0, 0.7 * breathe * strength)))
+		draw_texture_rect(_glow, Rect2(c - rad, rad * 2), false, Color(look.glow if tint.a == 0 else tint, minf(1.0, 0.7 * breathe * strength)))
 	for m in _motes:
 		var fade := clampf(1.0 - absf(m.p.y - size.y * 0.45) / (size.y * 0.7), 0.0, 1.0)
 		var col: Color = look.mote

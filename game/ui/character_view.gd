@@ -1,16 +1,13 @@
 class_name CharacterView
 extends Control
 ## The hero out of the card: full art drifting over their element's backdrop, name, title and lore.
-## The first page of a hero: the sheet sits one scroll below. Matchups fold away under the element tag. A painted regional background can slot in under the backdrop.
+## The first page of a hero: the sheet sits one scroll below. Tags float their details on tap. A painted regional background can slot in under the backdrop.
 
 const MODE := "four"
 
 var app: App
 var hero := ""
 var uid := ""
-var _matchups := false
-## The aptitude whose details are showing, if any.
-var _apt := ""
 var _art: Control
 var _tex: Texture2D
 ## A full-body cutout, when the hero has one; otherwise the square portrait fills the page.
@@ -154,62 +151,51 @@ func _fill_tags() -> void:
 	for c in _tags.get_children():
 		c.queue_free()
 	var h := Data.hero(hero)
-	var row := Forge.hbox(16)
+	var row := Forge.hbox(14)
 	_tags.add_child(row)
 	var elem := _tag(Data.ELEMS[h.elem].label, h.elem, Forge.ELEM[h.elem])
-	elem.add_child(Forge.glyph("chevron", 22, Forge.GOLD))
-	var btn := Button.new()
-	btn.flat = true
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn.tooltip_text = "Matchups"
-	btn.set_anchors_preset(PRESET_FULL_RECT)
-	btn.pressed.connect(_toggle_matchups)
-	var wrap := _tag_panel(elem)
-	wrap.add_child(btn)
-	row.add_child(wrap)
+	elem.add_child(Forge.glyph("chevron", 18, Forge.GOLD))
+	row.add_child(_tappable(_tag_panel(elem), "Matchups", _matchups))
 	row.add_child(_tag_panel(_tag(h.range.capitalize(), "", Color.WHITE)))
 	# The hero's favoured aptitudes, for trials. Tap one for what it covers.
-	var apts := Forge.hbox(16)
+	var apts := Forge.hbox(14)
 	_tags.add_child(apts)
 	for a in h.get("favored", []):
-		var t := _tag_panel(_tag("%s +%d" % [a, Data.FAVORED_BONUS], "", Color.WHITE))
-		var b := Button.new()
-		b.flat = true
-		b.focus_mode = Control.FOCUS_NONE
-		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		b.tooltip_text = Data.APTITUDES[a]
-		b.set_anchors_preset(PRESET_FULL_RECT)
-		b.pressed.connect(func():
-			_apt = "" if _apt == a else a
-			_matchups = false
-			_fill_tags())
-		t.add_child(b)
-		apts.add_child(t)
-	if _apt != "":
-		_tags.add_child(_note_line("%s · favored, d20 +%d, sparks on 19–20 · %s" % [_apt.capitalize(), Data.FAVORED_BONUS, Data.APTITUDES[_apt]]))
-	if _matchups:
-		var m := Forge.hbox(36)
-		_tags.add_child(m)
-		for e in Data.ELEMS:
-			if Data.beats(MODE, h.elem, e):
-				m.add_child(_line("beats " + Data.ELEMS[e].label, e))
-		for e in Data.ELEMS:
-			if Data.beats(MODE, e, h.elem):
-				m.add_child(_line("weak to " + Data.ELEMS[e].label, e))
+		apts.add_child(_tappable(_tag_panel(_tag("%s +%d" % [a, Data.FAVORED_BONUS], "", Color.WHITE)), Data.APTITUDES[a], _aptitude.bind(a)))
 
 
-func _toggle_matchups() -> void:
-	_matchups = not _matchups
-	_apt = ""
-	_fill_tags()
+## Makes a tag a button that floats its details (see Tooltip) when tapped.
+func _tappable(tag: PanelContainer, tip: String, fill: Callable) -> PanelContainer:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.tooltip_text = tip
+	b.set_anchors_preset(PRESET_FULL_RECT)
+	b.pressed.connect(func(): Tooltip.open(tag, fill))
+	tag.add_child(b)
+	return tag
 
 
-func _note_line(text: String) -> Label:
-	var l := Forge.label(text, 24, Color("#e2d5b6"), Forge.SANS_ITALIC)
+func _matchups(lines: VBoxContainer) -> void:
+	var h := Data.hero(hero)
+	lines.add_child(Forge.sc("%s matchups" % Data.ELEMS[h.elem].label, 22, Forge.ELEM[h.elem].lightened(0.2)))
+	var m := Forge.hbox(36)
+	lines.add_child(m)
+	for e in Data.ELEMS:
+		if Data.beats(MODE, h.elem, e):
+			m.add_child(_line("beats " + Data.ELEMS[e].label, e))
+	for e in Data.ELEMS:
+		if Data.beats(MODE, e, h.elem):
+			m.add_child(_line("weak to " + Data.ELEMS[e].label, e))
+
+
+func _aptitude(lines: VBoxContainer, a: String) -> void:
+	lines.add_child(Forge.sc("%s · favored" % a, 22, Forge.GOLD))
+	var l := Forge.label("d20 +%d, sparks on 19–20. %s" % [Data.FAVORED_BONUS, Data.APTITUDES[a]], 24, Forge.PARCHMENT, Forge.SANS_ITALIC)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size.x = 580
-	return l
+	lines.add_child(l)
 
 
 func _tag(text: String, elem: String, tint: Color) -> HBoxContainer:
@@ -219,16 +205,16 @@ func _tag(text: String, elem: String, tint: Color) -> HBoxContainer:
 		g.texture = Forge.sigil(elem)
 		g.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		g.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		g.custom_minimum_size = Vector2(26, 26)
+		g.custom_minimum_size = Vector2(22, 22)
 		g.modulate = tint
 		h.add_child(g)
-	h.add_child(Forge.sc(text, 26, Forge.PARCHMENT, false, 0.12))
+	h.add_child(Forge.sc(text, 22, Forge.PARCHMENT, false, 0.12))
 	return h
 
 
 func _tag_panel(inner: Control) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.INK, 0.7), Color(Forge.GOLD_DEEP, 0.6), 2, Vector4(20, 10, 20, 10)))
+	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.INK, 0.7), Color(Forge.GOLD_DEEP, 0.6), 2, Vector4(16, 8, 16, 8)))
 	p.add_child(inner)
 	for c in [inner] + inner.get_children():
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE

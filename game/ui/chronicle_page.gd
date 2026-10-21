@@ -8,7 +8,6 @@ const PAGE_H := 1560.0
 var app: App
 var hero := ""
 var uid := ""
-var _show_home := false
 var _show_bonds := false
 var _show_scars := false
 var _ui: Control
@@ -30,6 +29,9 @@ func _ready() -> void:
 	bd.elem = Data.hero(hero).elem
 	bd.focus = Vector2(0.5, 0.0)
 	bd.strength = 0.4
+	var home: String = Data.hero(hero).get("home", "")
+	if home != "":
+		bd.tint = Data.REGIONS[home].light.darkened(0.2)
 	bd.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(bd)
 	refresh()
@@ -87,32 +89,42 @@ func _fit() -> void:
 	height_changed.emit(hgt)
 
 
-## Home region as a tag; tapping it shows a line about the place.
+## Home region as a tag with its sigil; tapping it floats the region's colorway and a line about the place.
 func _home(h: Dictionary) -> Control:
-	var v := Forge.vbox(14)
 	var row := Forge.hbox(18)
-	v.add_child(row)
 	var l := Forge.sc("home", 22, Forge.GOLD)
 	l.size_flags_vertical = SIZE_SHRINK_CENTER
 	row.add_child(l)
-	var home: Dictionary = h.get("home", {})
-	if home.is_empty():
+	var key: String = h.get("home", "")
+	if key == "":
 		row.add_child(Forge.label("Not decided yet.", 24, Forge.MUTED, Forge.SANS_ITALIC))
-		return v
-	var b := Forge.ember(home.name, 64)
-	b.icon = Forge.sigil(h.elem)
-	b.add_theme_constant_override("icon_max_width", 24)
-	b.add_theme_color_override("icon_normal_color", Forge.ELEM[h.elem])
-	b.add_theme_color_override("icon_hover_color", Forge.ELEM[h.elem])
-	b.add_theme_color_override("icon_pressed_color", Forge.ELEM[h.elem])
+		return row
+	var r: Dictionary = Data.REGIONS[key]
+	var b := Forge.ember(r.name, 64)
+	b.icon = Forge.icon("region_" + key)
+	b.add_theme_constant_override("icon_max_width", 30)
+	for st in ["icon_normal_color", "icon_hover_color", "icon_pressed_color"]:
+		b.add_theme_color_override(st, r.light)
 	b.add_theme_constant_override("h_separation", 12)
-	b.pressed.connect(func():
-		_show_home = not _show_home
-		refresh())
+	b.pressed.connect(func(): Tooltip.open(b, func(lines: VBoxContainer):
+		var art := Control.new()
+		art.custom_minimum_size = Vector2(580, 170)
+		lines.add_child(art)
+		var sw := Forge.region_swatch(key, Vector2(580, 110))
+		art.add_child(sw)
+		var badge := Forge.region_badge(key, 104)
+		badge.position = Vector2(290 - 52, 62)
+		art.add_child(badge)
+		var title := Forge.sc(r.name, 30, Forge.GOLD, true, 0.14)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lines.add_child(title)
+		var d := Forge.label(r.desc, 24, Forge.PARCHMENT, Forge.SANS_ITALIC)
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		d.custom_minimum_size.x = 580
+		lines.add_child(d)))
 	row.add_child(b)
-	if _show_home:
-		v.add_child(_note(home.desc))
-	return v
+	return row
 
 
 ## A section heading that folds open: name, count and a chevron.

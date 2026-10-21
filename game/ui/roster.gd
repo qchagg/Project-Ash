@@ -30,8 +30,8 @@ func _ready() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	top.add_child(spacer)
-	top.add_child(_chip("crown", Forge.GOLD, app.col.crowns, "Ashcrowns"))
-	top.add_child(_chip("augment", Forge.ELEM.water, app.col.loose.size(), "Loose augments"))
+	top.add_child(_chip("crown", Forge.GOLD, app.col.crowns, "Ashcrowns", "Raise a 3★ card to 4★ on its Evolve page."))
+	top.add_child(_chip("augment", Forge.GOLD_LIGHT, app.col.loose.size(), "Loose augments", "Augments not slotted on any card. Fit them to a skill on a card's Equip page."))
 
 	var filters := Forge.hbox(8)
 	hv.add_child(filters)
@@ -41,8 +41,7 @@ func _ready() -> void:
 	var gap := Control.new()
 	gap.size_flags_horizontal = SIZE_EXPAND_FILL
 	filters.add_child(gap)
-	var heroes := Data.HEROES.size()
-	var count := Forge.sc("%d heroes · %d cards" % [heroes, app.col.cards.size()], 22, Forge.LABEL)
+	var count := Forge.sc("%d heroes" % Data.HEROES.size(), 18, Forge.DIM)
 	count.size_flags_vertical = SIZE_SHRINK_CENTER
 	filters.add_child(count)
 
@@ -125,15 +124,31 @@ func _tile(h: Dictionary, copies: Array) -> Control:
 	return tile
 
 
-func _chip(glyph: String, tint: Color, n: int, tip: String) -> Control:
+## A resource count; tapping it floats what the resource is for.
+func _chip(glyph: String, tint: Color, n: int, title: String, about: String) -> Control:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", Forge.flat(Forge.PLAQUE, Color(Forge.BRONZE, 0.9), 2, Vector4(18, 6, 18, 6)))
-	p.tooltip_text = tip
 	p.size_flags_vertical = SIZE_SHRINK_CENTER
 	var h := Forge.hbox(10)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(h)
 	h.add_child(Forge.glyph(glyph, 26, tint))
-	h.add_child(Forge.label(str(n), 26, Forge.PARCHMENT, Forge.SANS_BOLD))
+	var l := Forge.label(str(n), 26, Forge.PARCHMENT, Forge.SANS_BOLD)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(l)
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.tooltip_text = title
+	b.set_anchors_preset(PRESET_FULL_RECT)
+	b.pressed.connect(func(): Tooltip.open(p, func(lines: VBoxContainer):
+		lines.add_child(Forge.sc("%s · %d" % [title, n], 22, Forge.GOLD))
+		var d := Forge.label(about, 24, Forge.PARCHMENT, Forge.SANS_ITALIC)
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		d.custom_minimum_size.x = 580
+		lines.add_child(d)))
+	p.add_child(b)
 	return p
 
 
