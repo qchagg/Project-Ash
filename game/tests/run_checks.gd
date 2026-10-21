@@ -22,6 +22,32 @@ func _init() -> void:
 		["Town · nothing rises without the embers or above the Hearth, and a blocked upgrade changes nothing", _town_blocked],
 		["Town · buildings stop at their top level; routes open two then one a level; envoys sit in region order", _town_caps],
 		["Cards · every portrait crops to Brann's eye line: eyes at the same height, the face the same size", _eye_line],
+		["Engine · ignoresFalloff: same damage to the back row as the front", _b_falloff],
+		["Engine · stacks: two still, unhit rounds give +50%, then reset", _b_stacks],
+		["Engine · stacks: one hit clears them", _b_stacks_hit],
+		["Engine · team buff: melee reaches the back row; without it, the front-most", _b_team_buff],
+		["Engine · a team-buff skill counts as a chain link", _b_buff_chain],
+		["Engine · chain-neutral move: far tile, chain and stacks kept, mark boosts next basic", _b_leap],
+		["Engine · tile effect onAct: damage and Burn when the unit acts, then gone", _b_trap_act],
+		["Engine · tile effect onEnter: triggers when a unit steps on", _b_trap_enter],
+		["Engine · an untriggered tile effect expires after 3 rounds", _b_trap_expire],
+		["Formation · place on an empty tile, swap onto a hero, and the layout carries into the next battle", _b_formation],
+		["Formation · enemies start spread over the 4×4 grid, every tile in bounds and unique", _b_foe_spread],
+		["Baseline · on 3×3 with the v0.1 element triangle and every rule off, the fixed fight matches v0.1", _b_baseline],
+		["Shapes · scaled on 4×4 (2 lanes, 2 rows, cross reach 2), identical to v0.1 on 3×3", _b_shapes],
+		["Reference · on 4×4 with the v0.1 element triangle, unscaled shapes and every rule off, the fixed fight matches the recorded snapshot", _b_reference],
+		["Rule · Sightline: a back-row shooter loses its own depth; ignoresFalloff is untouched", _b_sightline],
+		["Rule · Screening: each unit already hit in the lane cuts the next by 25%", _b_screening],
+		["Rule · Kindred: a same-element hit deals ×0.85", _b_kindred],
+		["Rule · Focus: a link on the same target as the previous link gets +5%", _b_focus],
+		["Rule · Shatter: a big enough overshoot shatters; a bare kill does not", _b_shatter],
+		["Rule · Last Stand: downed for 2 rounds, a heal revives at 25%, too late means gone", _b_last_stand],
+		["Rule · Ashfall: nothing before round 8, then every unit burns once a round", _b_ashfall],
+		["Rule · Reach: single-target melee hits only across its own lane from the front row; a melee foe steps up to strike", _b_reach],
+		["Augments · in battle, Keen adds 15% to a real hit", _b_keen],
+		["Elements · Brann is Earth: his Rockfall hits Water ×1.5, and the v0.1 triangle restores him to Water", _b_brann_earth],
+		["Celerity · fires before round 1, not as a chain link; then locked at 1★, double cooldown at 2★, normal at 3★, ready at 4★", _b_celerity],
+		["Celerity · an opener stun lasts 1 round even with Lingering; the same skill in the queue keeps its 2", _b_celerity_stun],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -278,3 +304,498 @@ const SEEDED := {"kaede": [820, 150, 40, 92], "brann": [1400, 100, 95, 70], "sor
 	"rock": [1500, 115, 85, 60], "leaf": [950, 145, 40, 110],
 	"kaede-1": [700, 169, 37, 84], "kaede-2": [880, 151, 38, 99], "ilse-3": [920, 96, 53, 92], "ilse-4": [930, 88, 48, 93],
 	"brann-5": [1480, 87, 100, 69], "sorrel-6": [1010, 147, 40, 105]}
+
+
+# ---------- battle (ported from the sandbox's combat checks) ----------
+
+const POST := {"key": "post", "name": "Training Post", "short": "Post", "elem": "fire", "range": "melee", "max_hp": 6000, "atk": 100, "def": 40, "spd": 50, "r": 0, "c": 0, "skills": []}
+## A neutral test unit carrying one of each general engine system, so the checks exercise the engine without a real character.
+const PROBE := {"key": "probe", "name": "Probe", "elem": "fire", "range": "ranged", "max_hp": 720, "atk": 155, "def": 38, "spd": 95, "r": 2, "c": 1,
+	"basic": {"name": "Probe shot", "ignores_falloff": true},
+	"stacks": {"steady": {"label": "STK", "name": "Steady", "max": 2, "per_stack": 0.25, "gain": "still_unhit", "clear_on": ["damaged", "moved"]}},
+	"skills": [
+		{"name": "Probe leap", "kind": "move", "reach": "any", "breaks_chain": false, "keeps_stacks": true, "cd": 3, "mark": {"name": "Mark", "label": "MRK", "dmg_bonus": 0.2, "only": "basic", "rounds": 2}, "desc": ""},
+		{"name": "Probe trap", "kind": "tile", "pattern": "single", "cd": 3, "effect": {"kind": "trap", "label": "TRP", "rounds": 3, "triggers": ["on_act", "on_enter"], "once": true, "payload": {"power": 0.6, "elem": "fire", "fx": {"burn": 2}}}, "desc": ""},
+		{"name": "Probe beacon", "kind": "buff", "pattern": "all", "cd": 5, "team_buff": {"name": "Beacon", "rounds": 1, "flags": {"ignores_falloff": true, "melee_reach_all": true}}, "desc": ""},
+	]}
+# HP after each round of a fixed fight with the starter four, recorded from the original v0.1 build.
+const BASELINE := ["P-kaede:584,P-brann:1039,P-sorrel:777,P-ilse:773,E-golem:1031,E-blade:778,E-caller:900,E-seer:641","P-kaede:667,P-brann:1191,P-sorrel:367,P-ilse:850,E-golem:884,E-blade:608,E-caller:568,E-seer:531","P-kaede:667,P-brann:1191,P-sorrel:273,P-ilse:850,E-golem:690,E-blade:586,E-caller:718,E-seer:522","P-kaede:574,P-brann:1186,P-sorrel:0,P-ilse:850,E-golem:409,E-blade:425,E-caller:592,E-seer:474","P-kaede:356,P-brann:840,P-sorrel:0,P-ilse:799,E-golem:57,E-blade:378,E-caller:592,E-seer:315","P-kaede:248,P-brann:880,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:208,E-caller:495,E-seer:205","P-kaede:248,P-brann:768,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:100,E-caller:645,E-seer:0","P-kaede:248,P-brann:768,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:586,E-seer:0","P-kaede:169,P-brann:768,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:323,E-seer:0","P-kaede:321,P-brann:920,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:120,E-seer:0","P-kaede:321,P-brann:920,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:0,E-seer:0"]
+# The same fight on 4×4 with the spread enemy start, first 15 rounds, recorded 2026-10-18 with every rule off.
+const REFERENCE_4X4 := ["P-kaede:584,P-brann:1039,P-sorrel:777,P-ilse:773,E-golem:1222,E-blade:520,E-caller:900,E-seer:800","P-kaede:667,P-brann:1191,P-sorrel:367,P-ilse:850,E-golem:1075,E-blade:350,E-caller:598,E-seer:698","P-kaede:661,P-brann:1191,P-sorrel:273,P-ilse:850,E-golem:922,E-blade:0,E-caller:598,E-seer:698","P-kaede:661,P-brann:1191,P-sorrel:72,P-ilse:850,E-golem:800,E-blade:0,E-caller:636,E-seer:800","P-kaede:425,P-brann:1107,P-sorrel:0,P-ilse:799,E-golem:440,E-blade:0,E-caller:513,E-seer:800","P-kaede:317,P-brann:1259,P-sorrel:0,P-ilse:850,E-golem:212,E-blade:0,E-caller:420,E-seer:698","P-kaede:109,P-brann:1259,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:420,E-seer:614","P-kaede:109,P-brann:1259,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:515,E-seer:690","P-kaede:0,P-brann:1175,P-sorrel:0,P-ilse:799,E-golem:0,E-blade:0,E-caller:392,E-seer:502","P-kaede:0,P-brann:1327,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:338,E-seer:346","P-kaede:0,P-brann:1258,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:338,E-seer:165","P-kaede:0,P-brann:1258,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:488,E-seer:241","P-kaede:0,P-brann:1258,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:488,E-seer:8","P-kaede:0,P-brann:1397,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:488,E-seer:0","P-kaede:0,P-brann:1333,P-sorrel:0,P-ilse:850,E-golem:0,E-blade:0,E-caller:369,E-seer:0"]
+
+
+## A test fight: heroes as [key, r, c] (the probe counts as a hero), training posts as [r, c] named E-post0, E-post1…
+## Every rule starts off; `on` switches some on.
+func _scenario(heroes: Array, posts: Array, on := []) -> Battle:
+	var b := Battle.new()
+	for k in on:
+		b.rules[k] = true
+	var us := []
+	for h in heroes:
+		var d: Dictionary = PROBE if h[0] == "probe" else Data.hero(h[0])
+		var u := b.mk(d, "P")
+		u.r = h[1]
+		u.c = h[2]
+		us.append(u)
+	for i in posts.size():
+		var u := b.mk(POST, "E")
+		u.id = "E-post%d" % i
+		u.short = "Post %d" % (i + 1)
+		u.r = posts[i][0]
+		u.c = posts[i][1]
+		us.append(u)
+	b.units = us
+	return b
+
+
+static func _lost(u: Dictionary) -> int:
+	return u.max_hp - u.hp
+
+
+static func _near(x: float, y: float) -> bool:
+	return absf(x - y) <= 1
+
+
+func _hit(b: Battle, u: Dictionary, t: Dictionary, key := "basic") -> int:
+	var before: int = t.hp
+	b.perform(u, b.act(u, key), t.r, t.c, 0)
+	return before - t.hp
+
+
+func _next_round(b: Battle) -> void:
+	b.end_of_round()
+	b.round_num += 1
+
+
+func _base_shot() -> int:
+	var b := _scenario([["probe", 2, 1]], [[0, 1]])
+	b.phase = "run"
+	return _hit(b, b.unit("P-probe"), b.unit("E-post0"))
+
+
+func _b_falloff() -> Array:
+	var b := _scenario([["probe", 2, 1], ["sorrel", 1, 0]], [[0, 0], [2, 2]])
+	b.phase = "run"
+	var p := b.unit("P-probe")
+	var front := b.unit("E-post0")
+	var back := b.unit("E-post1")
+	var f := _hit(b, p, front)
+	var bk := _hit(b, p, back)
+	var sf := _hit(b, b.unit("P-sorrel"), front)
+	var sb := _hit(b, b.unit("P-sorrel"), back)
+	return [f == bk and f > 0 and sb < sf, "probe front %d, back %d · Sorrel's Bolt front %d, back %d" % [f, bk, sf, sb]]
+
+
+func _b_stacks() -> Array:
+	var d0 := _base_shot()
+	var b := _scenario([["probe", 2, 1]], [[0, 1]])
+	var p := b.unit("P-probe")
+	_next_round(b)
+	_next_round(b)
+	var n: int = p.stacks.steady.n
+	b.phase = "run"
+	var d2 := _hit(b, p, b.unit("E-post0"))
+	return [n == 2 and _near(d2, d0 * 1.5) and p.stacks.steady.n == 0, "stacks %d, base %d, stacked %d, after %d" % [n, d0, d2, p.stacks.steady.n]]
+
+
+func _b_stacks_hit() -> Array:
+	var b := _scenario([["probe", 2, 1]], [[0, 1]])
+	var p := b.unit("P-probe")
+	_next_round(b)
+	_next_round(b)
+	var n: int = p.stacks.steady.n
+	b.phase = "run"
+	var post := b.unit("E-post0")
+	b.perform(post, b.act(post, "basic"), p.r, p.c, 0)
+	return [n == 2 and _lost(p) > 0 and p.stacks.steady.n == 0, "stacks %d → %d after taking %d" % [n, p.stacks.steady.n, _lost(p)]]
+
+
+func _b_team_buff() -> Array:
+	var b := _scenario([["probe", 2, 1], ["brann", 0, 1]], [[0, 1], [2, 1]])
+	var can_plan: bool = Vector2i(2, 1) in b.targets(b.unit("P-brann"), b.act(b.unit("P-brann"), "s0")).tiles
+	b.queue = [{"id": "P-probe", "key": "s2", "r": 1, "c": 1}]
+	var can_with: bool = Vector2i(2, 1) in b.targets(b.unit("P-brann"), b.act(b.unit("P-brann"), "s0")).tiles
+	b.queue.append({"id": "P-brann", "key": "s0", "r": 2, "c": 1})
+	b.phase = "run"
+	b.run_queue()
+	var with_b := [_lost(b.unit("E-post0")), _lost(b.unit("E-post1"))]
+	b = _scenario([["probe", 2, 1], ["brann", 0, 1]], [[0, 1], [2, 1]])
+	b.queue = [{"id": "P-brann", "key": "s0", "r": 2, "c": 1}]
+	b.phase = "run"
+	b.run_queue()
+	var without := [_lost(b.unit("E-post0")), _lost(b.unit("E-post1"))]
+	return [not can_plan and can_with and with_b[0] == 0 and with_b[1] > 0 and without[0] > 0 and without[1] == 0,
+		"targetable while planning %s → %s · with buff front/back %s · without %s" % [can_plan, can_with, with_b, without]]
+
+
+func _b_buff_chain() -> Array:
+	var b := _scenario([["probe", 2, 1], ["kaede", 1, 1]], [[0, 1]])
+	b.queue = [{"id": "P-probe", "key": "s2", "r": 1, "c": 1}, {"id": "P-kaede", "key": "s0", "r": 0, "c": 1}]
+	b.phase = "run"
+	b.run_queue()
+	var k: Dictionary = b.trace.filter(func(x): return x.id == "P-kaede")[0]
+	return [absf(k.chain_mult - (1 + b.tune.chain)) < 1e-9, "Surya's Foxfire Lance chain ×%.2f" % k.chain_mult]
+
+
+func _leap_run(key: String) -> Battle:
+	var b := _scenario([["probe", 2, 1], ["kaede", 1, 1], ["ilse", 2, 2]], [[0, 1]])
+	b.unit("P-probe").stacks.steady.n = 2
+	var to := Vector2i(0, 0) if key == "s0" else Vector2i(2, 0)
+	b.queue = [{"id": "P-kaede", "key": "s0", "r": 0, "c": 1}, {"id": "P-probe", "key": key, "r": to.x, "c": to.y}, {"id": "P-ilse", "key": "s0", "r": 0, "c": 1}]
+	b.phase = "run"
+	b.run_queue()
+	return b
+
+
+func _b_leap() -> Array:
+	var d0 := _base_shot()
+	var b := _leap_run("s0")
+	var ilse: float = b.trace.filter(func(x): return x.id == "P-ilse")[0].chain_mult
+	var p := b.unit("P-probe")
+	var pos := Vector2i(p.r, p.c)
+	var kept: int = p.stacks.steady.n
+	_next_round(b)
+	b.phase = "run"
+	var d := _hit(b, p, b.unit("E-post0"))
+	var plain: float = _leap_run("move").trace.filter(func(x): return x.id == "P-ilse")[0].chain_mult
+	var ok: bool = pos == Vector2i(0, 0) and absf(ilse - (1 + b.tune.chain)) < 1e-9 and absf(plain - 1) < 1e-9 and kept == 2 \
+		and _near(d, d0 * 1.5 * 1.2) and p.marks.is_empty()
+	return [ok, "landed %s, Varuni chain ×%.2f (×%.2f after a normal move), stacks kept %d, next shot ×%.2f" % [b.lane(pos.x, pos.y), ilse, plain, kept, float(d) / d0]]
+
+
+func _b_trap_act() -> Array:
+	var b := _scenario([["probe", 2, 1]], [[0, 1]])
+	var post := b.unit("E-post0")
+	b.queue = [{"id": "P-probe", "key": "s1", "r": 0, "c": 1}]
+	b.phase = "run"
+	b.run_queue()
+	var placed := b.tiles.size()
+	b.enemy_turn(post)
+	return [placed == 1 and _lost(post) > 0 and post.st.burn == 2 and b.tiles.is_empty() and _lost(b.unit("P-probe")) > 0,
+		"placed %d, post took %d, burn %d, left %d, post still attacked: %s" % [placed, _lost(post), post.st.burn, b.tiles.size(), _lost(b.unit("P-probe")) > 0]]
+
+
+func _b_trap_enter() -> Array:
+	var b := _scenario([["probe", 2, 1]], [[0, 1]])
+	var post := b.unit("E-post0")
+	b.queue = [{"id": "P-probe", "key": "s1", "r": 1, "c": 0}]
+	b.phase = "run"
+	b.run_queue()
+	b.move_unit(post, 1, 0, {})
+	return [_lost(post) > 0 and post.st.burn == 2 and b.tiles.is_empty(), "post took %d, burn %d, left %d" % [_lost(post), post.st.burn, b.tiles.size()]]
+
+
+func _b_trap_expire() -> Array:
+	var b := _scenario([["probe", 2, 1]], [[0, 1]])
+	b.queue = [{"id": "P-probe", "key": "s1", "r": 2, "c": 2}]
+	b.phase = "run"
+	b.run_queue()
+	var seen := [b.tiles.size()]
+	for i in 3:
+		_next_round(b)
+		seen.append(b.tiles.size())
+	return [seen == [1, 1, 1, 0], "on the board: placed %d, after each round end %s" % [seen[0], seen.slice(1)]]
+
+
+func _b_formation() -> Array:
+	var b := Battle.new()
+	b.start(b.pristine_heroes())
+	b.phase = "form"
+	var k := b.unit("P-kaede")
+	var br := b.unit("P-brann")
+	b.place_hero(k.id, 3, 3)
+	var moved: bool = k.r == 3 and k.c == 3
+	var from := Vector2i(br.r, br.c)
+	b.place_hero(k.id, br.r, br.c)
+	var swapped: bool = Vector2i(k.r, k.c) == from and br.r == 3 and br.c == 3
+	var saved := b.formation()
+	var b2 := Battle.new()
+	b2.start(b2.pristine_heroes(), saved)
+	var kept: bool = Vector2i(b2.unit("P-kaede").r, b2.unit("P-kaede").c) == from and b2.unit("P-brann").r == 3 and b2.unit("P-brann").c == 3
+	return [moved and swapped and kept, "moved %s, swapped %s, kept next battle %s" % [moved, swapped, kept]]
+
+
+func _b_foe_spread() -> Array:
+	var b := Battle.new()
+	b.start(b.pristine_heroes())
+	var foes := b.units.filter(func(u): return u.side == "E")
+	var tiles := {}
+	var rws := {}
+	var lanes := {}
+	for u in foes:
+		tiles[Vector2i(u.r, u.c)] = true
+		rws[u.r] = true
+		lanes[u.c] = true
+	var ok: bool = tiles.size() == foes.size() and foes.all(func(u): return b.in_b(u.r, u.c)) and rws.size() >= 3 and lanes.size() == 4
+	return [ok, ", ".join(foes.map(func(u): return "%s %s" % [Battle.name_of(u), b.lane(u.r, u.c)])) + " · %d rows, %d lanes" % [rws.size(), lanes.size()]]
+
+
+## The fixed fight: each round, every hero queues its first ready skill on the AI's preferred target.
+func _scripted(b: Battle) -> Array:
+	b.start(b.pristine_heroes())
+	var snap := []
+	for i in 15:
+		if b.phase != "plan":
+			break
+		for u in b.living("P"):
+			if u.st.stun:
+				continue
+			var idx := -1
+			for j in u.skills.size():
+				if u.cd[j] == 0:
+					idx = j
+					break
+			if idx < 0:
+				continue
+			var key := "s%d" % idx
+			var a := b.act(u, key)
+			if a.pattern == "all":
+				b.enqueue(u.id, key, u.r, u.c)
+			else:
+				var p: Variant = b.pick(u, a)
+				if p != null:
+					b.enqueue(u.id, key, p.x, p.y)
+		b.run_round()
+		snap.append(",".join(b.units.map(func(u): return "%s:%d" % [u.id, u.hp])))
+	return snap
+
+
+func _replay(b: Battle, want: Array, label: String) -> Array:
+	b.elem_mode = "triangle"
+	var snap := _scripted(b)
+	var bad := -1
+	for i in snap.size():
+		if i >= want.size() or snap[i] != want[i]:
+			bad = i
+			break
+	var ok := snap.size() == want.size() and bad < 0
+	if ok:
+		return [true, "%d rounds match the %s" % [snap.size(), label]]
+	return [false, "round %d differs: %s" % [bad + 1, snap[bad]] if bad >= 0 else "%d rounds, expected %d" % [snap.size(), want.size()]]
+
+
+func _b_baseline() -> Array:
+	var b := Battle.new()
+	b.rows = 3
+	b.cols = 3
+	return _replay(b, BASELINE, "v0.1 snapshot")
+
+
+func _b_reference() -> Array:
+	var b := Battle.new()
+	b.scaled = false
+	return _replay(b, REFERENCE_4X4, "4×4 reference")
+
+
+static func _distinct(t: Array, axis: int) -> String:
+	var seen := []
+	for v in t:
+		var s := str(v[axis])
+		if not s in seen:
+			seen.append(s)
+	return "".join(seen)
+
+
+func _b_shapes() -> Array:
+	var b := Battle.new()
+	var lane := b.pattern("pierce", 0, 3)
+	var row := b.pattern("sweep", 3, 0)
+	var big := [lane.size(), _distinct(lane, 1), row.size(), _distinct(row, 0), b.pattern("cross", 1, 1).size()]
+	b.rows = 3
+	b.cols = 3
+	var small := [b.pattern("pierce", 0, 2).size(), b.pattern("sweep", 2, 0).size(), b.pattern("cross", 1, 1).size()]
+	var ok: bool = big == [8, "32", 8, "32", 7] and small == [3, 3, 5]
+	return [ok, "4×4: lane %d tiles (lanes %s), row %d (rows %s), cross %d · 3×3: lane %d, row %d, cross %d" % (big + small)]
+
+
+func _b_sightline() -> Array:
+	var b := _scenario([["kaede", 0, 0], ["probe", 0, 2]], [[1, 1]], ["sightline"])
+	b.phase = "run"
+	var k := b.unit("P-kaede")
+	var p := b.unit("P-probe")
+	var post := b.unit("E-post0")
+	var k0 := _hit(b, k, post)
+	var p0 := _hit(b, p, post)
+	k.r = 2
+	p.r = 2
+	var k2 := _hit(b, k, post)
+	var p2 := _hit(b, p, post)
+	var want: float = k0 * (1 - b.tune.fall - Battle.RULE_DEFS.sightline.per_row * 2) / (1 - b.tune.fall)
+	return [_near(k2, want) and p0 == p2, "Surya's Bolt front row %d → back row %d (expected ≈%.1f) · probe %d → %d" % [k0, k2, want, p0, p2]]
+
+
+func _lane3(on: Array) -> Array:
+	var b := _scenario([["kaede", 1, 1]], [[0, 1], [1, 1], [2, 1]], on)
+	b.phase = "run"
+	b.perform(b.unit("P-kaede"), b.act(b.unit("P-kaede"), "s0"), 0, 1, 0)
+	return [0, 1, 2].map(func(i): return _lost(b.unit("E-post%d" % i)))
+
+
+func _b_screening() -> Array:
+	var off := _lane3([])
+	var on := _lane3(["screening"])
+	var ok := _near(on[0], off[0]) and _near(on[1], off[1] * 0.75) and _near(on[2], off[2] * 0.5)
+	return [ok, "Foxfire Lance front to back: off %s · on %s" % [off, on]]
+
+
+func _kindred_shot(on: Array) -> int:
+	var b := _scenario([["kaede", 1, 1]], [[0, 1]], on)
+	b.phase = "run"
+	return _hit(b, b.unit("P-kaede"), b.unit("E-post0"))
+
+
+func _b_kindred() -> Array:
+	var off := _kindred_shot([])
+	var on := _kindred_shot(["kindred"])
+	return [_near(on, off * Battle.RULE_DEFS.kindred.mult), "Surya (Fire) on a Fire post: off %d · on %d" % [off, on]]
+
+
+func _focus_run(target: Vector2i) -> float:
+	var b := _scenario([["kaede", 1, 1], ["sorrel", 1, 0]], [[0, 1], [0, 0]], ["focus"])
+	b.queue = [{"id": "P-kaede", "key": "s0", "r": 0, "c": 1}, {"id": "P-sorrel", "key": "s1", "r": target.x, "c": target.y}]
+	b.phase = "run"
+	b.run_queue()
+	return b.trace.filter(func(x): return x.id == "P-sorrel")[0].chain_mult
+
+
+func _b_focus() -> Array:
+	var same := _focus_run(Vector2i(0, 1))
+	var other := _focus_run(Vector2i(0, 0))
+	var ok := absf(same - (1 + 0.10 + Battle.RULE_DEFS.focus.per_link)) < 1e-9 and absf(other - 1.10) < 1e-9
+	return [ok, "Sorrel's Pinning Shot after Surya: same target ×%.2f · other target ×%.2f" % [same, other]]
+
+
+func _b_shatter() -> Array:
+	var b := _scenario([["kaede", 1, 1]], [[0, 0], [0, 2]], ["shatter"])
+	b.phase = "run"
+	var small := b.unit("E-post0")
+	var big := b.unit("E-post1")
+	small.max_hp = 100
+	small.hp = 10
+	big.max_hp = 1000
+	big.hp = 10
+	_hit(b, b.unit("P-kaede"), small)
+	_hit(b, b.unit("P-kaede"), big)
+	var ok: bool = small.get("shattered", false) and not big.get("shattered", false) and b.shatters.P == 1
+	return [ok, "100-HP post shattered: %s · 1000-HP post shattered: %s · count %d" % [small.get("shattered", false), big.get("shattered", false), b.shatters.P]]
+
+
+func _b_last_stand() -> Array:
+	var b := _scenario([["brann", 0, 1], ["sorrel", 0, 0], ["ilse", 2, 2]], [[0, 1]], ["last_stand"])
+	b.phase = "run"
+	var brann := b.unit("P-brann")
+	var sorrel := b.unit("P-sorrel")
+	var post := b.unit("E-post0")
+	brann.hp = 1
+	b.perform(post, b.act(post, "basic"), brann.r, brann.c, 0)
+	var downed: int = brann.downed
+	b.perform(b.unit("P-ilse"), b.act(b.unit("P-ilse"), "s1"), 2, 2, 0)
+	var back := [brann.alive, brann.hp]
+	sorrel.hp = 1
+	b.perform(post, b.act(post, "basic"), sorrel.r, sorrel.c, 0)
+	_next_round(b)
+	var after1: int = sorrel.downed
+	_next_round(b)
+	b.phase = "run"
+	b.unit("P-ilse").cd = [0.0, 0.0]
+	b.perform(b.unit("P-ilse"), b.act(b.unit("P-ilse"), "s1"), 2, 2, 0)
+	var ok: bool = downed == 2 and back[0] and back[1] == roundi(brann.max_hp * 0.25) and after1 == 1 and sorrel.get("fallen", false) and not sorrel.alive
+	return [ok, "Brann downed %d rds, revived %s at %d HP · Sorrel %d rd left after a round, fallen %s, revived late %s" % [downed, back[0], back[1], after1, sorrel.get("fallen", false), sorrel.alive]]
+
+
+func _b_ashfall() -> Array:
+	var b := _scenario([["kaede", 1, 1], ["brann", 0, 1]], [[0, 1]], ["ashfall"])
+	var us := [b.unit("P-kaede"), b.unit("P-brann"), b.unit("E-post0")]
+	us[1].st.burn = 3   # already burning: should still tick once, not twice
+	b.round_num = 7
+	b.end_of_round()
+	var at7 := us.map(func(u): return _lost(u))
+	b.round_num = 8
+	b.end_of_round()
+	var at8 := us.map(func(u): return _lost(u))
+	var ok: bool = at7[0] == 0 and at7[2] == 0 and at7[1] == roundi(us[1].max_hp * 0.06)
+	for i in us.size():
+		ok = ok and at8[i] - at7[i] == roundi(us[i].max_hp * 0.06)
+	return [ok, "HP lost after round 7: %s (Brann was already burning) · after round 8: %s" % [at7, at8]]
+
+
+func _b_reach() -> Array:
+	# Brann one row back can't reach anything; on the front row he reaches only across his own lane.
+	var b := _scenario([["brann", 1, 1]], [[0, 1], [0, 2]], ["reach"])
+	var br := b.unit("P-brann")
+	var rock := b.act(br, "s0")
+	var back_row: Array = b.targets(br, rock).tiles
+	var why := b.blocked_reason(br, rock)
+	br.r = 0
+	var front: Array = b.targets(br, rock).tiles
+	var basic: Array = b.targets(br, b.act(br, "basic")).tiles
+	b.rules.reach = false
+	var off: Array = b.targets(br, rock).tiles
+	# A melee foe with nobody across its lane steps toward one instead of standing idle.
+	var e := _scenario([["sorrel", 0, 2]], [[0, 0]], ["reach"])
+	var post := e.unit("E-post0")
+	e.phase = "run"
+	e.enemy_turn(post)
+	var stepped := Vector2i(post.r, post.c)
+	var ok: bool = back_row.is_empty() and why != "" and front == [Vector2i(0, 1)] and basic == [Vector2i(0, 1)] and off.size() == 2 \
+		and stepped == Vector2i(0, 1)
+	return [ok, "from the second row %s (%s) · from the front %s, basic %s · rule off %s · idle post steps to %s" % [back_row, why, front, basic, off, e.lane(stepped.x, stepped.y)]]
+
+
+func _keen_shot(augs: Array) -> int:
+	var b := _scenario([["kaede", 1, 1]], [[0, 1]])
+	var k := b.unit("P-kaede")
+	k.skills = Data.apply_augs(Data.hero("kaede").skills, augs)
+	b.phase = "run"
+	return _hit(b, k, b.unit("E-post0"), "s0")
+
+
+func _b_keen() -> Array:
+	var d0 := _keen_shot([])
+	var d1 := _keen_shot([{"aug": "keen", "skill": 0}])
+	return [_near(d1, d0 * 1.15), "Foxfire Lance %d → %d with Keen (×%.3f)" % [d0, d1, float(d1) / d0]]
+
+
+func _b_brann_earth() -> Array:
+	var b := _scenario([["brann", 0, 1]], [[0, 1]])
+	b.unit("E-post0").elem = "water"
+	b.phase = "run"
+	var br := b.unit("P-brann")
+	var vs_water := _hit(b, br, b.unit("E-post0"), "s0")
+	b.unit("E-post0").elem = "fire"
+	br.cd = [0.0, 0.0]
+	var vs_fire := _hit(b, br, b.unit("E-post0"), "s0")
+	var t := Battle.new()
+	t.elem_mode = "triangle"
+	var old: String = t.mk(Data.hero("brann"), "P").elem
+	return [br.elem == "earth" and _near(vs_water, vs_fire * 1.5) and old == "water", "Rockfall on Water %d, on Fire %d · triangle-mode Brann is %s" % [vs_water, vs_fire, old]]
+
+
+func _b_celerity() -> Array:
+	var out := []
+	for stars in [1, 2, 3, 4]:
+		var b := _scenario([["kaede", 1, 1]], [[0, 1]])
+		var k := b.unit("P-kaede")
+		k.stars = stars
+		k.skills = Data.apply_augs(Data.hero("kaede").skills, [{"aug": "celerity", "skill": 1}])
+		b.run_openers()
+		out.append({"stars": stars, "hit": _lost(b.unit("E-post0")) > 0, "cd": k.cd[1], "chain": b.trace[0].chain_mult if b.trace.size() else 0.0, "phase": b.phase})
+	var want := [INF, 8.0, 4.0, 0.0]
+	var ok := true
+	for i in out.size():
+		ok = ok and out[i].hit and out[i].cd == want[i] and out[i].chain == 1.0 and out[i].phase == "plan"
+	return [ok, " · ".join(out.map(func(o): return "%d★ cooldown %s" % [o.stars, "locked" if o.cd == INF else str(o.cd)]))]
+
+
+func _b_celerity_stun() -> Array:
+	var b := _scenario([["brann", 0, 1]], [[0, 1]])
+	var br := b.unit("P-brann")
+	var post := b.unit("E-post0")
+	br.stars = 4
+	br.skills = Data.apply_augs(Data.hero("brann").skills, [{"aug": "celerity", "skill": 0}, {"aug": "lingering", "skill": 0}])
+	b.run_openers()
+	var opened: int = post.st.stun
+	post.st.stun = 0
+	b.phase = "run"
+	b.perform(br, b.act(br, "s0"), post.r, post.c, 0)
+	return [opened == 1 and post.st.stun == 2, "%s: opener stun %d, queued stun %d" % [br.skills[0].name, opened, post.st.stun]]
