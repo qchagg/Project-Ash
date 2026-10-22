@@ -16,3 +16,7 @@ A 3★ card breathes and a 4★ card comes alive and breaks out of its frame. Ea
 ## Element palette
 
 Fire `#ff7b47` · Water `#43b8de` · Earth `#c4925f` · Wind `#8ad46f`. Character art should lean toward its element; Brann is now Earth and the Basalt Golem is the Earth enemy.
+
+## Battle sprites
+
+Full-body figures on a flat background, any size. `python3 tools/sprite-cutout.py in.webp art/sprites/<name>.webp` cuts the figure out, drops watermarks and trims to the figure, feet at the bottom edge. `art/sprites/` holds the cast; `varuni-idle.webp` is her dance loop as a sheet of 61 frames (10 across, 435×560 each, 12 fps). Size, placement and idles are set in the Battle Sprites viewer (https://claude.ai/artifact/BuXzmq7z7Hm4ZgpFvQ2Stj).
