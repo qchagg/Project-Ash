@@ -45,7 +45,7 @@ func _draw() -> void:
 	if showcase:
 		draw_rect(Rect2(r.position + Vector2(18, 18), r.size), Color(0, 0, 0, 0.55))
 	draw_rect(r, Color("#1f1812"))
-	Forge.portrait(self, _tex, r.grow(-3), h.portrait)
+	Forge.portrait(self, _tex, r.grow(-3), h.portrait, 0.62, "card")
 	Forge.card_frame(self, r, stars, h.elem, _t)
 	if ornate:
 		Forge.filigree(self, r, Color("#d9a777"), 60.0)

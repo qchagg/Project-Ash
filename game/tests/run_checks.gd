@@ -57,6 +57,7 @@ func _init() -> void:
 		["Forecast · matches what the action then does, target by target, and changes nothing in the fight", _b_forecast],
 		["Forecast · counts the chain the skill would carry at the back of the queue, and marks a knockout", _b_forecast_chain],
 		["Intents · each foe's preview is the action and area it then uses when nothing changes first", _b_intents],
+		["Crops · a crop set for one view wins there, and every other view keeps the eye-line rule", _b_crop_override],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -948,3 +949,13 @@ func _b_intents() -> Array:
 			if k == u.id and said.contains(want[k]):
 				used[k] = want[k]
 	return [want == used and want.size() == 4, str(want)]
+
+
+func _b_crop_override() -> Array:
+	var p := {"eyes": [50, 40], "chin": 62, "crops": {"tile": [10, 20, 50]}}
+	var ts := Vector2(1000, 1000)
+	var tile := Forge.crop(ts, Vector2(152, 112), p, 0.62, "tile")
+	var card := Forge.crop(ts, Vector2(3, 4), p, 0.62, "card")
+	var plain := Forge.crop(ts, Vector2(3, 4), {"eyes": [50, 40], "chin": 62}, 0.62, "card")
+	var want := Rect2(100, 200, 500 * 152.0 / 112.0, 500)
+	return [tile.is_equal_approx(want) and card.is_equal_approx(plain), "tile %s · card %s" % [tile, card]]

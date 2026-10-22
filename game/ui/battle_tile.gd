@@ -58,7 +58,7 @@ func _draw() -> void:
 		if not ghost.is_empty():
 			# The spot a hero will step away from: their portrait, faded, in a dashed blue frame.
 			if ghost.has("portrait"):
-				Forge.portrait(self, screen.tex(ghost.portrait.src), rect.grow(-6), ghost.portrait)
+				Forge.portrait(self, screen.tex(ghost.portrait.src), rect.grow(-6), ghost.portrait, 0.62, "tile")
 				draw_rect(rect.grow(-6), Color(Forge.INK, 0.72))
 			_dashed(rect.grow(-3), Color(Forge.MOVE, 0.8))
 		elif screen.is_step(side, r, c):
@@ -84,7 +84,7 @@ func _draw() -> void:
 		draw_set_transform(size / 2 * (1 - s) + _from * k + Vector2(0, bob), 0, Vector2(s, s))
 	var tex := screen.tex(u.portrait.src) if u.has("portrait") else null
 	if tex:
-		Forge.portrait(self, tex, rect.grow(-2), u.portrait)
+		Forge.portrait(self, tex, rect.grow(-2), u.portrait, 0.62, "tile")
 	else:
 		draw_rect(rect, Color(Forge.ELEM[u.elem], 0.25))
 	# Fade the lower half into ink so the name and HP read.

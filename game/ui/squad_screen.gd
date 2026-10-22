@@ -183,7 +183,7 @@ func _tile(at: Vector2i, t: float, wanted: bool) -> Control:
 		var r := Rect2(Vector2.ZERO, tile.size)
 		tile.draw_rect(r, Color(Forge.GOLD, 0.12) if wanted else Color(Forge.PLAQUE, 0.6))
 		if tex:
-			Forge.portrait(tile, tex, r.grow(-4), h.portrait, 0.75)
+			Forge.portrait(tile, tex, r.grow(-4), h.portrait, 0.75, "squad")
 			# Element sigil, bottom left, and the range under it.
 			var c := Vector2(24, r.size.y - 24)
 			tile.draw_circle(c, 17, Forge.INK)

@@ -342,7 +342,7 @@ func _headshot(u: Dictionary, edge: Color, ko := false, badge := "") -> Control:
 		var r := Rect2(Vector2.ZERO, c.size)
 		c.draw_rect(r, Color(Forge.ELEM[u.elem], 0.25))
 		if u.has("portrait"):
-			Forge.portrait(c, tex(u.portrait.src), r.grow(-2), u.portrait, 0.85)
+			Forge.portrait(c, tex(u.portrait.src), r.grow(-2), u.portrait, 0.85, "face")
 		else:
 			c.draw_texture_rect(Forge.sigil(u.elem), Rect2(r.get_center() - Vector2(26, 34), Vector2(52, 52)), false, Forge.GOLD)
 		c.draw_polygon(PackedVector2Array([Vector2(0, HEAD * 0.55), Vector2(HEAD, HEAD * 0.55), Vector2(HEAD, HEAD), Vector2(0, HEAD)]),

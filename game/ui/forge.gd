@@ -369,15 +369,21 @@ const LOOK := 0.53
 
 
 ## Draws the portrait cropped to the eye-line rule; `zoom` above the card's 0.62 pulls in closer (bond thumbnails).
+## `view` names where it shows ("card", "tile", "squad", "face"), so a crop set for that view alone wins.
 ## Returns the part of the image it drew.
-static func portrait(ci: CanvasItem, tex: Texture2D, r: Rect2, p: Dictionary, zoom := 0.62) -> Rect2:
-	var src := crop(tex.get_size(), r.size, p, zoom)
+static func portrait(ci: CanvasItem, tex: Texture2D, r: Rect2, p: Dictionary, zoom := 0.62, view := "") -> Rect2:
+	var src := crop(tex.get_size(), r.size, p, zoom, view)
 	ci.draw_texture_rect_region(tex, r, src)
 	return src
 
 
-## The part of an image of size `ts` that the eye-line rule shows in a rect of size `size`.
-static func crop(ts: Vector2, size: Vector2, p: Dictionary, zoom := 0.62) -> Rect2:
+## The part of an image of size `ts` that the eye-line rule shows in a rect of size `size`. A portrait's `crops` can
+## set one view by itself as [x, y, height] in %, chosen in the portrait crop tool.
+static func crop(ts: Vector2, size: Vector2, p: Dictionary, zoom := 0.62, view := "") -> Rect2:
+	if p.has("crops") and p.crops.has(view):
+		var o: Array = p.crops[view]
+		var oh: float = ts.y * o[2] / 100.0
+		return Rect2(ts.x * o[0] / 100.0, ts.y * o[1] / 100.0, oh * size.x / size.y, oh)
 	var eyes := Vector2(ts.x * p.eyes[0] / 100.0, ts.y * p.eyes[1] / 100.0)
 	var h := minf(ts.y, ts.y * (p.chin - p.eyes[1]) / 100.0 / FACE * 0.62 / zoom)
 	var region := Vector2(h * size.x / size.y, h)

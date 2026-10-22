@@ -201,7 +201,7 @@ func _thumb(cp: Dictionary) -> Control:
 	t.tooltip_text = "%d★%s" % [cp.stars, " · on the field" if cp.uid in app.col.squad else ""]
 	t.draw.connect(func():
 		var r := Rect2(Vector2.ZERO, t.size)
-		Forge.portrait(t, tex, r, Data.hero(hero).portrait)
+		Forge.portrait(t, tex, r, Data.hero(hero).portrait, 0.62, "card")
 		if feeding and cp.uid != uid and not can_feed:
 			t.draw_rect(r, Color(Forge.INK, 0.65))
 		var ring: Color = Data.TIER_COLORS[cp.stars]

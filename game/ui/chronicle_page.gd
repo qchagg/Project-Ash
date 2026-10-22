@@ -173,7 +173,7 @@ func _bond(b: Dictionary) -> Control:
 	var stars: int = c[0].stars if not c.is_empty() else 1
 	face.draw.connect(func():
 		var r := Rect2(Vector2.ZERO, face.size)
-		Forge.portrait(face, tex, r, other.portrait, 0.75)
+		Forge.portrait(face, tex, r, other.portrait, 0.75, "squad")
 		face.draw_rect(r.grow(-1.5), Data.TIER_COLORS[stars], false, 3.0))
 	h.add_child(face)
 	var t := Forge.vbox(6)
