@@ -13,4 +13,5 @@ rm -rf "$out" && mkdir -p "$out"
 (cd game && godot --headless --import >/dev/null 2>&1 || true; godot --headless --export-release "$preset" "../$out/index.html" >/dev/null 2>&1)
 for f in index.wasm index.pck; do gzip -9 -c "$out/$f" | base64 -w0 > "$out/$f.gz.b64.txt" && rm "$out/$f"; done
 rm -f "$out/index.png" "$out/index.icon.png" "$out/index.apple-touch-icon.png"
+if [ "$preset" = "Web Landscape" ]; then sed -i 's|<title>Ashgrid Playtest|<title>Ashgrid Landscape|' "$out/index.html"; fi
 ls -la "$out"

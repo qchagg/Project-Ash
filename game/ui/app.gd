@@ -114,6 +114,11 @@ func _open(screen: Control) -> void:
 		nav.queue_free()
 		nav = null
 	var tab: String = screen.get("tab") if screen.get("tab") != null else ""
+	if tab == "" and Forge.wide():
+		# A hero's pages are built for a phone: on a wide screen they stand as a column in the middle.
+		var side := maxf(0.0, (size.x - 720.0) / 2.0)
+		screen.offset_left = side
+		screen.offset_right = -side
 	if tab != "":
 		nav = NavBar.make(self, tab)
 		_frame.add_child(nav)
