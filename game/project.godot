@@ -19,6 +19,9 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 window/size/viewport_width=720
 window/size/viewport_height=1560
 window/handheld/orientation=1
+window/size/viewport_width.landscape=1560
+window/size/viewport_height.landscape=720
+window/handheld/orientation.landscape=0
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
 

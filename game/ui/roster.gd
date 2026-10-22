@@ -56,7 +56,7 @@ func _ready() -> void:
 	pad.size_flags_horizontal = SIZE_EXPAND_FILL
 	scroll.add_child(pad)
 	_grid = GridContainer.new()
-	_grid.columns = 2
+	_grid.columns = 4 if Forge.wide() else 2
 	_grid.add_theme_constant_override("h_separation", 34)
 	_grid.add_theme_constant_override("v_separation", 56)
 	pad.add_child(_grid)

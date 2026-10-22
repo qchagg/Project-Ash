@@ -37,6 +37,39 @@ func _ready() -> void:
 	_content.size_flags_vertical = SIZE_EXPAND_FILL
 	_frame.add_child(_content)
 	show_tab("expedition")
+	_deep_link.call_deferred()
+
+
+## Playtest shortcut: a link ending #event-boon (or camp, cache, trial, fight, warden) starts a run and steps straight
+## onto that kind of stop, so a reviewer can see each one without walking the road. #town and #heroes open those tabs.
+func _deep_link() -> void:
+	if not OS.has_feature("web"):
+		return
+	var hash := str(JavaScriptBridge.eval("location.hash", true)).trim_prefix("#")
+	if hash in ["town", "heroes"]:
+		show_tab(hash)
+		return
+	if not hash.begins_with("event-"):
+		return
+	var want: String = {"camp": "rest", "fight": "battle", "warden": "boss"}.get(hash.trim_prefix("event-"), hash.trim_prefix("event-"))
+	for sd in 200:
+		var x := Expedition.new().begin("ghats", sd)
+		for i in x.layers.size():
+			for j in x.layers[i].size():
+				if x.layers[i][j].type != want:
+					continue
+				# Stand on a node that leads here (or at the start), then step.
+				if i > 0:
+					for k in x.layers[i - 1].size():
+						if j in x.layers[i - 1][k].next:
+							x.at = Vector2i(i - 1, k)
+							break
+				run = x
+				var screen := ExpeditionScreen.new().setup(self)
+				_open(screen)
+				await get_tree().process_frame
+				screen._go(Vector2i(i, j))
+				return
 
 
 ## Playtest only: Varuni's starter card is a 4★ so the top tier can be seen without grinding.

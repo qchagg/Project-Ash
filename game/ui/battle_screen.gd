@@ -18,6 +18,8 @@ const HIT_STOP := 0.09
 ## The strip's middle: the queue chips, the forecast bar or the round's log, whichever is showing.
 const MID_H := 104.0
 const HEAD := 100.0
+## A tile on the wide (landscape) board, where the grids stand side by side.
+const WIDE_TILE := Vector2(132, 118)
 
 var b: Battle
 ## The board as currently shown (unit id -> snapshot); it trails the engine during playback.
@@ -83,12 +85,25 @@ func _build() -> void:
 		refresh()
 		_intro())
 	head_right.add_child(_retreat)
-	body.add_child(_grid("E"))
-	body.add_child(_strip())
-	body.add_child(_grid("P"))
-	# The selected hero's actions dock above the tab bar, outside the scroll, and fold down to a handle.
-	var root := body.get_parent().get_parent().get_parent()
-	root.add_child(_dock())
+	if Forge.wide():
+		# Side on: your squad on the left facing right, the foes on the right facing left, the round and the actions
+		# in a column beside them.
+		var row := Forge.hbox(24)
+		body.add_child(row)
+		row.add_child(_grid("P"))
+		row.add_child(_grid("E"))
+		var side := Forge.vbox(12)
+		side.size_flags_horizontal = SIZE_EXPAND_FILL
+		row.add_child(side)
+		side.add_child(_strip())
+		side.add_child(_dock())
+	else:
+		body.add_child(_grid("E"))
+		body.add_child(_strip())
+		body.add_child(_grid("P"))
+		# The selected hero's actions dock at the foot, outside the scroll.
+		var root := body.get_parent().get_parent().get_parent()
+		root.add_child(_dock())
 	refresh()
 	_intro.call_deferred()
 
@@ -101,7 +116,8 @@ func _intro() -> void:
 			for c in b.cols:
 				var t: BattleTile = _tiles["%s%d%d" % [side, r, c]]
 				if not unit_view(side, r, c).is_empty():
-					t.intro(0.1 + i * 0.09, Vector2(0, -520 if side == "E" else 520))
+					var from := Vector2(700 if side == "E" else -700, 0) if Forge.wide() else Vector2(0, -520 if side == "E" else 520)
+					t.intro(0.1 + i * 0.09, from)
 					i += 1
 
 
@@ -144,11 +160,16 @@ func _new_fight() -> void:
 # ---------- layout ----------
 
 ## A side's grid. The foes' front row sits at the bottom of theirs and yours at the top, so the fronts face across the strip.
+## On a wide screen the grids turn on their side: lanes run down, and the two front rows meet in the middle.
 func _grid(side: String) -> Control:
 	var g := Control.new()
-	var tw := (632.0 - GAP * (b.cols - 1)) / b.cols
-	var th: float = TILE_H.get(b.rows, 88.0)
-	g.custom_minimum_size = Vector2(632, b.rows * th + (b.rows - 1) * GAP)
+	var wide := Forge.wide()
+	var tw := WIDE_TILE.x if wide else (632.0 - GAP * (b.cols - 1)) / b.cols
+	var th: float = WIDE_TILE.y if wide else TILE_H.get(b.rows, 88.0)
+	if wide:
+		g.custom_minimum_size = Vector2(b.rows * tw + (b.rows - 1) * GAP, b.cols * th + (b.cols - 1) * GAP)
+	else:
+		g.custom_minimum_size = Vector2(632, b.rows * th + (b.rows - 1) * GAP)
 	for r in b.rows:
 		for c in b.cols:
 			var t := BattleTile.new()
@@ -157,7 +178,11 @@ func _grid(side: String) -> Control:
 			t.r = r
 			t.c = c
 			var row := b.rows - 1 - r if side == "E" else r
-			t.position = Vector2(c * (tw + GAP), row * (th + GAP))
+			if wide:
+				var depth := r if side == "E" else b.rows - 1 - r
+				t.position = Vector2(depth * (tw + GAP), c * (th + GAP))
+			else:
+				t.position = Vector2(c * (tw + GAP), row * (th + GAP))
 			t.size = Vector2(tw, th)
 			g.add_child(t)
 			_tiles["%s%d%d" % [side, r, c]] = t
@@ -167,7 +192,8 @@ func _grid(side: String) -> Control:
 ## The docked action panel: a handle (the hero's name and a chevron) over the actions. Tap the handle to fold it.
 func _dock() -> Control:
 	var p := PanelContainer.new()
-	var st := Forge.flat(Color(Forge.PLAQUE_DEEP, 0.97), Color(Forge.GOLD_DEEP, 0.8), 0, Vector4(44, 18, 44, 28))
+	var pad := 24 if Forge.wide() else 44
+	var st := Forge.flat(Color(Forge.PLAQUE_DEEP, 0.97), Color(Forge.GOLD_DEEP, 0.8), 0, Vector4(pad, 18, pad, 28))
 	st.border_width_top = 2
 	st.shadow_color = Color(0, 0, 0, 0.5)
 	st.shadow_size = 16
@@ -191,6 +217,7 @@ func _strip() -> Control:
 	words.size_flags_vertical = SIZE_SHRINK_CENTER
 	row.add_child(words)
 	_phase = Forge.label("", 22, Forge.MUTED, Forge.SANS_ITALIC)
+	_phase.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	words.add_child(_phase)
 	_danger_btn = Forge.link("danger", "", 20)
 	_danger_btn.custom_minimum_size.y = 56
@@ -204,7 +231,7 @@ func _strip() -> Control:
 	_go.pressed.connect(_commit)
 	row.add_child(_go)
 	_mid = Control.new()
-	_mid.custom_minimum_size = Vector2(632, MID_H)
+	_mid.custom_minimum_size = Vector2(0 if Forge.wide() else 632, MID_H)
 	v.add_child(_mid)
 	_chips = HFlowContainer.new()
 	_chips.add_theme_constant_override("h_separation", 8)
@@ -578,7 +605,7 @@ func _act_button(u: Dictionary, key: String, h: int) -> Button:
 func _note(text: String) -> void:
 	var l := Forge.label(text, 21, Forge.MUTED, Forge.SANS_ITALIC)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = 632
+	l.custom_minimum_size.x = 0 if Forge.wide() else 632
 	_panel.add_child(l)
 
 

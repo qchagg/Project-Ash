@@ -119,7 +119,7 @@ func _nearest(layer: Array, x: float) -> int:
 func _pick_type(layer_i: int) -> String:
 	var pool := []
 	for k in NODES:
-		if k == "boss" or (k == "elite" and layer_i < 2):
+		if k == "boss" or (k in ["elite", "rest"] and layer_i < 2):
 			continue
 		pool.append(k)
 	var total := 0

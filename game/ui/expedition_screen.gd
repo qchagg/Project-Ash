@@ -37,15 +37,23 @@ func _choose_road() -> void:
 	for key in Expedition.ROADS:
 		roads.add_child(_road_card(key))
 	body.add_child(_heading("the party"))
-	body.add_child(_party_row())
 	var row := Forge.hbox(16)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	if Forge.wide():
+		# One line on a wide screen: the faces, then the way to change them, then the commit.
+		row.add_child(_party_row())
+		var gap := Control.new()
+		gap.custom_minimum_size.x = 40
+		row.add_child(gap)
+	else:
+		body.add_child(_party_row())
 	body.add_child(row)
 	var party := Forge.link("edit party", "tab_squad", 22)
 	party.pressed.connect(func(): app.show_tab("party"))
 	row.add_child(party)
 	var go := Forge.studs("set out", true, 84)
 	go.custom_minimum_size.x = 300
+	go.size_flags_vertical = SIZE_SHRINK_CENTER
 	go.pressed.connect(func():
 		app.run = Expedition.new().begin(_road, randi() % 100000)
 		rebuild())
@@ -86,8 +94,10 @@ func _road_card(key: String) -> Control:
 	m.add_child(v)
 	var top := Forge.hbox(10)
 	v.add_child(top)
-	var name := Forge.sc(r.name, 26, Forge.GOLD_LIGHT if on else Forge.GOLD, true)
+	var name := Forge.sc(r.name, 22 if Forge.wide() else 26, Forge.GOLD_LIGHT if on else Forge.GOLD, true)
 	name.size_flags_horizontal = SIZE_EXPAND_FILL
+	name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name.custom_minimum_size.x = 120
 	top.add_child(name)
 	top.add_child(_danger(r.danger))
 	var where := Forge.hbox(8)
@@ -96,7 +106,7 @@ func _road_card(key: String) -> Control:
 	where.add_child(Forge.sc("%s · %d stops" % [region.name, r.depth], 18, Forge.LABEL))
 	var about := Forge.label(r.about, 20, Forge.MUTED, Forge.SANS_ITALIC)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	about.custom_minimum_size.x = 360
+	about.custom_minimum_size.x = 200 if Forge.wide() else 360
 	v.add_child(about)
 	if on:
 		Rim.on(card, "flow", Rim.elem(r.elem), 3.0)
@@ -117,21 +127,21 @@ func _danger(n: int) -> Control:
 
 
 ## The squad as faces, each with its health on the road under it; the fallen greyed out.
-func _party_row() -> Control:
+func _party_row(px := 112) -> Control:
 	var row := Forge.hbox(14)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	for uid in app.col.squad:
-		row.add_child(_face(uid))
+		row.add_child(_face(uid, px))
 	return row
 
 
-func _face(uid: String) -> Control:
+func _face(uid: String, px := 112) -> Control:
 	var c := app.col.by(uid)
 	var h := Data.hero(c.hero)
 	var hp := app.run.health(uid) if app.run else 1.0
 	var v := Forge.vbox(6)
 	var face := Control.new()
-	face.custom_minimum_size = Vector2(112, 112)
+	face.custom_minimum_size = Vector2(px, px)
 	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tex: Texture2D = load(h.portrait.src)
 	face.draw.connect(func():
@@ -168,7 +178,11 @@ func _on_the_road() -> void:
 		run.head_home()
 		rebuild())
 	top.add_child(home)
-	body.add_child(_party_row())
+	if Forge.wide():
+		top.add_child(_party_row(64))
+		top.move_child(home, top.get_child_count() - 1)
+	else:
+		body.add_child(_party_row())
 	if not run.boons.is_empty():
 		body.add_child(_boon_row())
 	_map = _road_map()
@@ -402,8 +416,10 @@ func _trial(p: Vector2i) -> void:
 	_event("node_trial", "trial", run.node(p).rarity, func(v: VBoxContainer):
 		v.add_child(_para("A test of %s: %s. Choose who tries. Roll d20 and reach %d; a hero who favors %s adds +%d." % [
 			apt, Data.APTITUDES[apt].to_lower(), Expedition.TRIAL_DC, apt, Data.FAVORED_BONUS]))
-		var row := Forge.hbox(12)
-		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		var row := GridContainer.new()
+		row.columns = 2
+		row.add_theme_constant_override("h_separation", 12)
+		row.add_theme_constant_override("v_separation", 12)
 		v.add_child(row)
 		var result := Forge.vbox(8)
 		v.add_child(result)
@@ -414,6 +430,7 @@ func _trial(p: Vector2i) -> void:
 			var fav: bool = apt in hero.get("favored", [])
 			var b := Forge.ember(hero.name + (" +%d" % Data.FAVORED_BONUS if fav else ""), 64)
 			b.add_theme_font_size_override("font_size", 20)
+			b.size_flags_horizontal = SIZE_EXPAND_FILL
 			b.pressed.connect(func():
 				for x in row.get_children():
 					x.disabled = true

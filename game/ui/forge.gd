@@ -45,8 +45,9 @@ static var _icons := {}
 
 
 ## A wide screen (the landscape build): the nav stands as a rail and screens lay out side by side.
+## The landscape export sets the "landscape" feature, which also turns the viewport (see project.godot).
 static func wide() -> bool:
-	return ProjectSettings.get_setting("display/window/size/viewport_width") > ProjectSettings.get_setting("display/window/size/viewport_height")
+	return OS.has_feature("landscape")
 
 
 static func setup() -> void:

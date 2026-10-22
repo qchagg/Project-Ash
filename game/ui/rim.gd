@@ -50,7 +50,9 @@ func _draw() -> void:
 	var host := get_parent()
 	if host is BaseButton and host.disabled:
 		return
-	var r := Rect2(Vector2.ZERO, size).grow(-inset - width / 2)
+	# Follow the host's own edge: a container (a panel) lays its children out inside its padding, so the rim's own
+	# rect can be smaller than the thing it borders.
+	var r := Rect2(-position, (host as Control).size if host is Control else size).grow(-inset - width / 2)
 	if r.size.x <= 0 or r.size.y <= 0:
 		return
 	var head: Color = colors[0]

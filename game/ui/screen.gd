@@ -22,11 +22,13 @@ func _ready() -> void:
 	var root := Forge.vbox(0)
 	root.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(root)
-	var head := Forge.margins(MarginContainer.new(), 44, 56, 44, 24)
+	# A wide screen has height to spare for nothing, so the title sits tighter there.
+	var wide := Forge.wide()
+	var head := Forge.margins(MarginContainer.new(), 40, 26 if wide else 56, 40 if wide else 44, 10 if wide else 24)
 	root.add_child(head)
 	var top := Forge.hbox(14)
 	head.add_child(top)
-	top.add_child(Forge.sc(title, 52, Forge.GOLD, true, 0.16))
+	top.add_child(Forge.sc(title, 40 if wide else 52, Forge.GOLD, true, 0.16))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	top.add_child(spacer)
@@ -37,7 +39,7 @@ func _ready() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	root.add_child(scroll)
-	var pad := Forge.margins(MarginContainer.new(), 44, 16, 44, 64)
+	var pad := Forge.margins(MarginContainer.new(), 40, 8, 40, 24) if wide else Forge.margins(MarginContainer.new(), 44, 16, 44, 64)
 	pad.size_flags_horizontal = SIZE_EXPAND_FILL
 	scroll.add_child(pad)
 	body = Forge.vbox(34)
