@@ -271,16 +271,16 @@ func _town_costs() -> Array:
 func _town_blocked() -> Array:
 	var t := Town.new()
 	t.embers = 0
-	var broke := t.upgrade("archive")
-	var same: bool = t.level("archive") == 0 and t.embers == 0
+	var broke := t.upgrade("grounds")
+	var same: bool = t.level("grounds") == 0 and t.embers == 0
 	t.earn(10000)
-	var built := t.upgrade("archive")
-	var above := t.upgrade("archive")   # Hearth 1 holds it at 1
-	var why := t.blocked("archive")
+	var built := t.upgrade("grounds")
+	var above := t.upgrade("grounds")   # Hearth 1 holds it at 1
+	var why := t.blocked("grounds")
 	var hearth := t.upgrade("hearth")
-	var after := t.upgrade("archive")
+	var after := t.upgrade("grounds")
 	var ok: bool = not broke and same and built and not above and why == "Raise the Ashen Hearth first." and hearth and after \
-		and t.level("archive") == 2 and t.embers == 10000 - 100 - 320 - 160
+		and t.level("grounds") == 2 and t.embers == 10000 - 100 - 320 - 160
 	return [ok, "broke %s · built %s · above the Hearth %s (%s) · Hearth up %s · then %s · %d embers left" % [broke, built, above, why, hearth, after, t.embers]]
 
 

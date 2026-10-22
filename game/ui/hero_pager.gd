@@ -75,7 +75,7 @@ func _ready() -> void:
 	shade.position = Vector2.ZERO
 	shade.size = Vector2(W, 160)
 	add_child(shade)
-	var back := Forge.link("roster")
+	var back := Forge.link("heroes")
 	back.position = Vector2(30, 12)
 	back.pressed.connect(app.show_roster)
 	add_child(back)

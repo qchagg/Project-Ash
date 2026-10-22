@@ -3,6 +3,8 @@ import sys, numpy as np
 from PIL import Image
 from scipy import ndimage
 
+FEATHER = 0.9
+
 def bg_of(a):
     e = np.concatenate([a[:12].reshape(-1, 3), a[-12:].reshape(-1, 3), a[:, :12].reshape(-1, 3), a[:, -12:].reshape(-1, 3)])
     return np.median(e, 0)
@@ -26,8 +28,17 @@ def cut(a, bg=None, tol=24):
         keep = np.isin(lab2, [i + 1 for i, s in enumerate(sizes) if s > sizes.max() * 0.02])
         keep = ndimage.binary_dilation(keep, iterations=3)
         alpha = alpha * keep
-    al = np.clip(alpha, 1e-3, 1)[..., None]
-    rgb = np.clip((a - bg * (1 - al)) / al, 0, 255)
+    # Feather the edge: pull it in a hair and soften it, so the figure sits on any ground without a cut-paper rim.
+    alpha = np.minimum(alpha, ndimage.gaussian_filter(ndimage.grey_erosion(alpha, size=2), FEATHER))
+    # Edge pixels still carry the old background mixed into them, which shows as a pale halo on dark ground. Give
+    # every pixel near the edge the colour of the nearest pixel safely inside the figure instead.
+    inside = ndimage.binary_erosion(alpha > 0.97, iterations=2)
+    if inside.any():
+        _, (iy, ix) = ndimage.distance_transform_edt(~inside, return_indices=True)
+        rgb = a[iy, ix]
+    else:
+        al = np.clip(alpha, 1e-3, 1)[..., None]
+        rgb = np.clip((a - bg * (1 - al)) / al, 0, 255)
     return np.dstack([rgb, alpha * 255]).astype(np.uint8), bg
 
 def bbox(rgba, pad=6):

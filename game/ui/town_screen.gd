@@ -256,6 +256,16 @@ func _open_drawer() -> void:
 		v.add_child(_level_line("camp", "On the road, a camp heals %d%% of health." % roundi(Expedition.CAMP_HEAL[lvl] * 100), Forge.PARCHMENT))
 
 	var why := t.blocked(key)
+	if info.link != "" and lvl > 0:
+		# A door first: going in is the main reason to tap a building that has one.
+		var enter := Forge.ember(info.enter, 72)
+		enter.icon = Forge.icon(info.icon)
+		enter.add_theme_constant_override("icon_max_width", 34)
+		enter.add_theme_constant_override("h_separation", 14)
+		for k in ["icon_normal_color", "icon_hover_color", "icon_pressed_color"]:
+			enter.add_theme_color_override(k, Forge.GOLD_LIGHT)
+		enter.pressed.connect(func(): app.show_tab(info.link))
+		v.add_child(enter)
 	var row := Forge.hbox(20)
 	v.add_child(row)
 	if lvl < info.max:
@@ -266,11 +276,6 @@ func _open_drawer() -> void:
 			if t.upgrade(key):
 				_refresh())
 		row.add_child(up)
-	if info.link != "" and lvl > 0:
-		var go := Forge.link(info.enter, "chevron")
-		go.custom_minimum_size.y = 72
-		go.pressed.connect(func(): app.show_tab(info.link))
-		row.add_child(go)
 	if why != "" and lvl < info.max:
 		v.add_child(Forge.label(why, 22, Forge.DIM, Forge.SANS_ITALIC))
 

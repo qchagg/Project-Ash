@@ -64,7 +64,7 @@ func _init() -> void:
 	reset()
 
 
-## A new town: the Hearth lit and the Forge built, everything else waiting.
+## A new town: the Hearth lit, the Forge and the Archive built, everything else waiting.
 func reset() -> void:
 	embers = START_EMBERS
 	levels = {}
@@ -72,6 +72,8 @@ func reset() -> void:
 		levels[k] = 0
 	levels.hearth = 1
 	levels.forge = 1
+	# The Archive holds the codex and the settings, so it stands from the start.
+	levels.archive = 1
 
 
 func level(key: String) -> int:
