@@ -23,8 +23,8 @@ var elem_filter := ""
 
 
 func _init() -> void:
-	tab = "codex"
-	title = "codex"
+	tab = "town"
+	title = "archive"
 
 
 func _build() -> void:
@@ -196,7 +196,7 @@ func _settings() -> void:
 	var reset := Forge.studs("reset collection")
 	reset.pressed.connect(func():
 		app.col = Collection.new()
-		app.show_tab("roster"))
+		app.show_tab("heroes"))
 	body.add_child(reset)
 
 

@@ -128,9 +128,16 @@ static func card_unit(col: Collection, uid: String, b: Battle) -> Dictionary:
 
 
 ## Sets up a fight: heroes in order, foes from FOES. `pos` places heroes by key (Vector2i row, col); unplaced
-## heroes keep their own spot; a clash or an out-of-bounds tile moves to the first free tile.
-func start(heroes: Array, pos := {}) -> void:
-	var foes := FOES.map(func(d): return mk(d, "E"))
+## heroes keep their own spot; a clash or an out-of-bounds tile moves to the first free tile. An expedition names
+## which foes come (`foe_keys`, all four when empty) and how much tougher they are (`scale` on health and attack).
+func start(heroes: Array, pos := {}, foe_keys: Array = [], scale := 1.0) -> void:
+	var defs := FOES if foe_keys.is_empty() else FOES.filter(func(d): return d.key in foe_keys)
+	var foes := defs.map(func(d): return mk(d, "E"))
+	if scale != 1.0:
+		for f in foes:
+			f.max_hp = roundi(f.max_hp * scale)
+			f.hp = f.max_hp
+			f.atk = roundi(f.atk * scale)
 	place(heroes, pos)
 	place(foes, FOE_START.get(grid_key(), {}))
 	units = heroes + foes

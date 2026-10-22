@@ -4,9 +4,11 @@ extends Control
 ## Tap a hero to open their sheet; merging happens there, not here.
 
 const TILE_W := 299
-const ART_H := 384
+## Cards stand 2:3, taller than the 3:4 they started at, so the art has room above the face.
+const ART_H := 448
 
 var app: App
+var tab := "heroes"
 var _grid: GridContainer
 
 
@@ -26,7 +28,7 @@ func _ready() -> void:
 	head.add_child(hv)
 	var top := Forge.hbox(14)
 	hv.add_child(top)
-	top.add_child(Forge.sc("Roster", 52, Forge.GOLD, true, 0.16))
+	top.add_child(Forge.sc("Heroes", 52, Forge.GOLD, true, 0.16))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	top.add_child(spacer)
@@ -59,8 +61,6 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("v_separation", 56)
 	pad.add_child(_grid)
 	_fill()
-
-	root.add_child(NavBar.make(app, "roster"))
 
 
 func _fill() -> void:

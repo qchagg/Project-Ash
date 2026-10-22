@@ -41,8 +41,6 @@ var _fc_i := 0
 var _danger := false
 var _intents: Array = []
 var _danger_btn: Button
-## The tab bar, hidden from the moment the fight begins until it ends: nothing in it is needed mid-battle.
-var _nav: Control
 var _retreat: Button
 var _tiles := {}
 var _tex := {}
@@ -57,8 +55,16 @@ var _log: Label
 
 
 func _init() -> void:
-	tab = "battle"
+	tab = "expedition"
 	title = "battle"
+
+
+func setup(a: App) -> Screen:
+	super.setup(a)
+	# On an expedition the fight is named for its node: a skirmish, an elite, the warden.
+	if a.run and a.run.at.x >= 0:
+		title = Expedition.NODES[a.run.node(a.run.at).type].name
+	return self
 
 
 func _build() -> void:
@@ -82,9 +88,7 @@ func _build() -> void:
 	body.add_child(_grid("P"))
 	# The selected hero's actions dock above the tab bar, outside the scroll, and fold down to a handle.
 	var root := body.get_parent().get_parent().get_parent()
-	_nav = root.get_child(root.get_child_count() - 1)
 	root.add_child(_dock())
-	root.move_child(root.get_child(root.get_child_count() - 1), root.get_child_count() - 2)
 	refresh()
 	_intro.call_deferred()
 
@@ -115,10 +119,21 @@ func _new_fight() -> void:
 	b.cols = Collection.COLS
 	var heroes := []
 	var pos := {}
+	var run := app.run
 	for uid in app.col.squad:
-		heroes.append(Battle.card_unit(app.col, uid, b))
+		if run and run.fallen(uid):
+			continue
+		var u := Battle.card_unit(app.col, uid, b)
+		if run:
+			run.boost(u)
+			u.hp = maxi(1, roundi(u.max_hp * run.health(uid)))
+		heroes.append(u)
 		pos[uid] = app.col.tile(uid)
-	b.start(heroes, pos)
+	if run and run.at.x >= 0:
+		var foes := run.foes_for(run.at)
+		b.start(heroes, pos, foes.keys, foes.scale)
+	else:
+		b.start(heroes, pos)
 	b.phase = "form"
 	view = b.snapshot()
 	sel_id = b.living("P")[0].id
@@ -215,7 +230,7 @@ func refresh() -> void:
 	_round.text = ("formation" if phase == "form" else "round %d" % b.round_num).to_lower()
 	_phase.text = {"form": "Tap a hero, then a tile, to set your formation.", "plan": "Plan the round: queued skills chain.",
 		"run": "Resolving…", "over": ""}[phase]
-	_go.text = {"form": "begin", "plan": "fight", "run": "fight", "over": "fight again"}[phase]
+	_go.text = {"form": "begin", "plan": "fight", "run": "fight", "over": "back to the road" if app.run else "fight again"}[phase]
 	_go.disabled = _playing
 	_log.visible = _playing or b.phase == "over"
 	if not _playing and b.phase == "plan":
@@ -229,7 +244,7 @@ func refresh() -> void:
 	_fill_chips()
 	_fill_panel()
 	var fighting: bool = _playing or b.phase in ["plan", "run"]
-	_nav.visible = not fighting
+	app.show_nav(not fighting)
 	# The panel keeps one height only while fighting, when its buttons are in use.
 	_panel.custom_minimum_size.y = PANEL_H if b.phase == "plan" else 0.0
 	_retreat.visible = b.phase == "plan" and not _playing
@@ -285,6 +300,7 @@ func _fill_forecast() -> void:
 	row.size_flags_vertical = SIZE_EXPAND_FILL
 	_forecast.add_child(row)
 	var mine := _headshot(me, Forge.GOLD_LIGHT)
+	Rim.on(mine, "comet", [Color("#fff1c4")], 3.0)
 	var icon := Forge.skill_icon(a, me.elem, 40)
 	icon.position = Vector2(HEAD - 30, -8)
 	mine.add_child(icon)
@@ -315,6 +331,7 @@ func _fill_forecast() -> void:
 		tags.add_child(Forge.sc("knocked out", 16, Forge.HARM, true))
 	# Several targets: the count sits on the target's headshot and the arrows either side step through them.
 	var theirs := _headshot(t, tint, e.ko, "%d/%d" % [_fc_i + 1, _fc.size()] if _fc.size() > 1 else "")
+	Rim.on(theirs, "flow", [tint.darkened(0.3), tint, tint.lightened(0.4), tint], 3.0)
 	var cyc := Forge.hbox(0)
 	cyc.size_flags_vertical = SIZE_SHRINK_CENTER
 	row.add_child(cyc)
@@ -421,11 +438,16 @@ func _fill_panel() -> void:
 		_panel.add_child(Forge.sc("victory" if win else "defeat", 44, Forge.GOLD if win else Forge.MUTED, true, 0.16))
 		_panel.add_child(Forge.label("%s on round %d. Your squad dealt %d and took %d." % ["Cleared" if win else "Wiped", b.round_num, b.dealt, b.taken],
 			24, Forge.PARCHMENT, Forge.SANS_ITALIC))
-		if win:
+		if app.run:
+			_settle_run(win)
+			if win:
+				_panel.add_child(Forge.sc("+%d embers gathered · %d on the road" % [_paid, app.run.embers], 22, Forge.GAIN))
+		elif win:
 			if _paid == 0:
 				_paid = app.town.battle_reward()
 				app.town.earn(_paid)
 			_panel.add_child(Forge.sc("+%d embers to the town" % _paid, 22, Forge.GAIN))
+		if win:
 			if _spoils == "":
 				var keys := Data.AUGS.keys()
 				_spoils = keys[randi() % keys.size()]
@@ -838,11 +860,27 @@ func _commit() -> void:
 			b.run_round()
 			await _play()
 		"over":
+			if app.run:
+				app.show_tab("expedition")
+				return
 			_new_fight()
 			b.phase = "plan"
 			_log.text = ""
 			refresh()
 			_intro()
+
+
+## Hands the fight's outcome to the expedition once: each hero's health carries on (the fallen stay down).
+func _settle_run(win: bool) -> void:
+	if _paid != 0 or app.run.over != "":
+		return
+	var before := app.run.embers
+	var health := {}
+	for u in b.units:
+		if u.side == "P":
+			health[u.key] = float(u.hp) / u.max_hp if u.alive else 0.0
+	app.run.finish_fight(win, health)
+	_paid = maxi(1, app.run.embers - before)
 
 
 ## Plays back what the engine just resolved, a beat at a time, then settles on the board as it stands.

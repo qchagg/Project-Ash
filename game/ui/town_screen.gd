@@ -1,14 +1,12 @@
 class_name TownScreen
 extends Screen
-## The town: the Ashen Hearth burning at the top, its buildings strung down a road below it.
-## Tap a building for its panel (what it does, what the next level brings); the panel holds the screen's one commit.
+## The town: the Hearth along the top, the buildings in a grid beneath it. Each building rises level by level on
+## embers brought home from expeditions, and the ones with a door (the Forge, the Archive, the Training Grounds) open
+## onto their part of the game. A building that can rise now wears a turning comet on its border; the one you picked
+## wears the full flowing rim. Tap a building for its panel (what it does, what the next level brings, the way in).
 
-const MAP_W := 632.0
-const HEARTH_H := 380.0
-const PLATE := Vector2(360, 230)
-const STEP := 250.0
-const STREET := ["forge", "archive", "caravanserai", "grounds", "bazaar", "envoys"]
-const NAV_H := 136.0
+const GRID := ["forge", "archive", "infirmary", "grounds", "caravanserai", "bazaar", "envoys"]
+const TILE := Vector2(300, 268)
 
 ## The building whose panel is open, or "".
 var _sel := ""
@@ -26,28 +24,35 @@ func _build() -> void:
 		_lit = true
 		var bd := Backdrop.new()
 		bd.elem = "fire"
-		bd.focus = Vector2(0.5, 0.12)
-		bd.strength = 0.45
+		bd.focus = Vector2(0.5, 0.08)
+		bd.strength = 0.35
 		bd.set_anchors_preset(PRESET_FULL_RECT)
 		add_child(bd)
 		move_child(bd, 0)
 	var t := app.town
 	head_right.add_child(_embers_chip())
-	body.add_child(_map())
-	var foot := Forge.vbox(14)
+	body.add_child(_hearth())
+	var grid := GridContainer.new()
+	grid.columns = 4 if Forge.wide() else 2
+	grid.add_theme_constant_override("h_separation", 32)
+	grid.add_theme_constant_override("v_separation", 32)
+	body.add_child(grid)
+	for k in GRID:
+		grid.add_child(_tile(k))
+	var foot := Forge.hbox(18)
 	body.add_child(foot)
-	var note := Forge.label("Playtest: battles aren't wired to the town yet. Gather embers here to try the buildings.", 22, Forge.DIM, Forge.SANS_ITALIC)
+	var note := Forge.label("Playtest: embers come home from expeditions. This adds some for trying the buildings.", 20, Forge.DIM, Forge.SANS_ITALIC)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.custom_minimum_size.x = MAP_W
+	note.size_flags_horizontal = SIZE_EXPAND_FILL
 	foot.add_child(note)
-	var gather := Forge.ember("gather %d embers" % (t.battle_reward() * 2), 72)
+	var gather := Forge.link("+%d embers" % (t.battle_reward() * 2), "ember", 20)
 	gather.pressed.connect(func():
 		t.earn(t.battle_reward() * 2)
 		_refresh())
 	foot.add_child(gather)
-	# Room to scroll the last building clear of the open panel.
+	# Room to scroll the last row clear of the open panel.
 	var room := Control.new()
-	room.custom_minimum_size.y = 460 if _sel != "" else 0
+	room.custom_minimum_size.y = 440 if _sel != "" else 0
 	body.add_child(room)
 	_open_drawer()
 
@@ -77,7 +82,7 @@ func _embers_chip() -> Control:
 	b.set_anchors_preset(PRESET_FULL_RECT)
 	b.pressed.connect(func(): Tooltip.open(p, func(lines: VBoxContainer):
 		lines.add_child(Forge.sc("embers · %d" % t.embers, 22, Forge.GOLD))
-		var d := Forge.label("The town's one resource. Each won battle brings home %d, more as the Hearth grows. Buildings rise on them." % t.battle_reward(),
+		var d := Forge.label("The town's one resource. Expeditions bring them home: everything gathered on a road, or half if the squad falls. Buildings rise on them.",
 			24, Forge.PARCHMENT, Forge.SANS_ITALIC)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		d.custom_minimum_size.x = 580
@@ -86,104 +91,61 @@ func _embers_chip() -> Control:
 	return p
 
 
-## The hearth on its skyline, then the street of buildings winding down from it.
-func _map() -> Control:
-	var map := Control.new()
-	map.custom_minimum_size = Vector2(MAP_W, HEARTH_H + STREET.size() * STEP + 20)
-	var centers := [Vector2(MAP_W / 2, 170)]
-	for i in STREET.size():
-		centers.append(_plate_pos(i) + PLATE / 2)
-	map.draw.connect(func():
-		# Rooftops behind the hearth: a low skyline of domes, towers and gables.
-		var sky := PackedVector2Array([Vector2(0, 300), Vector2(0, 220), Vector2(40, 220), Vector2(40, 180), Vector2(70, 160),
-			Vector2(100, 180), Vector2(100, 230), Vector2(150, 230), Vector2(150, 200)])
-		for k in 9:
-			var a := PI + PI * k / 8.0
-			sky.append(Vector2(185, 200) + Vector2(cos(a), sin(a)) * 35)
-		sky.append_array([Vector2(220, 240), Vector2(412, 240), Vector2(412, 190), Vector2(432, 150), Vector2(452, 190),
-			Vector2(452, 215), Vector2(500, 215), Vector2(530, 185), Vector2(560, 215), Vector2(590, 215), Vector2(590, 170),
-			Vector2(612, 170), Vector2(612, 235), Vector2(MAP_W, 235), Vector2(MAP_W, 300)])
-		map.draw_colored_polygon(sky, Color(Forge.PLAQUE, 0.9))
-		map.draw_polyline(sky, Color(Forge.GOLD_DEEP, 0.25), 2.0)
-		# The road: gold studs from the hearth down past every building.
-		for i in centers.size() - 1:
-			var a: Vector2 = centers[i]
-			var b: Vector2 = centers[i + 1]
-			var n := int(a.distance_to(b) / 26)
-			for j in n:
-				var p := a.lerp(b, (j + 0.5) / n)
-				Forge.diamond(map, p, 4, Color(Forge.GOLD_DEEP, 0.45))
-	)
-	map.add_child(_hearth())
-	for i in STREET.size():
-		var p := _plate(STREET[i])
-		p.position = _plate_pos(i)
-		map.add_child(p)
-	return map
-
-
-func _plate_pos(i: int) -> Vector2:
-	return Vector2(0.0 if i % 2 == 0 else MAP_W - PLATE.x, HEARTH_H + i * STEP)
-
-
-## The Ashen Hearth: a raised medallion with the town fire, its level beneath.
+## The Hearth: a wide plate across the top, its fire in a medallion and its level, which caps every other building.
 func _hearth() -> Control:
 	var t := app.town
+	var lvl := t.level("hearth")
 	var b := _tap("hearth")
-	b.position = Vector2(MAP_W / 2 - 160, 40)
-	b.size = Vector2(320, 320)
+	b.custom_minimum_size = Vector2(0, 168)
 	b.draw.connect(func():
-		var c := Vector2(160, 130)
 		var on := _sel == "hearth"
-		b.draw_circle(c, 104, Forge.INK)
-		b.draw_circle(c, 100, Forge.GOLD_LIGHT if on else Forge.GOLD_DEEP)
-		b.draw_circle(c, 96, Forge.PLAQUE_DEEP)
-		b.draw_circle(c, 80, Color(Forge.ELEM.fire, 0.12))
-		b.draw_arc(c, 88, 0, TAU, 64, Color(Forge.GOLD, 0.35), 1.5, true)
-		b.draw_texture_rect(Forge.icon("bld_hearth"), Rect2(c - Vector2(52, 56), Vector2(104, 104)), false, Forge.GOLD_LIGHT)
-		_pips(b, Vector2(160, 300), t.level("hearth"), Town.BUILDINGS.hearth.max, Town.BUILDINGS.hearth.max)
-		if t.blocked("hearth") == "":
-			_ready_mark(b, c + Vector2(76, -76)))
-	var nm := Forge.sc("ashen hearth", 28, Forge.GOLD, true)
-	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	nm.position = Vector2(0, 244)
-	nm.size = Vector2(320, 34)
-	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(nm)
+		var r := Rect2(Vector2.ZERO, b.size)
+		b.draw_rect(r, Color(Forge.PLAQUE, 0.94))
+		b.draw_rect(r, Forge.GOLD_LIGHT if on else Forge.GOLD_DEEP, false, 2.0)
+		var c := Vector2(92, r.size.y / 2)
+		b.draw_circle(c, 62, Forge.INK)
+		b.draw_circle(c, 58, Forge.GOLD_DEEP)
+		b.draw_circle(c, 55, Forge.PLAQUE_DEEP)
+		b.draw_circle(c, 46, Color(Forge.ELEM.fire, 0.14))
+		b.draw_texture_rect(Forge.icon("bld_hearth"), Rect2(c - Vector2(34, 36), Vector2(68, 68)), false, Forge.GOLD_LIGHT)
+		_pips(b, Vector2(180 + 6 * 12, r.size.y - 40), lvl, Town.BUILDINGS.hearth.max, Town.BUILDINGS.hearth.max))
+	var v := Forge.vbox(4)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.position = Vector2(180, 30)
+	b.add_child(v)
+	v.add_child(Forge.sc(Town.BUILDINGS.hearth.name, 30, Forge.GOLD, true))
+	v.add_child(Forge.sc("level %d · caps every building" % lvl, 18, Forge.LABEL))
+	_rim(b, "hearth")
 	return b
 
 
-## One building on the street: an arched plate with its glyph, name, level and (for routes and envoys) region sigils.
-func _plate(key: String) -> Control:
+## One building: its glyph on a medallion, its name, level pips, and its regions where it has them.
+func _tile(key: String) -> Control:
 	var t := app.town
 	var info: Dictionary = Town.BUILDINGS[key]
 	var lvl := t.level(key)
 	var b := _tap(key)
-	b.size = PLATE
+	b.custom_minimum_size = TILE
 	b.draw.connect(func():
 		var on := _sel == key
 		var built := lvl > 0
-		var r := Rect2(0, 46, PLATE.x, PLATE.y - 46)
-		var edge := Forge.GOLD_LIGHT if on else (Forge.GOLD_DEEP if built else Color(Forge.DIM, 0.45))
-		b.draw_rect(r, Color(Forge.PLAQUE, 0.94) if built else Color(Forge.INK, 0.75))
-		b.draw_rect(r, edge, false, 3.0 if on else 2.0)
-		if built:
-			Forge.filigree(b, r.grow(-8), Color(Forge.GOLD_DEEP, 0.35), 30)
-		var c := Vector2(PLATE.x / 2, 46)
-		b.draw_circle(c, 46, Forge.INK)
-		b.draw_circle(c, 43, edge)
-		b.draw_circle(c, 40, Forge.PLAQUE_DEEP)
+		var r := Rect2(Vector2.ZERO, b.size)
+		b.draw_rect(r, Color(Forge.PLAQUE, 0.94) if built else Color(Forge.INK, 0.7))
+		if not on and t.blocked(key) != "":
+			b.draw_rect(r, Forge.GOLD_DEEP if built else Color(Forge.DIM, 0.4), false, 2.0)
+		var c := Vector2(r.size.x / 2, 78)
+		b.draw_circle(c, 48, Forge.INK)
+		b.draw_circle(c, 45, Forge.GOLD_DEEP if built else Color(Forge.DIM, 0.5))
+		b.draw_circle(c, 42, Forge.PLAQUE_DEEP)
 		b.draw_texture_rect(Forge.icon(info.icon), Rect2(c - Vector2(28, 28), Vector2(56, 56)), false,
-			Forge.GOLD_LIGHT if built else Color(Forge.DIM, 0.7))
-		_pips(b, Vector2(PLATE.x / 2, PLATE.y - 26), lvl, t.cap(key), info.max)
-		if t.blocked(key) == "":
-			_ready_mark(b, Vector2(PLATE.x - 22, 68)))
+			Forge.GOLD_LIGHT if built else Color(Forge.DIM, 0.75))
+		_pips(b, Vector2(r.size.x / 2, r.size.y - 30), lvl, t.cap(key), info.max))
 	var v := Forge.vbox(6)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.position = Vector2(0, 102)
-	v.size = Vector2(PLATE.x, 80)
+	v.position = Vector2(0, 140)
+	v.size = Vector2(TILE.x, 80)
 	b.add_child(v)
-	var nm := Forge.sc(info.name, 26, Forge.GOLD if lvl > 0 else Forge.MUTED, true)
+	var nm := Forge.sc(info.name, 24, Forge.GOLD if lvl > 0 else Forge.MUTED, true)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(nm)
@@ -192,16 +154,25 @@ func _plate(key: String) -> Control:
 		var row := Forge.hbox(6)
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		for k in regions:
-			row.add_child(Forge.region_badge(k, 34))
+		for k in regions.slice(0, 5):
+			row.add_child(Forge.region_badge(k, 30))
 		v.add_child(row)
 	else:
-		var status := Forge.sc("unbuilt · %d embers" % t.cost(key) if lvl == 0 else "level %d" % lvl, 20,
+		var status := Forge.sc("unbuilt · %d embers" % t.cost(key) if lvl == 0 else "level %d" % lvl, 18,
 			Forge.DIM if lvl == 0 else Forge.LABEL)
 		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		status.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		v.add_child(status)
+	_rim(b, key)
 	return b
+
+
+## The living border: the full flow on the picked building, a comet on one that can rise now.
+func _rim(b: Control, key: String) -> void:
+	if _sel == key:
+		Rim.on(b, "flow", [Forge.GOLD_DEEP, Forge.GOLD_LIGHT, Forge.GOLD, Color("#fff1c4")], 3.0)
+	elif app.town.blocked(key) == "":
+		Rim.on(b, "comet", [Forge.GAIN], 2.5)
 
 
 ## A flat button that selects a building (tap again to put its panel away).
@@ -253,8 +224,6 @@ func _open_drawer() -> void:
 	add_child(p)
 	p.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
 	p.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	p.offset_bottom = -NAV_H
-	p.offset_top = -NAV_H
 	_drawer = p
 	var v := Forge.vbox(16)
 	p.add_child(v)
@@ -283,6 +252,8 @@ func _open_drawer() -> void:
 		v.add_child(_level_line("next", t.gives(key, lvl + 1), Forge.GAIN if t.blocked(key) == "" else Forge.MUTED))
 	if key == "envoys" and lvl > 0:
 		v.add_child(_envoy_row())
+	if key == "infirmary":
+		v.add_child(_level_line("camp", "On the road, a camp heals %d%% of health." % roundi(Expedition.CAMP_HEAL[lvl] * 100), Forge.PARCHMENT))
 
 	var why := t.blocked(key)
 	var row := Forge.hbox(20)
@@ -296,7 +267,7 @@ func _open_drawer() -> void:
 				_refresh())
 		row.add_child(up)
 	if info.link != "" and lvl > 0:
-		var go := Forge.link("to %s" % info.link, "")
+		var go := Forge.link(info.enter, "chevron")
 		go.custom_minimum_size.y = 72
 		go.pressed.connect(func(): app.show_tab(info.link))
 		row.add_child(go)

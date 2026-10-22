@@ -1,6 +1,6 @@
 class_name Screen
 extends Control
-## A top-level screen behind one of the tabs: its title at the top, a scrolling body, the tab bar at the foot.
+## A top-level screen behind one of the tabs: its title at the top and a scrolling body. The app owns the nav.
 ## Subclasses set `tab` and `title` and fill the body in _build().
 
 var app: App
@@ -42,7 +42,6 @@ func _ready() -> void:
 	scroll.add_child(pad)
 	body = Forge.vbox(34)
 	pad.add_child(body)
-	root.add_child(NavBar.make(app, tab))
 	_build()
 
 

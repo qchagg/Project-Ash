@@ -14,6 +14,8 @@ var r := 0
 var c := 0
 ## 0 → 1 as the unit here walks onto the field at the start of a fight; 1 when settled.
 var enter := 1.0
+## Clock for the selected hero's comet rim.
+var _t := 0.0
 var _from := Vector2.ZERO
 
 
@@ -28,6 +30,14 @@ func _ready() -> void:
 
 
 ## The unit here marches in from `from` (an offset), bobbing in step, and sparks as it lands.
+func _process(delta: float) -> void:
+	_t += delta
+	if side == "P" and screen and not screen.view.is_empty():
+		var u := screen.unit_view(side, r, c)
+		if not u.is_empty() and screen.is_selected(u):
+			queue_redraw()
+
+
 func intro(delay: float, from: Vector2) -> void:
 	if screen.unit_view(side, r, c).is_empty():
 		return
@@ -95,6 +105,8 @@ func _draw() -> void:
 	var sel := screen.is_selected(u)
 	var edge: Color = Forge.GOLD_LIGHT if sel else Forge.ELEM[u.elem].darkened(0.2) if side == "E" else Color(Forge.BRONZE, 0.9)
 	draw_rect(rect, edge, false, 4.0 if sel else 2.0)
+	if sel:
+		Rim.comet(self, rect.grow(-1), Color("#fff1c4"), fposmod(_t * 0.3, 1.0), 0.2, 4.0)
 	if area != "":
 		draw_rect(rect.grow(-2), Color(tint, 0.26))
 		draw_rect(rect.grow(-1), tint, false, 3.0)

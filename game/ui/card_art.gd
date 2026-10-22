@@ -28,7 +28,7 @@ func setup(hero_key: String, star_count: int) -> CardArt:
 
 
 func _process(delta: float) -> void:
-	if stars == 4 or showcase or drift > 0:
+	if stars >= 3 or showcase or drift > 0:
 		_t += delta
 		queue_redraw()
 
@@ -47,6 +47,9 @@ func _draw() -> void:
 	draw_rect(r, Color("#1f1812"))
 	Forge.portrait(self, _tex, r.grow(-3), h.portrait, 0.62, "card")
 	Forge.card_frame(self, r, stars, h.elem, _t)
+	if stars == 3:
+		# 3★: a slow gold comet round the frame; 4★ wears the full turning rim.
+		Rim.comet(self, r.grow(-2), Color("#fff1c4"), fposmod(_t * 0.07, 1.0), 0.14, 4.0)
 	if ornate:
 		Forge.filigree(self, r, Color("#d9a777"), 60.0)
 	var s := minf(size.x * 0.16, 56.0)

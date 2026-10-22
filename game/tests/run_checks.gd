@@ -58,6 +58,11 @@ func _init() -> void:
 		["Forecast · counts the chain the skill would carry at the back of the queue, and marks a knockout", _b_forecast_chain],
 		["Intents · each foe's preview is the action and area it then uses when nothing changes first", _b_intents],
 		["Crops · a crop set for one view wins there, and every other view keeps the eye-line rule", _b_crop_override],
+		["Expedition · every road is connected start to warden, with a camp before the warden", _x_map],
+		["Expedition · fights send the road's home foe, more and tougher further down the road", _x_foes],
+		["Expedition · health carries between fights, camps heal the standing, the fallen stay down", _x_health],
+		["Expedition · boons stack by rarity and boost the squad; a loss banks half the embers", _x_boons],
+		["Expedition · a fight can field only the named foes, scaled", _x_battle_subset],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -959,3 +964,72 @@ func _b_crop_override() -> Array:
 	var plain := Forge.crop(ts, Vector2(3, 4), {"eyes": [50, 40], "chin": 62}, 0.62, "card")
 	var want := Rect2(100, 200, 500 * 152.0 / 112.0, 500)
 	return [tile.is_equal_approx(want) and card.is_equal_approx(plain), "tile %s · card %s" % [tile, card]]
+
+
+func _x_map() -> Array:
+	var bad := []
+	for road in Expedition.ROADS:
+		for sd in 40:
+			var x := Expedition.new().begin(road, sd)
+			var n := x.layers.size()
+			if x.layers[n - 1].size() != 1 or x.layers[n - 1][0].type != "boss":
+				bad.append("%s/%d warden" % [road, sd])
+			if not x.layers[n - 2].all(func(nd): return nd.type == "rest"):
+				bad.append("%s/%d camp" % [road, sd])
+			# Walk forward from every first node: each layer must be fully reachable.
+			var seen := {}
+			for j in x.layers[0].size():
+				seen[Vector2i(0, j)] = true
+			for i in n - 1:
+				for j in x.layers[i].size():
+					if x.layers[i][j].next.is_empty():
+						bad.append("%s/%d dead end" % [road, sd])
+					for k in x.layers[i][j].next:
+						seen[Vector2i(i + 1, k)] = true
+				for k in x.layers[i + 1].size():
+					if not seen.has(Vector2i(i + 1, k)):
+						bad.append("%s/%d unreachable %d,%d" % [road, sd, i + 1, k])
+	return [bad.is_empty(), "120 maps · " + (", ".join(bad.slice(0, 3)) if bad.size() else "all connected")]
+
+
+func _x_foes() -> Array:
+	var x := Expedition.new().begin("ghats", 7)
+	var first := x.foes_for(Vector2i(0, 0))
+	var last := x.foes_for(Vector2i(x.layers.size() - 1, 0))
+	var ok: bool = first.keys[0] == "caller" and last.keys[0] == "caller" and first.keys.size() == 2 and last.keys.size() == 4 \
+		and last.scale > first.scale and first.keys == x.foes_for(Vector2i(0, 0)).keys
+	return [ok, "first %s ×%s · warden %s ×%s" % [first.keys, first.scale, last.keys, last.scale]]
+
+
+func _x_health() -> Array:
+	var x := Expedition.new().begin("basalt", 3)
+	x.step(Vector2i(0, 0))
+	x.finish_fight(true, {"kaede": 0.4, "brann": 0.0, "sorrel": 1.0})
+	var paid := x.embers
+	var healed := x.rest(2)
+	var after := x.health("kaede")
+	var ok := is_equal_approx(after, 0.4 + healed) and x.fallen("brann") and x.health("sorrel") == 1.0 and x.health("ilse") == 1.0 and paid > 0 and x.over == ""
+	x.finish_fight(false, {"kaede": 0.0})
+	return [ok and x.over == "lose", "Surya 0.4 → %.2f after camp · Brann stays down · %d embers from the fight" % [after, paid]]
+
+
+func _x_boons() -> Array:
+	var x := Expedition.new().begin("saltglass", 5)
+	x.take({"key": "whetstone", "rarity": 0})
+	x.take({"key": "whetstone", "rarity": 3})
+	x.take({"key": "kinfire", "rarity": 1})
+	var u := {"atk": 100, "def": 50, "spd": 80, "max_hp": 1000, "hp": 1000, "elem": "fire"}
+	var v := {"atk": 100, "def": 50, "spd": 80, "max_hp": 1000, "hp": 1000, "elem": "water"}
+	x.boost(u)
+	x.boost(v)
+	x.embers = 101
+	x.over = "lose"
+	return [u.atk == 146 and v.atk == 130 and u.def == 50 and x.banked() == 50, "fire hero atk %d · water hero atk %d · 101 embers bank %d on a loss" % [u.atk, v.atk, x.banked()]]
+
+
+func _x_battle_subset() -> Array:
+	var b := Battle.new()
+	b.start(b.pristine_heroes(), {}, ["golem", "seer"], 1.5)
+	var foes := b.units.filter(func(u): return u.side == "E")
+	var golem := b.unit("E-golem")
+	return [foes.size() == 2 and golem.max_hp == 2250 and golem.hp == 2250 and golem.atk == 173, "%d foes · golem %d hp, %d atk" % [foes.size(), golem.max_hp, golem.atk]]

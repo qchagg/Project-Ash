@@ -15,8 +15,8 @@ var _sel := ""
 
 
 func _init() -> void:
-	tab = "squad"
-	title = "squad"
+	tab = "expedition"
+	title = "party"
 
 
 func _build() -> void:
@@ -35,9 +35,9 @@ func _build() -> void:
 	body.add_child(_bench())
 	body.add_child(_heading("the team"))
 	body.add_child(_readout())
-	var go := Forge.studs("to battle")
+	var go := Forge.studs("back to the road" if app.run else "choose a road")
 	go.size_flags_horizontal = SIZE_SHRINK_CENTER
-	go.pressed.connect(func(): app.show_tab("battle"))
+	go.pressed.connect(func(): app.show_tab("expedition"))
 	body.add_child(go)
 
 
@@ -75,9 +75,8 @@ func _seat(uid: String, w: float) -> Control:
 	var v := _card(c, w)
 	var art: CardArt = v.get_child(0)
 	var picked := uid == _sel
-	art.overlay = func(ci: Control):
-		if picked:
-			ci.draw_rect(Rect2(Vector2.ZERO, ci.size).grow(4), Forge.GOLD_LIGHT, false, 4.0)
+	if picked:
+		Rim.on(art, "flow", [Forge.GOLD_DEEP, Forge.GOLD_LIGHT, Forge.GOLD, Color("#fff1c4")], 4.0, -4.0)
 	_tap(v, func():
 		_sel = "" if picked else uid
 		rebuild())

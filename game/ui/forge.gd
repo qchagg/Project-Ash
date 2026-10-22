@@ -24,6 +24,9 @@ const HARM := Color("#ec4a3c")
 const MEND := Color("#5fd38a")
 # Saturated enough to read apart from the gold everywhere they appear; earth leans clay so it isn't mistaken for gold.
 const ELEM := {"fire": Color("#ff5a1f"), "water": Color("#22b4ff"), "earth": Color("#c8602e"), "wind": Color("#52e06a")}
+# Rarity on the road, the usual ladder: plain, blue, violet, gold-orange. Legendary is warmer than our gold so the two
+# never read as the same thing.
+const RARITY := [Color("#cbbd9f"), Color("#6fb7ff"), Color("#b48cff"), Color("#ffb347")]
 const STAT_TINT := {"max_hp": Color("#e86a5a"), "atk": Color("#f6dc94"), "def": Color("#9fb3c8"), "spd": Color("#8ad46f")}
 const STAT_ICON := {"max_hp": "hp", "atk": "atk", "def": "def", "spd": "spd"}
 const STAT_NAME := {"max_hp": "health", "atk": "attack", "def": "defense", "spd": "speed"}
@@ -39,6 +42,11 @@ const SYMBOLS := preload("res://fonts/symbols.woff")
 
 static var _tracked := {}
 static var _icons := {}
+
+
+## A wide screen (the landscape build): the nav stands as a rail and screens lay out side by side.
+static func wide() -> bool:
+	return ProjectSettings.get_setting("display/window/size/viewport_width") > ProjectSettings.get_setting("display/window/size/viewport_height")
 
 
 static func setup() -> void:
@@ -254,6 +262,9 @@ static func studs(text: String, primary := true, height := 80) -> Button:
 	var b := _button(text, 26, styles, {"font_color": GOLD_LIGHT if primary else PARCHMENT, "font_hover_color": GOLD_LIGHT,
 		"font_pressed_color": GOLD_LIGHT, "font_disabled_color": Color(PARCHMENT, 0.35)})
 	b.custom_minimum_size.y = height
+	if primary:
+		# The one commit on a screen breathes, so the eye finds it.
+		Rim.on(b, "pulse", [GOLD_LIGHT], 2.0, -4.0)
 	b.draw.connect(func():
 		var y := b.size.y / 2
 		var c := Color(GOLD_DEEP, 0.35) if b.disabled else edge

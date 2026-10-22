@@ -1,6 +1,6 @@
 class_name Town
 extends RefCounted
-## The town: meta-progression between fights. Buildings rise level by level, paid for in embers, and each level opens
+## The town: meta-progression between expeditions. Buildings rise level by level, paid for in embers, and each level opens
 ## something in another system (the forge for evolving, the archive for chronicles, routes for new heroes).
 ## The Ashen Hearth is the town's fire: no other building can rise higher than it.
 
@@ -19,21 +19,24 @@ const BUILDINGS := {
 		"levels": ["Buildings rise to level 1.", "Buildings rise to level 2. Battles bring 10% more embers.",
 			"Buildings rise to level 3. Battles bring 20% more embers.", "Buildings rise to level 4. Battles bring 30% more embers.",
 			"Buildings rise to level 5. Battles bring 40% more embers.", "Buildings rise to level 6. Battles bring 50% more embers."]},
-	"forge": {"name": "The Forge", "icon": "bld_forge", "cost": 100, "max": 5, "link": "roster",
+	"forge": {"name": "The Forge", "icon": "bld_forge", "cost": 100, "max": 5, "link": "heroes", "enter": "to your heroes",
 		"about": "Where copies of a hero are merged into one stronger card, and Ashcrowns are set.",
 		"levels": ["Merge two copies of a hero.", "Preview a merge before you commit to it.",
 			"Smelt a spare 3★ copy into an Ashcrown shard.", "Three shards set an Ashcrown.", "Set augments can be reforged once per card."]},
-	"archive": {"name": "The Archive", "icon": "bld_archive", "cost": 100, "max": 5, "link": "codex",
+	"archive": {"name": "The Archive", "icon": "bld_archive", "cost": 100, "max": 5, "link": "archive", "enter": "open the archive",
 		"about": "Scribes keep each hero's chronicle, and the histories of the regions they come from.",
 		"levels": ["Chronicles: each hero's lore and home.", "Bonds are written into the chronicles.",
 			"Scars are recorded.", "Regional histories open in the Codex.", "The lost chronicles of fallen foes."]},
 	"caravanserai": {"name": "Caravanserai", "icon": "bld_caravanserai", "cost": 120, "max": 5, "link": "",
 		"about": "Travellers rest here on the long roads. Open a route, and heroes from that region come to the town.",
 		"levels": ["Routes to two regions.", "A third route.", "A fourth route.", "A fifth route.", "Every route is open."]},
-	"grounds": {"name": "Training Grounds", "icon": "bld_grounds", "cost": 100, "max": 5, "link": "squad",
+	"grounds": {"name": "Training Grounds", "icon": "bld_grounds", "cost": 100, "max": 5, "link": "party", "enter": "to the party",
 		"about": "Heroes drill their aptitudes for the trials met on the road: lore, charm, finesse, wits, resolve and might.",
 		"levels": ["Trials: favored aptitudes roll d20 +3.", "Spar: train one unfavored aptitude to +1.",
 			"Spar to +2.", "Mentors: bonded heroes train together, both gain +1.", "Favored aptitudes spark on 18–20."]},
+	"infirmary": {"name": "Infirmary", "icon": "bld_infirmary", "cost": 90, "max": 5, "link": "",
+		"about": "Healers who travel with the squad. On an expedition, every camp heals more for each level.",
+		"levels": ["Camps heal 40% of health.", "Camps heal 50%.", "Camps heal 60%.", "Camps heal 75%.", "Camps heal everyone fully."]},
 	"bazaar": {"name": "Spirit Bazaar", "icon": "bld_bazaar", "cost": 110, "max": 5, "link": "",
 		"about": "Binders trade in elemental spirits. Each level brings another family of spirits to the stalls.",
 		"levels": ["Salamanders: fire augments.", "Undines: water augments.", "Gnomes: earth augments.",
