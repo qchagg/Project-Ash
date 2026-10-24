@@ -7,7 +7,7 @@ Upload anywhere under art/ (the root is fine) and run:
 1. Sort: every file goes to art/<character>/<character>-<rest>, lower case, spaces as dashes. The character comes from
    the file's prefix (`fox-face-idle1.mp4`) or, failing that, its folder; old names map to the cast's names (fox and
    kaede → surya, ilse and mermaid → varuni, leaf → galeblade, rock → basalt). A name the cast doesn't know yet gets a
-   folder of its own. Moves go through git, so nothing is lost. art/_trash and the README stay put.
+   folder of its own. Moves go through git, so nothing is lost. art/_archive and the README stay put.
 2. Faces: `<character>-face-<kind><n>.mp4` clips (idle, talk, spell, or anything else) are keyed into
    game/art/clips/<character>-<kind><n>.ogv and `<character>-face-blank.png` into game/art/faces/<character>.webp
    (tools/face-clip.py); other `-face-<mood>.png` stills become expressions. Only what changed is rebuilt.
@@ -48,7 +48,7 @@ def tidy(name):
 def sort():
     moved = 0
     for p in sorted(ART.rglob("*")):
-        if not p.is_file() or p.name in KEEP or "_trash" in p.parts or p.name.startswith("."):
+        if not p.is_file() or p.name in KEEP or "_archive" in p.parts or p.name.startswith("."):
             continue
         rel = p.relative_to(ART)
         folder = rel.parts[0] if len(rel.parts) > 1 else ""
@@ -137,7 +137,7 @@ def build():
     bodies = {}
     cards = {}
     tool = ROOT / "tools" / "face-clip.py"
-    for d in sorted(p for p in ART.iterdir() if p.is_dir() and p.name != "_trash"):
+    for d in sorted(p for p in ART.iterdir() if p.is_dir() and p.name != "_archive"):
         char = d.name
         f = {"clips": {}, "moods": {}}
         for src in sorted(d.glob(f"{char}-face-*")):

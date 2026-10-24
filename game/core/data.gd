@@ -43,7 +43,7 @@ const HEROES := [
 		{"name": "Ninefold Blaze", "flavor": "He lets the fire off its leash, and it finds everyone.", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.7, "cd": 4, "fx": {"burn": 1}, "desc": "Nine tails of fire hit every enemy tile."}]},
 	{"key": "brann", "favored": ["resolve", "might"], "bio": "The last rider of a broken host, still holding a border no one else remembers.", "name": "Brann", "title": "Eternal Rider", "elem": "earth", "legacy_elem": "water", "range": "melee",
 		"max_hp": 1400, "atk": 100, "def": 95, "spd": 70, "r": 0, "c": 1,
-		"portrait": {"src": "res://art/portraits/brann.webp", "eyes": [56, 43.5], "chin": 74.5, "crops": {"face": [18, 5.5, 72], "squad": [18, 1, 74.5]}}, "full": {"src": "res://art/full/brann.webp", "x": 50, "w": 1.5, "face": [53, 11]},
+		"portrait": {"src": "res://art/portraits/brann.webp", "eyes": [56, 43.5], "chin": 74.5, "crops": {"face": [18, 5.5, 72], "squad": [18, 1, 74.5]}}, "full": {"src": "res://art/full/brann.webp", "x": 50, "w": 1.85, "face": [55, 25]},
 		"home": "khorvan",
 		"lore": "Brann rode with the Ninth Host of the Khorvan Steppe, three thousand riders sworn to hold the Ashgate pass. When the pass fell, he was found under his horse with his face laid open from brow to cheek, the only one still breathing. The khans who gave the order are dead, the border has been redrawn twice, and a council he did not attend released the oath. He rides it anyway. Every spring he carves the names of the Ninth into the waystones along the pass, and every spring there is one more stone. Handsome, people say, until they see the scar; then they say it again, more quietly.", "lines": {
 			"greet": ["The host is gone. The border isn't. Someone has to remember where it is.",

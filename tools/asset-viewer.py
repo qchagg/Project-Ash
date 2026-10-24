@@ -75,7 +75,7 @@ def kind_of(rest):
 
 def label_of(rest):
     names = {"face-blank": "face · still", "blank": "card art", "bg": "card art, painted ground", "sprite": "battle sprite",
-        "full-cutout": "full body", "cutout": "cutout", "full-chat": "full body, chat pose", "body-idle": "battle sprite (new)",
+        "full-cutout": "full body", "full": "full body", "cutout": "cutout", "full-chat": "full body, chat pose", "body-idle": "battle sprite (new)",
         "body-movement": "battle idle (new)", "body-attack": "battle attack (new)", "card": "card art (new)", "sprite-old": "battle sprite (old)"}
     if rest in names:
         return names[rest]
@@ -88,7 +88,7 @@ def label_of(rest):
 def build(out):
     media = out / "media"
     chars = []
-    dirs = [d for d in ART.iterdir() if d.is_dir() and d.name != "_trash"]
+    dirs = [d for d in ART.iterdir() if d.is_dir() and not d.name.startswith("_")]
     dirs.sort(key=lambda d: (CAST.index(d.name) if d.name in CAST else 99, d.name))
     for d in dirs:
         c = d.name

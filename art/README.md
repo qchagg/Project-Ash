@@ -1,6 +1,6 @@
 # Art
 
-Upload new art into this folder (GitHub's "Add file → Upload files" works, including from a phone), loose or in a folder. Claude files everything into one folder per character (`art/varuni/varuni-face-idle1.mp4`), keys it and wires it into the game; compare it all in the Asset Viewer (https://claude.ai/artifact/9pYkCDzSwERRXUTKb5NBjr). Old art goes to `art/_trash/`.
+Upload new art into this folder (GitHub's "Add file → Upload files" works, including from a phone), loose or in a folder. Claude files everything into one folder per character (`art/varuni/varuni-face-idle1.mp4`), keys it and wires it into the game; compare it all in the Asset Viewer (https://claude.ai/artifact/9pYkCDzSwERRXUTKb5NBjr). Old art goes to `art/_archive/`.
 
 ## Faces (green screen)
 
