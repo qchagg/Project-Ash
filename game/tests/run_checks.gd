@@ -51,6 +51,7 @@ func _init() -> void:
 		["Rule · Ground: a ranged cross aimed at an empty tile hits above and below it; the AI still aims at units", _b_ground],
 		["Rule · Ground: single-target and melee skills still need a unit; an area stays put when its unit falls first", _b_ground_limits],
 		["Playback · a round marks the ally and enemy turns, and Varuni's Rain of Renewal cues her cut-in", _b_turn_marks],
+		["Faces · every clip and still a hero names is in the project", _faces_exist],
 		["Plan · a hero steps then acts: Brann steps to the front row and Rockfall lands, though he planned it from the second row", _b_step_then_act],
 		["Plan · queue order holds: Varuni's heal lands on Sorrel before he steps away; he then casts from his new tile", _b_step_order],
 		["Plan · steps reach 2 tiles, never onto a unit or a tile another hero has claimed; stepping home cancels", _b_step_tiles],
@@ -846,6 +847,19 @@ func _b_ground_limits() -> Array:
 	c.perform(s2, c.act(s2, "s0"), 0, 0, 0)
 	var far := _lost(c.unit("E-post1"))
 	return [not single and not melee and far == 0, "single shot on an empty tile %s · melee on an empty tile %s · far post hit for %d" % [single, melee, far]]
+
+
+## Every clip and still a hero names is in the project, so a face never asks for art that isn't there.
+func _faces_exist() -> Array:
+	var missing := []
+	for h in Data.HEROES:
+		var f: Dictionary = h.get("faces", {})
+		if f.has("still") and not ResourceLoader.exists(f.still):
+			missing.append(f.still)
+	for c in Clips.wanted():
+		if not ResourceLoader.exists(Clips.DIR + c + ".ogv"):
+			missing.append(c)
+	return [missing.is_empty(), "%d clips named · missing %s" % [Clips.wanted().size(), missing]]
 
 
 func _b_turn_marks() -> Array:

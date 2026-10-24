@@ -44,6 +44,8 @@ var _fc_i := 0
 ## Danger view: each foe's intended action and the tiles it threatens.
 var _danger := false
 var _intents: Array = []
+## The clips whose cut-in has already played this fight.
+var _cut_seen: Array = []
 var _danger_btn: Button
 var _retreat: Button
 var _tiles := {}
@@ -980,8 +982,12 @@ func _play() -> void:
 				if not is_inside_tree():
 					return
 			"cutin":
+				# Each skill's cut-in plays the first time it is used in a fight; after that the fight keeps its pace.
+				if e.clip in _cut_seen:
+					continue
+				_cut_seen.append(e.clip)
 				var who := b.unit(e.id)
-				await CutIn.pop(app, e.src, e.name, Battle.name_of(who), who.elem).finished
+				await CutIn.pop(app, who.get("hero", who.key), e.clip, e.name, Battle.name_of(who), who.elem).finished
 				if not is_inside_tree():
 					return
 			"step":

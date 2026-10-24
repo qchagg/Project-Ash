@@ -1,6 +1,7 @@
 class_name CharacterView
 extends Control
-## The hero out of the card: full art drifting over their element's backdrop, name, title and lore.
+## The hero out of the card: full art drifting over their element's backdrop, name, title and lore. A hero with faces
+## (see Bust) is alive here: the zoom rail's face end is their live bust, and tapping them gets a line.
 ## The first page of a hero: the sheet sits one scroll below. Tags float their details on tap. A painted regional background can slot in under the backdrop.
 
 const MODE := "four"
@@ -18,6 +19,9 @@ var _t := 0.0
 ## 0 shows the whole figure, 1 closes in on the face; the rail on the right sets it.
 var _zoom := 0.0
 var _rail: Control
+## The live bust, for a hero with faces; the rail crossfades it with the full figure.
+var _bust: Bust
+var _speech: Speech
 
 signal down_requested
 
@@ -39,7 +43,7 @@ func _ready() -> void:
 		_full_info = h.full
 		_full = load(h.full.src)
 	# Heroes with a full-body cutout open wide; a square portrait opens close, as it always has.
-	_zoom = app.zoom.get(hero, 0.0 if _full else 1.0)
+	_zoom = app.zoom.get(hero, 0.0 if _full and not Bust.has_faces(hero) else 1.0)
 
 	var bd := Backdrop.new()
 	bd.elem = h.elem
@@ -54,6 +58,12 @@ func _ready() -> void:
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_art.draw.connect(_draw_art)
 	add_child(_art)
+	if Bust.has_faces(hero):
+		_bust = Bust.new().setup(hero)
+		_bust.melt = 0.2
+		_bust.position = Vector2(-115, 150)
+		_bust.size = Vector2(900, 900)
+		add_child(_bust)
 	var motes := Backdrop.new()
 	motes.elem = h.elem
 	motes.glow = false
@@ -61,15 +71,15 @@ func _ready() -> void:
 	add_child(motes)
 
 	# Tapping the art plays the hero's cut-in, when they have one. It sits under the text and buttons.
-	if h.has("cutin"):
+	if _bust:
 		var tap := Button.new()
 		tap.flat = true
 		tap.focus_mode = Control.FOCUS_NONE
 		tap.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		tap.tooltip_text = "Play %s’s cut-in" % h.name
+		tap.tooltip_text = "Talk to %s" % h.name
 		tap.position = Vector2(0, 110)
-		tap.size = Vector2(720, 900)
-		tap.pressed.connect(func(): CutIn.play(app, h.cutin))
+		tap.size = Vector2(640, 760)
+		tap.pressed.connect(_talk)
 		add_child(tap)
 
 	var foot := Forge.margins(MarginContainer.new(), 44, 0, 44, 190)
@@ -96,6 +106,21 @@ func _ready() -> void:
 	add_child(_arrow())
 	_rail = _zoom_rail()
 	add_child(_rail)
+
+
+## The hero says a line while their talk clip plays; the face comes forward first if the figure was showing.
+func _talk() -> void:
+	if is_instance_valid(_speech) or _bust.playing() != "":
+		return
+	if _zoom < 0.5:
+		_zoom = 1.0
+		app.zoom[hero] = _zoom
+		_rail.queue_redraw()
+	var line := Speech.line_for(hero, "greet")
+	if line == "" or not _bust.say():
+		return
+	_speech = Speech.say(self, hero, line)
+	_speech.position = Vector2(80, 790)
 
 
 ## A thin gold line down the right edge with a diamond on it: up closes in on the face, down shows the whole figure.
@@ -237,6 +262,8 @@ func _line(text: String, elem: String) -> Control:
 func _process(delta: float) -> void:
 	_t += delta
 	_art.queue_redraw()
+	if _bust:
+		_bust.modulate.a = smoothstep(0.25, 0.75, _zoom)
 
 
 
@@ -286,7 +313,12 @@ func _draw_full() -> void:
 	var big := size * 2.6
 	var close := Rect2(Vector2(360 + 6.0 * sway, 560) - Vector2(big.x * face[0] / 100.0, big.y * face[1] / 100.0), big)
 	var z := smoothstep(0.0, 1.0, _zoom)
-	_art.draw_texture_rect(_full, Rect2(wide.position.lerp(close.position, z), wide.size.lerp(close.size, z)), false)
+	var tint := Color.WHITE
+	if _bust:
+		# The face end belongs to the live bust: the figure stays wide and fades out as the bust comes in.
+		tint.a = 1.0 - smoothstep(0.25, 0.75, _zoom)
+		z = 0.0
+	_art.draw_texture_rect(_full, Rect2(wide.position.lerp(close.position, z), wide.size.lerp(close.size, z)), false, tint)
 	# The image is cut at the hips: fade it into the ink under the name.
 	var a := 1560.0 * 0.55
 	var b := 1560.0 * 0.78

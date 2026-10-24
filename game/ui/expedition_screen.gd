@@ -316,6 +316,7 @@ func _go(p: Vector2i) -> void:
 			var share := run.rest(lvl)
 			_event("node_rest", "camp", 0, func(v: VBoxContainer):
 				v.add_child(_para("The squad makes camp. Everyone still standing heals %d%% of their health." % roundi(share * 100)))
+				_camp_talk(v)
 				if lvl < Town.BUILDINGS.infirmary.max:
 					v.add_child(_note("A higher Infirmary in the town makes camps heal more."))
 				v.add_child(_party_row()))
@@ -342,6 +343,27 @@ func _go(p: Vector2i) -> void:
 # ---------- what happens at a node ----------
 
 ## A panel over the screen for a node's event; the studs button closes it.
+## Someone at the fire says something: a living squad member with a face and camp lines, at random.
+func _camp_talk(v: VBoxContainer) -> void:
+	var who := []
+	for uid in app.col.squad:
+		var key: String = app.col.by(uid).hero
+		if app.run.health(uid) > 0.0 and Bust.has_faces(key) and Speech.line_for(key, "camp") != "":
+			who.append(key)
+	if who.is_empty():
+		return
+	var key: String = who.pick_random()
+	var row := Forge.hbox(10)
+	v.add_child(row)
+	var bust := Bust.new().setup(key)
+	bust.melt = 0.3
+	bust.custom_minimum_size = Vector2(200, 200)
+	row.add_child(bust)
+	var line := Speech.say(row, key, Speech.line_for(key, "camp"), 310.0, true)
+	line.size_flags_vertical = SIZE_SHRINK_CENTER
+	bust.say.call_deferred()
+
+
 func _event(icon_name: String, heading: String, rarity: int, fill: Callable, close_text := "go on") -> void:
 	var shade := Control.new()
 	shade.mouse_filter = Control.MOUSE_FILTER_STOP

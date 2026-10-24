@@ -4,7 +4,7 @@ extends Control
 ## The nav (Heroes · Expedition · Town) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.45"
+const VERSION := "v0.46"
 
 var col := Collection.new()
 ## The town between expeditions; kept for the session while you move between tabs.
@@ -23,6 +23,7 @@ var _screen: Control
 
 func _ready() -> void:
 	Forge.setup()
+	Clips.fetch_all(self)
 	_showcase()
 	var bg := ColorRect.new()
 	bg.color = Forge.INK

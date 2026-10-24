@@ -51,11 +51,18 @@ const HEROES := [
 	{"key": "ilse", "favored": ["lore", "charm"], "bio": "Tide chantress of Jaladesh, once cursed as a sea-witch.", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
 		"max_hp": 850, "atk": 95, "def": 50, "spd": 88, "r": 2, "c": 2,
 		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "eyes": [51, 45], "chin": 56, "crops": {"face": [35.5, 30.5, 29.5], "squad": [36, 30.5, 29.5], "tile": [29.5, 30.5, 30]}}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
-		"cutin": "res://art/video/ilse-wave.ogv", "celebrate": "res://art/video/ilse-celebrate.ogv",
+		"faces": {"still": "res://art/faces/varuni.webp", "idle": ["varuni-idle1", "varuni-idle2"], "talk": ["varuni-talk1"], "chant": ["varuni-spell1"]},
+		"lines": {
+			"greet": ["The ports used to hang lamps for me. I liked it better when they cursed me; it was quieter.",
+				"You called. The tide always answers, eventually. I am usually faster.",
+				"Stand still. You are dripping on my patience."],
+			"camp": ["Sleep. I will keep watch. The dark is only water without a shore.",
+				"Drink something. Wounds close faster in a body that is not dry.",
+				"Someone hum, please. The quiet out here is far too loud."]},
 		"home": "jaladesh",
 		"lore": "For years the delta ports sang of Varuni as a sea-witch: the chantress who called the tide down on a settler warship and drowned every man aboard. The songs never said what that ship was chasing. Three boats of refugees, fleeing the colonists who had burned their villages, slipped through the storm she raised and reached the mangroves alive. When the survivors' children finally told the truth, the same ports that had cursed her name hung lotus lamps along the water for her. By then she was gone again. Varuni has no use for being celebrated; she prefers the deep water, where no one calls her anything at all.", "skills": [
-		{"name": "Riptide", "flavor": "The tide turns wherever she points.", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
-		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "cutin": true, "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
+		{"name": "Riptide", "flavor": "The tide turns wherever she points.", "clip": "varuni-spell3", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
+		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "clip": "varuni-spell2", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
 	# Playable versions of the Basalt Golem and Galeblade foes: same stats and kits, their own keys and art.
 	{"key": "rock", "favored": ["might", "resolve"], "bio": "A mountain that woke up, and has not yet decided whether it likes people.", "name": "Basalt", "title": "Living Mountain", "elem": "earth", "range": "melee",
 		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 2,

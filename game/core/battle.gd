@@ -626,9 +626,9 @@ func perform(u: Dictionary, a: Dictionary, r: int, c: int, links: int, ctx: Vari
 		return
 	# Who acts, for a screen to show them moving (a lunge, a cast) before the action lands.
 	events.append({"t": "act", "id": u.id, "kind": a.kind, "range": a.get("range", u.get("range", "ranged"))})
-	# A hero's signature skill plays their cut-in before it lands.
-	if a.get("is_skill", false) and a.get("cutin", false) and u.has("cutin"):
-		events.append({"t": "cutin", "src": u.cutin, "id": u.id, "name": a.name})
+	# A skill with a clip plays it as the hero's cut-in before it lands.
+	if a.get("is_skill", false) and a.has("clip"):
+		events.append({"t": "cutin", "clip": a.clip, "id": u.id, "name": a.name})
 	if a.kind == "guard":
 		u.st.guard = true
 		_flash(u.side, u.r, u.c)
