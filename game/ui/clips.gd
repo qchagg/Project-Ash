@@ -63,15 +63,18 @@ static func _next() -> void:
 	if _queue.is_empty():
 		return
 	var c: String = _queue[0]
-	_http.download_file = CACHE + c + ".part"
 	if _http.request(_base + c + ".ogv") != OK:
 		_queue.pop_front()
 		_next()
 
 
-static func _arrived(result: int, code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
+static func _arrived(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	var c: String = _queue.pop_front()
-	if result == HTTPRequest.RESULT_SUCCESS and code == 200:
-		DirAccess.rename_absolute(CACHE + c + ".part", CACHE + c + ".ogv")
-		_ready_set[c] = true
+	# The web build's HTTPRequest ignores download_file, so the clip is written here, whole, before it counts.
+	if result == HTTPRequest.RESULT_SUCCESS and code == 200 and body.size() > 0:
+		var f := FileAccess.open(CACHE + c + ".ogv", FileAccess.WRITE)
+		if f:
+			f.store_buffer(body)
+			f.close()
+			_ready_set[c] = true
 	_next()

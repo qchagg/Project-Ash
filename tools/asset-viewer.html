@@ -1,0 +1,242 @@
+<title>Ashgrid Asset Viewer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;800&family=Alegreya+Sans:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+/* Layout: a darkroom contact sheet. One character at a time in sections (face, body, card), or the whole cast in a
+   line-up of one kind of asset; anything pinned rises into a compare tray at the foot, all at one height. */
+:root {
+  --ink: #16130f;        /* the game's page ink: tiles show art exactly as the game lays it */
+  --plate: #211c16;
+  --line: #3a3025;
+  --parchment: #eadcbf;
+  --dim: #9c8c72;
+  --gold: #d9b45f;
+  --on: #8fc46a;
+  --off: #e0735a;
+  --unsure: #d9b45f;
+  --sc: "Alegreya Sans SC", "Alegreya Sans", Georgia, serif;
+  --sans: "Alegreya Sans", "Trebuchet MS", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+body { background: var(--ink); color: var(--parchment); font: 17px/1.45 var(--sans); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 140px; max-width: 1400px; margin: 0 auto; display: grid; gap: 22px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 22px; }
+h1 { font: 800 30px/1 var(--sc); letter-spacing: .06em; text-transform: lowercase; margin: 0; color: var(--gold); }
+.sub { color: var(--dim); font-size: 15px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button, .chip { font: 500 15px/1 var(--sc); letter-spacing: .08em; text-transform: lowercase; color: var(--dim); background: transparent; border: 0; padding: 9px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--plate); color: var(--gold); }
+.chip { border: 1px solid var(--line); border-radius: 999px; display: inline-flex; gap: 8px; align-items: center; }
+.chip[aria-pressed="true"] { border-color: var(--gold); color: var(--parchment); background: var(--plate); }
+.chip small { font: 500 12px var(--sans); color: var(--dim); letter-spacing: 0; }
+button:focus-visible, textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+section { display: grid; gap: 12px; }
+h2 { font: 500 18px/1 var(--sc); letter-spacing: .14em; text-transform: lowercase; color: var(--dim); margin: 6px 0 0; display: flex; gap: 10px; align-items: center; }
+h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.tile { background: var(--plate); border: 1px solid var(--line); border-radius: 6px; display: grid; width: min(var(--w), 100%); min-width: 0; }
+.tile.pinned { border-color: var(--gold); }
+.art { height: var(--h); display: grid; place-items: center; background: var(--ink); border-radius: 6px 6px 0 0; overflow: hidden; }
+.art img, .art video { max-height: 100%; max-width: 100%; display: block; }
+.foot { padding: 10px 12px 12px; display: grid; gap: 8px; }
+.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.name { font: 500 15px/1.2 var(--sc); letter-spacing: .06em; text-transform: lowercase; flex: 1; min-width: 0; }
+.v { font: 500 13px/1 var(--sans); padding: 6px 8px; border-radius: 4px; border: 1px solid var(--line); background: transparent; color: var(--dim); cursor: pointer; }
+.v[data-v="on"][aria-pressed="true"] { color: var(--ink); background: var(--on); border-color: var(--on); }
+.v[data-v="off"][aria-pressed="true"] { color: var(--ink); background: var(--off); border-color: var(--off); }
+.v[data-v="unsure"][aria-pressed="true"] { color: var(--ink); background: var(--unsure); border-color: var(--unsure); }
+.pin { margin-left: auto; }
+textarea { width: 100%; resize: vertical; min-height: 34px; font: 400 14px/1.35 var(--sans); color: var(--parchment); background: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+textarea::placeholder { color: var(--dim); }
+.who { font-size: 12px; color: var(--dim); }
+.empty { color: var(--dim); font-style: italic; }
+.tray { position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--plate) 94%, transparent); border-top: 1px solid var(--gold); padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 10px; backdrop-filter: blur(8px); }
+.tray .strip { display: flex; gap: 12px; overflow-x: auto; align-items: flex-end; }
+.tray figure { margin: 0; display: grid; gap: 4px; flex: none; }
+.tray figure .art { height: var(--ch); border-radius: 4px; background: var(--ink); }
+.tray figcaption { font: 500 13px var(--sc); letter-spacing: .06em; color: var(--dim); text-transform: lowercase; }
+.tray input[type=range] { accent-color: var(--gold); width: 140px; }
+.status { font-size: 13px; color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>asset viewer</h1>
+    <span class="sub" id="count"></span>
+    <span class="status" id="status">Notes are saved for everyone who opens this page.</span>
+  </header>
+  <div class="bar">
+    <div class="seg" role="group" aria-label="View">
+      <button id="v-char" aria-pressed="true">by character</button>
+      <button id="v-line" aria-pressed="false">line-up</button>
+    </div>
+  </div>
+  <div class="bar" id="picker"></div>
+  <main id="main"></main>
+</div>
+<div class="tray" id="tray" hidden>
+  <div class="row">
+    <span class="name">compare · same height</span>
+    <label class="who" for="ch">height</label>
+    <input type="range" id="ch" min="160" max="520" value="300">
+    <button class="v" id="clear">clear</button>
+  </div>
+  <div class="strip" id="strip"></div>
+</div>
+
+<script>
+const CHARS = /*MANIFEST*/null;
+const SLOTS = [["face", "faces"], ["body", "body"], ["card", "card art"], ["other", "other"]];
+const LINEUPS = [["face-blank", "face still"], ["sprite", "battle sprite"], ["full-cutout", "full body"], ["blank", "card art"], ["face-idle1", "idle clip"], ["face-talk1", "talk clip"]];
+const byId = {};
+CHARS.forEach(c => c.assets.forEach(a => { a.char = c; byId[a.id] = a; }));
+let mode = "char", pick = CHARS[0]?.key, line = "face-blank";
+let notes = {};           // asset id → {verdict, note}
+let db = null;
+const pinned = [];
+try { const s = JSON.parse(localStorage.getItem("ash-viewer") || "{}"); mode = s.mode || mode; pick = byIdChar(s.pick) ? s.pick : pick; line = s.line || line; } catch (e) {}
+function byIdChar(k) { return CHARS.find(c => c.key === k); }
+function remember() { try { localStorage.setItem("ash-viewer", JSON.stringify({mode, pick, line})); } catch (e) {} }
+const docId = id => id.replace(/\//g, "__");
+const $ = s => document.querySelector(s);
+const el = (tag, props = {}, ...kids) => { const n = Object.assign(document.createElement(tag), props); kids.forEach(k => k && n.append(k)); return n; };
+
+document.getElementById("count").textContent = `${CHARS.length} characters · ${Object.keys(byId).length} pieces`;
+
+function media(a, h) {
+  const box = el("div", {className: "art"});
+  box.style.setProperty("--h", h + "px");
+  if (a.type === "video") {
+    const v = el("video", {muted: true, loop: true, autoplay: true, playsInline: true},
+      el("source", {src: a.file.replace(/\.mp4$/, ".webm"), type: "video/webm"}), el("source", {src: a.file, type: "video/mp4"}));
+    v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
+    v.setAttribute("aria-label", `${a.char.name}, ${a.label}`);
+    box.append(v);
+  } else {
+    box.append(el("img", {src: a.file, alt: `${a.char.name}, ${a.label}`, loading: "lazy"}));
+  }
+  return box;
+}
+
+function tile(a, h, caption) {
+  const n = notes[a.id] || {};
+  const w = Math.round(h * a.w / a.h);
+  const t = el("article", {className: "tile" + (pinned.includes(a.id) ? " pinned" : "")});
+  t.style.setProperty("--w", Math.max(w, 230) + "px");
+  t.append(media(a, h));
+  const foot = el("div", {className: "foot"});
+  const top = el("div", {className: "row"}, el("span", {className: "name", textContent: caption || a.label}));
+  const pin = el("button", {className: "v pin", textContent: pinned.includes(a.id) ? "unpin" : "compare"});
+  pin.onclick = () => { togglePin(a.id); };
+  top.append(pin);
+  const verdicts = el("div", {className: "row"});
+  [["on", "on model"], ["off", "off model"], ["unsure", "not sure"]].forEach(([v, label]) => {
+    const b = el("button", {className: "v", textContent: label});
+    b.dataset.v = v;
+    b.setAttribute("aria-pressed", n.verdict === v ? "true" : "false");
+    b.onclick = () => save(a.id, {verdict: n.verdict === v ? "" : v});
+    verdicts.append(b);
+  });
+  const ta = el("textarea", {id: "note-" + docId(a.id), placeholder: "What looks off? (hair, eyes, outfit, framing)", value: n.note || "", rows: 1});
+  ta.onchange = () => save(a.id, {note: ta.value.trim()});
+  foot.append(top, verdicts, ta);
+  t.append(foot);
+  return t;
+}
+
+function render() {
+  remember();
+  $("#v-char").setAttribute("aria-pressed", mode === "char");
+  $("#v-line").setAttribute("aria-pressed", mode === "line");
+  const picker = $("#picker"), main = $("#main");
+  picker.replaceChildren(); main.replaceChildren();
+  if (mode === "char") {
+    CHARS.forEach(c => {
+      const b = el("button", {className: "chip"}, c.name, el("small", {textContent: c.assets.length}));
+      b.setAttribute("aria-pressed", c.key === pick);
+      b.onclick = () => { pick = c.key; render(); };
+      picker.append(b);
+    });
+    const c = byIdChar(pick);
+    SLOTS.forEach(([k, title]) => {
+      const list = c.assets.filter(a => a.kind === k);
+      if (!list.length) return;
+      const g = el("div", {className: "grid"});
+      list.forEach(a => g.append(tile(a, k === "face" ? 260 : 320)));
+      main.append(el("section", {}, el("h2", {textContent: title}), g));
+    });
+  } else {
+    LINEUPS.forEach(([k, label]) => {
+      const b = el("button", {className: "chip", textContent: label});
+      b.setAttribute("aria-pressed", k === line);
+      b.onclick = () => { line = k; render(); };
+      picker.append(b);
+    });
+    const g = el("div", {className: "grid"});
+    const missing = [];
+    CHARS.forEach(c => {
+      const a = byId[`${c.key}/${line}`];
+      if (a) g.append(tile(a, line.startsWith("face") ? 260 : 340, c.name)); else missing.push(c.name);
+    });
+    main.append(el("section", {}, el("h2", {textContent: LINEUPS.find(l => l[0] === line)[1] + " · the whole cast"}), g));
+    if (missing.length) main.append(el("p", {className: "empty", textContent: "Not uploaded yet: " + missing.join(", ")}));
+  }
+  renderTray();
+}
+
+function togglePin(id) {
+  const i = pinned.indexOf(id);
+  if (i >= 0) pinned.splice(i, 1); else { pinned.push(id); if (pinned.length > 6) pinned.shift(); }
+  render();
+}
+
+function renderTray() {
+  const tray = $("#tray");
+  tray.hidden = pinned.length === 0;
+  const h = +$("#ch").value;
+  const strip = $("#strip");
+  strip.replaceChildren();
+  strip.style.setProperty("--ch", h + "px");
+  pinned.forEach(id => {
+    const a = byId[id];
+    const box = media(a, h);
+    box.style.width = Math.round(h * a.w / a.h) + "px";
+    strip.append(el("figure", {}, box, el("figcaption", {textContent: `${a.char.name} · ${a.label}`})));
+  });
+  document.querySelector(".wrap").style.paddingBottom = pinned.length ? (h + 120) + "px" : "";
+}
+if (innerWidth < 640) $("#ch").value = 170;
+$("#ch").oninput = renderTray;
+$("#clear").onclick = () => { pinned.length = 0; render(); };
+$("#v-char").onclick = () => { mode = "char"; render(); };
+$("#v-line").onclick = () => { mode = "line"; render(); };
+
+async function save(id, patch) {
+  notes[id] = Object.assign({}, notes[id], patch);
+  render();
+  if (!db) { $("#status").textContent = "Sign in to claude.ai to save notes; this one is only on this screen."; return; }
+  try {
+    await db.collection("notes").doc(docId(id)).set({asset: id, verdict: notes[id].verdict || "", note: notes[id].note || "", at: Date.now()});
+    $("#status").textContent = "Saved.";
+  } catch (e) {
+    $("#status").textContent = "Couldn't save that note (" + (e.code || e.message) + "). It stays on this screen until you reload.";
+  }
+}
+
+render();
+(async () => {
+  db = await window.claude?.use?.("db") ?? null;
+  if (!db) { $("#status").textContent = "Notes can't be saved here; sign in to claude.ai to keep them."; return; }
+  db.collection("notes").onSnapshot(snap => {
+    const next = {};
+    snap.docs.forEach(d => { const x = d.data(); if (x.asset) next[x.asset] = {verdict: x.verdict, note: x.note}; });
+    const focused = document.activeElement?.tagName === "TEXTAREA";
+    notes = next;
+    if (!focused) render();
+  });
+})();
+</script>
