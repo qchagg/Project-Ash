@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ART = ROOT / "art"
 GAME = ROOT / "game"
 ALIASES = {"fox": "surya", "kaede": "surya", "ilse": "varuni", "mermaid": "varuni", "leaf": "galeblade",
-    "rock": "basalt", "caller": "tidecaller"}
+    "rock": "basalt", "caller": "tidecaller", "newcomer": "snake"}
 # The game's key for each character who is already in it.
 KEYS = {"surya": "kaede", "varuni": "ilse", "brann": "brann", "sorrel": "sorrel", "galeblade": "leaf", "basalt": "rock",
     "tidecaller": "caller", "seer": "seer", "golem": "golem"}

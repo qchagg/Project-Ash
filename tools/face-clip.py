@@ -39,13 +39,16 @@ def key(rgb, ch=1):
     a = 1.0 - np.clip((over - SOFT) / (HARD - SOFT), 0.0, 1.0)
     a = ndimage.gaussian_filter(a, 0.6)
     a[a < 0.04] = 0.0
-    # Despill: the key channel never rises above the others, so green fringes turn neutral (or teal, on water).
+    # Despill where the backdrop can reach: see-through parts and a few pixels in from every edge. There the key
+    # channel never rises above the others, so fringes turn neutral (or teal, on water); solid green inside the
+    # figure (beads, trim) keeps its colour.
+    near = ndimage.binary_dilation(a < 0.98, iterations=3)
     if ch == 1:
-        g = np.minimum(g, np.maximum(r, b))
+        g = np.where(near, np.minimum(g, np.maximum(r, b)), g)
     else:
         lim = g + np.maximum(0, over)
-        r = np.minimum(r, np.maximum(g, lim * 0.5))
-        b = np.minimum(b, np.maximum(g, lim * 0.5))
+        r = np.where(near, np.minimum(r, np.maximum(g, lim * 0.5)), r)
+        b = np.where(near, np.minimum(b, np.maximum(g, lim * 0.5)), b)
     out = np.stack([r, g, b], -1)
     # Fill the clear parts with the nearest solid colour.
     solid = a > 0.5

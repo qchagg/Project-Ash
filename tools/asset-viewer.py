@@ -20,10 +20,10 @@ ART = ROOT / "art"
 GAME = ROOT / "game" / "art"
 INK = "0x16130f"
 # The order the cast is shown in; anyone else follows, by name.
-CAST = ["surya", "brann", "sorrel", "varuni", "basalt", "galeblade", "tidecaller", "seer", "golem", "newcomer"]
+CAST = ["surya", "brann", "sorrel", "varuni", "basalt", "galeblade", "tidecaller", "seer", "golem", "snake", "smoke"]
 KEYS = {"surya": "kaede", "varuni": "ilse", "galeblade": "leaf", "basalt": "rock", "tidecaller": "caller"}
 NAMES = {"surya": "Surya", "brann": "Brann", "sorrel": "Sorrel", "varuni": "Varuni", "basalt": "Basalt",
-    "galeblade": "Galeblade", "tidecaller": "Tidecaller", "seer": "Seer", "golem": "Basalt Golem", "newcomer": "Newcomer"}
+    "galeblade": "Galeblade", "tidecaller": "Tidecaller", "seer": "Seer", "golem": "Basalt Golem", "snake": "Snake", "smoke": "Smoke"}
 
 
 def stale(src, dst):

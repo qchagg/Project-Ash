@@ -30,11 +30,15 @@ static func ready(clip: String) -> bool:
 	return ResourceLoader.exists(DIR + clip + ".ogv") or _ready_set.has(clip)
 
 
-## Every clip the heroes name, idles first, then talk, then skills.
+## Every clip the game's heroes name, idles first, then talk, then skills.
 static func wanted() -> Array[String]:
 	var out: Array[String] = []
 	for kind in ["idle", "talk", "skills", "chant", "other"]:
-		for f in Faces.FACES.values():
+		for key in Faces.FACES:
+			# Faces of characters who aren't in the game yet wait in the Asset Viewer.
+			if Data.hero(key).is_empty():
+				continue
+			var f: Dictionary = Faces.FACES[key]
 			var v: Variant = f.get(kind, [])
 			for c in (v if v is Array else [v]):
 				if c != "" and c not in out:
