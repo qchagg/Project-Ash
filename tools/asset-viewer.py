@@ -76,7 +76,7 @@ def kind_of(rest):
 def label_of(rest):
     names = {"face-blank": "face · still", "blank": "card art", "bg": "card art, painted ground", "sprite": "battle sprite",
         "full-cutout": "full body", "cutout": "cutout", "full-chat": "full body, chat pose", "body-idle": "battle sprite (new)",
-        "body-movement": "battle idle (new)", "sprite-old": "battle sprite (old)"}
+        "body-movement": "battle idle (new)", "card": "card art (new)", "sprite-old": "battle sprite (old)"}
     if rest in names:
         return names[rest]
     m = re.fullmatch(r"face-([a-z]+?)(\d*)", rest)
@@ -114,7 +114,8 @@ def build(out):
                 a.update(type="video", file=f"media/{c}/{rest}.mp4", w=360, h=360)
             elif ext in (".png", ".webp", ".jpg", ".jpeg"):
                 # A face still shows keyed, as the game has it.
-                keyed = {"face-blank": GAME / "faces" / f"{c}.webp", "body-idle": GAME / "sprites" / f"{c}.webp"}.get(rest)
+                keyed = {"face-blank": GAME / "faces" / f"{c}.webp", "body-idle": GAME / "sprites" / f"{c}.webp",
+                    "card": GAME / "cards" / f"{c}.webp"}.get(rest)
                 use = keyed if keyed and keyed.exists() else src
                 dst = media / c / f"{rest}.webp"
                 w, h = image(use, dst)

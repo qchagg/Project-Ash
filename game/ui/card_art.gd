@@ -1,6 +1,7 @@
 class_name CardArt
 extends Control
 ## A hero's portrait in its tier frame, with the element sigil. Name plates sit below it, never on it.
+## A hero with keyed card art (Faces.CARDS) stands in their element's glow instead, full height, centred on the figure.
 
 var hero := ""
 var stars := 1
@@ -13,14 +14,17 @@ var overlay := Callable()
 ## How far the card floats and sways on its idle drift (0 keeps it still).
 var drift := 1.0
 var _tex: Texture2D
+var _card := {}
 var _t := 0.0
+static var _glow: GradientTexture2D
 
 
 func setup(hero_key: String, star_count: int) -> CardArt:
 	hero = hero_key
 	stars = star_count
 	var h := Data.hero(hero)
-	_tex = load(h.portrait.src)
+	_card = Faces.CARDS.get(hero, {})
+	_tex = load(_card.src if _card else h.portrait.src)
 	_t = float(hash(hero) % 1000) / 100.0
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	queue_redraw()
@@ -45,7 +49,10 @@ func _draw() -> void:
 	if showcase:
 		draw_rect(Rect2(r.position + Vector2(18, 18), r.size), Color(0, 0, 0, 0.55))
 	draw_rect(r, Color("#1f1812"))
-	Forge.portrait(self, _tex, r.grow(-3), h.portrait, 0.62, "card")
+	if _card:
+		_draw_card(r.grow(-3), h.elem)
+	else:
+		Forge.portrait(self, _tex, r.grow(-3), h.portrait, 0.62, "card")
 	Forge.card_frame(self, r, stars, h.elem, _t)
 	if stars == 3:
 		# 3★: a slow gold comet round the frame; 4★ wears the full turning rim.
@@ -63,6 +70,29 @@ func _draw() -> void:
 		_sparkles(r)
 	if overlay.is_valid():
 		overlay.call(self)
+
+
+## Keyed card art: a dark ground lit from behind in the element's colour, then the figure at full height, cropped
+## to the card around its centre.
+func _draw_card(r: Rect2, elem: String) -> void:
+	if not _glow:
+		_glow = GradientTexture2D.new()
+		_glow.fill = GradientTexture2D.FILL_RADIAL
+		_glow.fill_from = Vector2(0.5, 0.5)
+		_glow.fill_to = Vector2(0.5, 0.0)
+		var g := Gradient.new()
+		g.set_color(0, Color.WHITE)
+		g.set_color(1, Color(1, 1, 1, 0))
+		_glow.gradient = g
+	var col: Color = Forge.ELEM[elem]
+	draw_rect(r, col.darkened(0.82))
+	var pulse := 0.06 * sin(_t * TAU / 5.0)
+	draw_texture_rect(_glow, Rect2(r.position + Vector2(-0.35, -0.15) * r.size, r.size * Vector2(1.7, 1.2)), false, Color(col, 0.42 + pulse))
+	var ts := _tex.get_size()
+	var rh := ts.y
+	var rw := minf(ts.x, rh * r.size.x / r.size.y)
+	var x := clampf(ts.x * _card.cx - rw / 2, 0.0, ts.x - rw)
+	draw_texture_rect_region(_tex, r, Rect2(x, 0, rw, rh))
 
 
 ## Four-point sparkles on the frame, each fading in and out on its own beat, like the Gilded Forge menus.

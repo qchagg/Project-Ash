@@ -13,7 +13,8 @@ Upload anywhere under art/ (the root is fine) and run:
    (tools/face-clip.py); other `-face-<mood>.png` stills become expressions. Only what changed is rebuilt.
 3. Bodies: `<character>-body-<pose>.png` (a still, `idle` first) and `<character>-body-<pose>.mp4` (its loop) become the
    battle sprite game/art/sprites/<character>.webp and its frame sheet <character>-idle.webp (tools/body-clip.py).
-4. Writes game/core/faces.gd, the table the game reads (see Faces).
+4. Cards: `<character>-card.png` (the hero on green, for the phone build's cards) is keyed into game/art/cards/.
+5. Writes game/core/faces.gd, the table the game reads (see Faces).
 """
 import os
 import re
@@ -55,7 +56,9 @@ def sort():
         if folder == "sprites":
             char = ALIASES.get(head, head)
             rest = "sprite" + ("-" + rest if rest else "")
-        elif ALIASES.get(head, head) in KEYS or ALIASES.get(head, head) == ALIASES.get(folder, folder) or not folder:
+        elif (ALIASES.get(head, head) in KEYS or ALIASES.get(head, head) == ALIASES.get(folder, folder) or not folder
+                or (ART / ALIASES.get(head, head)).is_dir()):
+            # The name says whose it is, even when it was dropped in someone else's folder.
             char = ALIASES.get(head, head)
         else:
             char = ALIASES.get(folder, folder)
@@ -103,9 +106,26 @@ def body(d, char):
     return {"src": f"res://art/sprites/{char}.webp", "anim": anim}
 
 
+def card(d, char):
+    """The keyed card art and where the figure stands across it (its centre, 0..1), or None."""
+    src = next((p for p in sorted(d.glob(f"{char}-card.*")) if p.suffix in (".png", ".webp", ".jpg")), None)
+    if not src:
+        return None
+    out = GAME / "art" / "cards" / f"{char}.webp"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if stale(src, out):
+        subprocess.run([sys.executable, str(ROOT / "tools" / "face-clip.py"), "still", str(src), str(out)], check=True)
+    from PIL import Image
+    import numpy as np
+    a = np.asarray(Image.open(out))[..., 3].astype(float)
+    cx = float((a.sum(0) * np.arange(a.shape[1])).sum() / max(a.sum(), 1) / a.shape[1])
+    return {"src": f"res://art/cards/{char}.webp", "cx": round(cx, 3)}
+
+
 def build():
     faces = {}
     bodies = {}
+    cards = {}
     tool = ROOT / "tools" / "face-clip.py"
     for d in sorted(p for p in ART.iterdir() if p.is_dir() and p.name != "_trash"):
         char = d.name
@@ -131,6 +151,9 @@ def build():
         b = body(d, char)
         if b:
             bodies[KEYS.get(char, char)] = b
+        c = card(d, char)
+        if c:
+            cards[KEYS.get(char, char)] = c
     lines = ['## Made by tools/organize-art.py from the art/ folder; run it again rather than editing this by hand.',
         "## Each character's live face: the still, the clips by kind, the clip for each skill slot and the evolve chant.",
         "class_name Faces", "extends RefCounted", "", "const FACES := {"]
@@ -152,6 +175,10 @@ def build():
     for key, b in bodies.items():
         lines.append(f'\t"{key}": {{"src": "{b["src"]}", "anim": {{' + ", ".join(
             f'"{k}": {gd(v) if isinstance(v, str) else v}' for k, v in b["anim"].items()) + "}},")
+    lines += ["}", "", "## Keyed card art, by game key: the phone build's cards show it over the element's glow, centred on the",
+        "## figure (`cx`, its centre across the image).", "const CARDS := {"]
+    for key, c in cards.items():
+        lines.append(f'\t"{key}": {{"src": "{c["src"]}", "cx": {c["cx"]}}},')
     lines += ["}", "", "", "## The face of a hero (by game key), or {} if they have none yet.",
         "static func of(key: String) -> Dictionary:", "\treturn FACES.get(key, {})", "", "",
         "## The clip a hero's skill plays as its cut-in (by slot: s0, s1), or \"\".",

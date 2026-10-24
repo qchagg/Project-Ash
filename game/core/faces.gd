@@ -14,7 +14,15 @@ const FACES := {
 
 ## Battle sprites built from body uploads, by game key: they replace the src and idle in Data.SPRITES.
 const BODIES := {
+	"smoke": {"src": "res://art/sprites/smoke.webp", "anim": {"w": 407, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/smoke-idle.webp"}},
 	"kaede": {"src": "res://art/sprites/surya.webp", "anim": {"w": 301, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/surya-idle.webp"}},
+}
+
+## Keyed card art, by game key: the phone build's cards show it over the element's glow, centred on the
+## figure (`cx`, its centre across the image).
+const CARDS := {
+	"brann": {"src": "res://art/cards/brann.webp", "cx": 0.453},
+	"ilse": {"src": "res://art/cards/varuni.webp", "cx": 0.521},
 }
 
 
