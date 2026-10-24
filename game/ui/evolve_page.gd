@@ -406,9 +406,8 @@ func _unique(list: Array) -> Array:
 
 
 func _celebrate() -> void:
-	var h := Data.hero(hero)
-	if h.has("faces"):
-		CutIn.play(app, hero, h.faces.chant[0])
+	if Faces.of(hero).get("chant", "") != "":
+		CutIn.play(app, hero, Faces.of(hero).chant)
 
 
 func _changed() -> void:

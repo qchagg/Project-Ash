@@ -852,9 +852,8 @@ func _b_ground_limits() -> Array:
 ## Every clip and still a hero names is in the project, so a face never asks for art that isn't there.
 func _faces_exist() -> Array:
 	var missing := []
-	for h in Data.HEROES:
-		var f: Dictionary = h.get("faces", {})
-		if f.has("still") and not ResourceLoader.exists(f.still):
+	for f in Faces.FACES.values():
+		if not ResourceLoader.exists(f.still):
 			missing.append(f.still)
 	for c in Clips.wanted():
 		if not ResourceLoader.exists(Clips.DIR + c + ".ogv"):

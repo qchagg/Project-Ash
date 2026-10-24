@@ -43,13 +43,13 @@ var _wait := 0.0
 
 func setup(hero_key: String) -> Bust:
 	hero = hero_key
-	_faces = Data.hero(hero).get("faces", {})
+	_faces = Faces.of(hero)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return self
 
 
 static func has_faces(hero_key: String) -> bool:
-	return not Data.hero(hero_key).get("faces", {}).is_empty()
+	return not Faces.of(hero_key).is_empty()
 
 
 func _ready() -> void:
@@ -86,7 +86,8 @@ func idle() -> void:
 
 ## Talks once (a random talk clip), then idles. False if no talk clip is ready.
 func say() -> bool:
-	return play(_faces.get("talk", []).pick_random() if _faces.has("talk") else "")
+	var talk: Array = _faces.get("talk", [])
+	return play("" if talk.is_empty() else talk.pick_random())
 
 
 ## Plays one clip, then idles. False if it isn't ready (the bust carries on as it was).

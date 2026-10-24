@@ -31,14 +31,28 @@ const HEROES := [
 		"max_hp": 820, "atk": 150, "def": 40, "spd": 92, "r": 1, "c": 1,
 		"portrait": {"src": "res://art/portraits/kaede.webp", "eyes": [60, 43.5], "chin": 68.5, "crops": {"face": [26, 10, 63.5], "squad": [21.5, 7.5, 66.5], "tile": [7, 6, 68.5]}}, "full": {"src": "res://art/full/kaede.webp", "x": 65, "w": 1.5, "face": [69, 26]},
 		"home": "marusthal",
-		"lore": "Surya came to the court of Marusthal as a hostage, a fox-eared boy from a burned oasis, kept as a pledge for his family's good behaviour. He learned the palace the way other children learn prayers: which minister drinks, which queen is lonely, which door the guards forget. By twenty he was the most invited man in the city, and no one could say who had invited him first. He has seduced two treasuries, ended three betrothals and started a war of letters between rival rajas without drawing a blade. When charm runs out, there is foxfire. He says he is looking for the men who burned his oasis. He has been saying it for a long time, and he has never said what he will do when he finds them.", "skills": [
+		"lore": "Surya came to the court of Marusthal as a hostage, a fox-eared boy from a burned oasis, kept as a pledge for his family's good behaviour. He learned the palace the way other children learn prayers: which minister drinks, which queen is lonely, which door the guards forget. By twenty he was the most invited man in the city, and no one could say who had invited him first. He has seduced two treasuries, ended three betrothals and started a war of letters between rival rajas without drawing a blade. When charm runs out, there is foxfire. He says he is looking for the men who burned his oasis. He has been saying it for a long time, and he has never said what he will do when he finds them.", "lines": {
+			"greet": ["Every palace has a back door. I just like to be invited through the front first.",
+				"Smile. Rumours travel faster than fire, and I've started both today.",
+				"You look like someone with a plan. Let me improve it."],
+			"camp": ["Stars out here are better than any king's ceiling. I've compared.",
+				"Wake me if anything's worth stealing. Or burning. Either.",
+				"I'll tell you how I got out of Marusthal. Not the true version; the good one."]},
+		"skills": [
 		{"name": "Foxfire Lance", "flavor": "A spear of fox-light, thrown clean through every rank.", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.25, "cd": 2, "fx": {"burn": 2}, "desc": "Spears an entire lane, front to back. Burns for 2 rounds."},
 		{"name": "Ninefold Blaze", "flavor": "He lets the fire off its leash, and it finds everyone.", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.7, "cd": 4, "fx": {"burn": 1}, "desc": "Nine tails of fire hit every enemy tile."}]},
 	{"key": "brann", "favored": ["resolve", "might"], "bio": "The last rider of a broken host, still holding a border no one else remembers.", "name": "Brann", "title": "Eternal Rider", "elem": "earth", "legacy_elem": "water", "range": "melee",
 		"max_hp": 1400, "atk": 100, "def": 95, "spd": 70, "r": 0, "c": 1,
 		"portrait": {"src": "res://art/portraits/brann.webp", "eyes": [56, 43.5], "chin": 74.5, "crops": {"face": [18, 5.5, 72], "squad": [18, 1, 74.5]}}, "full": {"src": "res://art/full/brann.webp", "x": 50, "w": 1.5, "face": [53, 11]},
 		"home": "khorvan",
-		"lore": "Brann rode with the Ninth Host of the Khorvan Steppe, three thousand riders sworn to hold the Ashgate pass. When the pass fell, he was found under his horse with his face laid open from brow to cheek, the only one still breathing. The khans who gave the order are dead, the border has been redrawn twice, and a council he did not attend released the oath. He rides it anyway. Every spring he carves the names of the Ninth into the waystones along the pass, and every spring there is one more stone. Handsome, people say, until they see the scar; then they say it again, more quietly.", "skills": [
+		"lore": "Brann rode with the Ninth Host of the Khorvan Steppe, three thousand riders sworn to hold the Ashgate pass. When the pass fell, he was found under his horse with his face laid open from brow to cheek, the only one still breathing. The khans who gave the order are dead, the border has been redrawn twice, and a council he did not attend released the oath. He rides it anyway. Every spring he carves the names of the Ninth into the waystones along the pass, and every spring there is one more stone. Handsome, people say, until they see the scar; then they say it again, more quietly.", "lines": {
+			"greet": ["The host is gone. The border isn't. Someone has to remember where it is.",
+				"Speak plainly. I've had enough riddles from the dead.",
+				"Point me at it. I'll hold."],
+			"camp": ["Sleep. I've stood longer watches than this one.",
+				"Eat while it's warm. On the old road we learned not to wait.",
+				"My horse would have liked this fire. He liked very little."]},
+		"skills": [
 		{"name": "Rockfall", "flavor": "The mountain answers when he charges.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.4, "cd": 3, "fx": {"stun": 1}, "desc": "Heavy blow to an exposed enemy. Stuns it for its next action."},
 		{"name": "Breakwater", "flavor": "He plants his feet, and the line holds.", "kind": "shield", "pattern": "all", "power": 1.9, "cd": 4, "desc": "Shields every ally. Shields hold until broken."}]},
 	{"key": "sorrel", "favored": ["finesse", "wits"], "bio": "A centaur archer who reads the wind like scripture and rarely needs a second arrow.", "name": "Sorrel", "title": "Gale Archer", "elem": "wind", "range": "ranged",
@@ -51,7 +65,6 @@ const HEROES := [
 	{"key": "ilse", "favored": ["lore", "charm"], "bio": "Tide chantress of Jaladesh, once cursed as a sea-witch.", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
 		"max_hp": 850, "atk": 95, "def": 50, "spd": 88, "r": 2, "c": 2,
 		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "eyes": [51, 45], "chin": 56, "crops": {"face": [35.5, 30.5, 29.5], "squad": [36, 30.5, 29.5], "tile": [29.5, 30.5, 30]}}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
-		"faces": {"still": "res://art/faces/varuni.webp", "idle": ["varuni-idle1", "varuni-idle2"], "talk": ["varuni-talk1"], "chant": ["varuni-spell1"]},
 		"lines": {
 			"greet": ["The ports used to hang lamps for me. I liked it better when they cursed me; it was quieter.",
 				"You called. The tide always answers, eventually. I am usually faster.",
@@ -61,8 +74,8 @@ const HEROES := [
 				"Someone hum, please. The quiet out here is far too loud."]},
 		"home": "jaladesh",
 		"lore": "For years the delta ports sang of Varuni as a sea-witch: the chantress who called the tide down on a settler warship and drowned every man aboard. The songs never said what that ship was chasing. Three boats of refugees, fleeing the colonists who had burned their villages, slipped through the storm she raised and reached the mangroves alive. When the survivors' children finally told the truth, the same ports that had cursed her name hung lotus lamps along the water for her. By then she was gone again. Varuni has no use for being celebrated; she prefers the deep water, where no one calls her anything at all.", "skills": [
-		{"name": "Riptide", "flavor": "The tide turns wherever she points.", "clip": "varuni-spell3", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
-		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "clip": "varuni-spell2", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
+		{"name": "Riptide", "flavor": "The tide turns wherever she points.", "kind": "dmg", "range": "ranged", "pattern": "sweep", "power": 0.95, "cd": 2, "desc": "Washes across a full row."},
+		{"name": "Rain of Renewal", "flavor": "A cool rain that washes away wounds and embers alike.", "kind": "heal", "pattern": "all", "power": 1.6, "cd": 3, "fx": {"cleanse": true}, "desc": "Heals every ally and clears burns."}]},
 	# Playable versions of the Basalt Golem and Galeblade foes: same stats and kits, their own keys and art.
 	{"key": "rock", "favored": ["might", "resolve"], "bio": "A mountain that woke up, and has not yet decided whether it likes people.", "name": "Basalt", "title": "Living Mountain", "elem": "earth", "range": "melee",
 		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 2,

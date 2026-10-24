@@ -33,15 +33,12 @@ static func ready(clip: String) -> bool:
 ## Every clip the heroes name, idles first, then talk, then skills.
 static func wanted() -> Array[String]:
 	var out: Array[String] = []
-	for kind in ["idle", "talk", "chant"]:
-		for h in Data.HEROES:
-			for c in h.get("faces", {}).get(kind, []):
-				if c not in out:
+	for kind in ["idle", "talk", "skills", "chant", "other"]:
+		for f in Faces.FACES.values():
+			var v: Variant = f.get(kind, [])
+			for c in (v if v is Array else [v]):
+				if c != "" and c not in out:
 					out.append(c)
-	for h in Data.HEROES:
-		for s in h.skills:
-			if s.has("clip") and s.clip not in out:
-				out.append(s.clip)
 	return out
 
 
