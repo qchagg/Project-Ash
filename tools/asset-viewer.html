@@ -179,7 +179,8 @@ function render() {
     const g = el("div", {className: "grid"});
     const missing = [];
     CHARS.forEach(c => {
-      const a = byId[`${c.key}/${line}`];
+      // A new body upload stands in for the old sprite in the line-up.
+      const a = (line === "sprite" && byId[`${c.key}/body-idle`]) || byId[`${c.key}/${line}`];
       if (a) g.append(tile(a, line.startsWith("face") ? 260 : 340, c.name)); else missing.push(c.name);
     });
     main.append(el("section", {}, el("h2", {textContent: LINEUPS.find(l => l[0] === line)[1] + " · the whole cast"}), g));

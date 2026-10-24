@@ -11,7 +11,9 @@ Upload anywhere under art/ (the root is fine) and run:
 2. Faces: `<character>-face-<kind><n>.mp4` clips (idle, talk, spell, or anything else) are keyed into
    game/art/clips/<character>-<kind><n>.ogv and `<character>-face-blank.png` into game/art/faces/<character>.webp
    (tools/face-clip.py); other `-face-<mood>.png` stills become expressions. Only what changed is rebuilt.
-3. Writes game/core/faces.gd, the table the game reads (see Faces).
+3. Bodies: `<character>-body-<pose>.png` (a still, `idle` first) and `<character>-body-<pose>.mp4` (its loop) become the
+   battle sprite game/art/sprites/<character>.webp and its frame sheet <character>-idle.webp (tools/body-clip.py).
+4. Writes game/core/faces.gd, the table the game reads (see Faces).
 """
 import os
 import re
@@ -82,8 +84,28 @@ def stale(src, dst):
     return not dst.exists() or dst.stat().st_mtime < src.stat().st_mtime
 
 
+def body(d, char):
+    """The battle sprite and idle sheet from the body uploads, or None. Rebuilt when an upload is newer."""
+    stills = sorted(d.glob(f"{char}-body-*.png"), key=lambda p: ("idle" not in p.stem, p.name))
+    clips = sorted(d.glob(f"{char}-body-*.mp4"), key=lambda p: ("idle" not in p.stem, p.name))
+    if not stills or not clips:
+        return None
+    sprite = GAME / "art" / "sprites" / f"{char}.webp"
+    sheet = GAME / "art" / "sprites" / f"{char}-idle.webp"
+    meta = GAME / "art" / "sprites" / f"{char}-idle.json"
+    if stale(stills[0], sheet) or stale(clips[0], sheet) or not meta.exists():
+        out = subprocess.run([sys.executable, str(ROOT / "tools" / "body-clip.py"), str(stills[0]), str(clips[0]),
+            str(sprite), str(sheet)], check=True, capture_output=True, text=True).stdout
+        meta.write_text(out.strip().splitlines()[-1])
+    import json
+    anim = json.loads(meta.read_text())
+    anim["src"] = f"res://art/sprites/{char}-idle.webp"
+    return {"src": f"res://art/sprites/{char}.webp", "anim": anim}
+
+
 def build():
     faces = {}
+    bodies = {}
     tool = ROOT / "tools" / "face-clip.py"
     for d in sorted(p for p in ART.iterdir() if p.is_dir() and p.name != "_trash"):
         char = d.name
@@ -106,6 +128,9 @@ def build():
                     f["moods"][kind] = f"res://art/faces/{char}{name}.webp"
         if "still" in f:
             faces[char] = f
+        b = body(d, char)
+        if b:
+            bodies[KEYS.get(char, char)] = b
     lines = ['## Made by tools/organize-art.py from the art/ folder; run it again rather than editing this by hand.',
         "## Each character's live face: the still, the clips by kind, the clip for each skill slot and the evolve chant.",
         "class_name Faces", "extends RefCounted", "", "const FACES := {"]
@@ -122,6 +147,11 @@ def build():
             "moods": f["moods"]}
         key = KEYS.get(char, char)
         lines.append(f'\t"{key}": {gd(entry)},')
+    lines += ["}", "", "## Battle sprites built from body uploads, by game key: they replace the src and idle in Data.SPRITES.",
+        "const BODIES := {"]
+    for key, b in bodies.items():
+        lines.append(f'\t"{key}": {{"src": "{b["src"]}", "anim": {{' + ", ".join(
+            f'"{k}": {gd(v) if isinstance(v, str) else v}' for k, v in b["anim"].items()) + "}},")
     lines += ["}", "", "", "## The face of a hero (by game key), or {} if they have none yet.",
         "static func of(key: String) -> Dictionary:", "\treturn FACES.get(key, {})", "", "",
         "## The clip a hero's skill plays as its cut-in (by slot: s0, s1), or \"\".",
@@ -129,6 +159,11 @@ def build():
         "\tvar skills: Array = of(key).get(\"skills\", [])", "\tvar i := slot.substr(1).to_int()",
         "\treturn skills[i] if slot.begins_with(\"s\") and i < skills.size() else \"\"", ""]
     (GAME / "core" / "faces.gd").write_text("\n".join(lines))
+    # Battle sprites import lossy, so the game pack stays small; a new sprite gets that once Godot has imported it.
+    for imp in (GAME / "art" / "sprites").glob("*.webp.import"):
+        t = imp.read_text()
+        if "compress/mode=0" in t:
+            imp.write_text(t.replace("compress/mode=0", "compress/mode=1").replace("lossy_quality=0.7", "lossy_quality=0.8"))
     print(f"faces: {', '.join(faces)}")
 
 

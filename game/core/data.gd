@@ -206,8 +206,18 @@ const SPRITES := {
 
 
 ## The battle sprite for a unit or hero (by its hero key, else its own key), or {} when it has none.
+static var _sprites := {}
+
+
+## A unit's battle sprite: its entry in SPRITES (size and all), with the src and idle of a body built from the
+## art uploads (Faces.BODIES) laid over it.
 static func sprite_for(u: Dictionary) -> Dictionary:
-	return SPRITES.get(u.get("hero", u.get("key", "")), {})
+	var key: String = u.get("hero", u.get("key", ""))
+	if not _sprites.has(key):
+		var s: Dictionary = SPRITES.get(key, {}).duplicate()
+		s.merge(Faces.BODIES.get(key, {}), true)
+		_sprites[key] = s
+	return _sprites[key]
 
 
 static func hero(key: String) -> Dictionary:

@@ -30,8 +30,12 @@ static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts 
 	var anim: Dictionary = spr.get("anim", {})
 	var src: Texture2D
 	var region: Rect2
+	# The idle sheet, once it is here (see Clips); until then the still sprite stands in and breathes.
+	var sheet: Texture2D = Clips.sheet(anim.src) if not anim.is_empty() else null
+	if sheet == null:
+		anim = {}
 	if not anim.is_empty() and opts.get("breathe", 1.0) > 0.0:
-		src = tex(anim.src)
+		src = sheet
 		var f := int(t * anim.fps) % int(anim.n)
 		region = Rect2((f % int(anim.cols)) * anim.w, (f / int(anim.cols)) * anim.h, anim.w, anim.h)
 	else:

@@ -12,6 +12,11 @@ const FACES := {
 	"ilse": {"char": "varuni", "still": "res://art/faces/varuni.webp", "idle": ["varuni-idle1", "varuni-idle2"], "talk": ["varuni-talk1", "varuni-talk2"], "skills": ["varuni-spell3", "varuni-spell2"], "chant": "varuni-spell1", "other": [], "moods": {}},
 }
 
+## Battle sprites built from body uploads, by game key: they replace the src and idle in Data.SPRITES.
+const BODIES := {
+	"kaede": {"src": "res://art/sprites/surya.webp", "anim": {"w": 301, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/surya-idle.webp"}},
+}
+
 
 ## The face of a hero (by game key), or {} if they have none yet.
 static func of(key: String) -> Dictionary:
