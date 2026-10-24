@@ -17,6 +17,10 @@ Name clips `<character>-face-<kind><n>.mp4`: `idle1`, `idle2`, `talk1`, `spell1`
 
 A 3★ card breathes and a 4★ card comes alive and breaks out of its frame. Each needs a short portrait loop: an MP4 of the head and shoulders on a flat background, about 5 seconds. `tools/living-card.sh loop.mp4 <hero> art/<hero>` turns it into a transparent animated cutout, a breathing loop and a still cutout. Ilse's are in `art/ilse/`.
 
+## Bodies (green screen)
+
+`<character>-body-idle.png` (the battle sprite, full body, facing screen-left, feet in frame) and `<character>-body-movement.mp4` (its idle loop, same framing, starting and ending on the still's pose). They become the battle sprite and its frame sheet; the still and every frame share one crop, so nothing jumps.
+
 ## Element palette
 
 Fire `#ff7b47` · Water `#43b8de` · Earth `#c4925f` · Wind `#8ad46f`. Character art should lean toward its element; Brann is now Earth and the Basalt Golem is the Earth enemy.
