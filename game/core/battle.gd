@@ -14,9 +14,10 @@ const PNAME := {"single": "Single", "pierce": "Lane", "sweep": "Row", "cross": "
 const DEFAULT_SQUAD := ["kaede", "brann", "sorrel", "ilse"]
 
 const FOES := [
-	{"key": "golem", "name": "Basalt Golem", "short": "Golem", "elem": "earth", "legacy_elem": "fire", "range": "melee",
+	# The golem's slot, played by Smoke for now: his name and art, the golem's rules (the reference fights depend on them).
+	{"key": "golem", "name": "Smoke", "short": "Smoke", "elem": "earth", "legacy_elem": "fire", "range": "melee",
 		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 1,
-		"portrait": {"src": "res://art/portraits/golem.webp", "eyes": [57, 37], "chin": 55}, "skills": [
+		"portrait": {"src": "res://art/sprites/smoke.webp", "eyes": [41, 6], "chin": 9}, "skills": [
 		{"name": "Magma Fist", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.5, "cd": 3, "fx": {"burn": 2}},
 		{"name": "Quake", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 0.8, "cd": 3}]},
 	{"key": "blade", "name": "Galeblade", "short": "Galeblade", "elem": "wind", "range": "melee",

@@ -36,6 +36,9 @@ KEYS = {"surya": "kaede", "varuni": "ilse", "brann": "brann", "sorrel": "sorrel"
 # "chant" is the clip a hero sings when they evolve; by default their last spell beyond the skills, else their first.
 SKILL_CLIPS = {"varuni": {"skills": ["spell3", "spell2"], "chant": "spell1"}}
 KEEP = {"README.md"}
+# Body stills that face screen-right (most face left). The game mirrors each sprite to face its side: heroes right,
+# foes left. Attack clips find their own facing from the swing.
+FACING = {"brann": "right", "varuni": "right"}
 
 
 def git(*args):
@@ -112,7 +115,7 @@ def body(d, char):
             capture_output=True, text=True).stdout
         meta.write_text(out.strip().splitlines()[-1])
     m = json.loads(meta.read_text())
-    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"]}
+    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"], "faces": FACING.get(char, "left")}
     if "idle" in m:
         b["anim"] = dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")
     if "attack" in m:

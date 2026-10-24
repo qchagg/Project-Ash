@@ -97,11 +97,14 @@ def attack(src, dst, idle_h, idle_fx_px, idle_bx, still_shape):
     """The swing as a sheet matched to the idle (see the module notes)."""
     seq = frames(src, ATTACK_FPS)
     fx, fy, fh = feet(seq[0][..., 3])
-    reach = []
+    left, right = [], []
     for f in seq:
         ys, xs = np.nonzero(f[..., 3] > 24)
-        # Sprites face screen-left, so the blow is the frame reaching furthest that way.
-        reach.append(fx - xs.min())
+        left.append(fx - xs.min())
+        right.append(xs.max() - fx)
+    # The swing faces whichever way it reaches furthest, and the blow is the frame reaching furthest that way.
+    faces = "left" if max(left) >= max(right) else "right"
+    reach = left if faces == "left" else right
     blow = int(np.argmax(reach))
     lo = max(0, blow - round(ATTACK_BEFORE * ATTACK_FPS))
     hi = min(len(seq), blow + round(ATTACK_AFTER * ATTACK_FPS) + 1)
@@ -122,7 +125,7 @@ def attack(src, dst, idle_h, idle_fx_px, idle_bx, still_shape):
         sheet.paste(c, ((i % cols) * cw, (i // cols) * ch))
     sheet.save(dst, "WEBP", quality=82, method=6)
     return {"w": cw, "h": ch, "cols": cols, "n": len(seq), "fps": ATTACK_FPS, "tall": round(ch / ATTACK_RES / FRAME_H, 4),
-        "foot_x": round((fx - l) / (r - l), 4), "hit": round(blow / ATTACK_FPS, 3)}
+        "foot_x": round((fx - l) / (r - l), 4), "hit": round(blow / ATTACK_FPS, 3), "faces": faces}
 
 
 def main(still_src, clip_src, sprite_dst, sheet_dst, attack_src=None, attack_dst=None):

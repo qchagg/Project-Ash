@@ -52,6 +52,7 @@ func _init() -> void:
 		["Rule · Ground: single-target and melee skills still need a unit; an area stays put when its unit falls first", _b_ground_limits],
 		["Playback · a round marks the ally and enemy turns, and Varuni's Rain of Renewal cues her cut-in", _b_turn_marks],
 		["Faces · every clip, still and body sheet a hero names is in the project", _faces_exist],
+		["Facing · heroes face right and foes face left, whichever way their art was drawn", _facing],
 		["Plan · a hero steps then acts: Brann steps to the front row and Rockfall lands, though he planned it from the second row", _b_step_then_act],
 		["Plan · queue order holds: Varuni's heal lands on Sorrel before he steps away; he then casts from his new tile", _b_step_order],
 		["Plan · steps reach 2 tiles, never onto a unit or a tile another hero has claimed; stepping home cancels", _b_step_tiles],
@@ -318,6 +319,8 @@ func _eye_line() -> Array:
 
 const SEEDED := {"kaede": [820, 150, 40, 92], "brann": [1400, 100, 95, 70], "sorrel": [900, 135, 45, 105], "ilse": [850, 95, 50, 88],
 	"rock": [1500, 115, 85, 60], "leaf": [950, 145, 40, 110],
+	# Heroes added since the sandbox start at their base stats; the rolled copies below are the sandbox's.
+	"snake": [900, 105, 55, 92], "smoke": [1250, 120, 70, 98], "seer": [820, 125, 40, 94], "caller": [880, 110, 48, 86],
 	"kaede-1": [700, 169, 37, 84], "kaede-2": [880, 151, 38, 99], "ilse-3": [920, 96, 53, 92], "ilse-4": [930, 88, 48, 93],
 	"brann-5": [1480, 87, 100, 69], "sorrel-6": [1010, 147, 40, 105]}
 
@@ -863,6 +866,23 @@ func _faces_exist() -> Array:
 			if not ResourceLoader.exists(src):
 				missing.append(src)
 	return [missing.is_empty(), "%d clips named · missing %s" % [Clips.wanted().size(), missing]]
+
+
+## Heroes face right and foes face left whichever way their art was drawn: every hero's and foe's sprite (and
+## swing) is mirrored exactly when its art faces the other way.
+func _facing() -> Array:
+	var wrong := []
+	for key in Data.SPRITES:
+		var spr := Data.sprite_for({"key": key})
+		var hero := not Data.hero(key).is_empty()
+		for art in [spr, spr.get("attack", {})]:
+			if art.is_empty():
+				continue
+			var right: bool = (art.get("faces", "left") == "right") != Figure.mirrored(art, hero)
+			if right != hero:
+				wrong.append(key)
+	return [wrong.is_empty() and Figure.mirrored({"faces": "right"}, false) and not Figure.mirrored({}, false),
+		"%d sprites · facing wrong %s" % [Data.SPRITES.size(), wrong]]
 
 
 func _b_turn_marks() -> Array:

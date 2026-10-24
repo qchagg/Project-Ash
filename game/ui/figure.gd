@@ -26,7 +26,9 @@ static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts 
 	if spr.is_empty():
 		return Rect2()
 	var t: float = opts.get("t", 0.0)
-	var flip: bool = opts.get("flip", false)
+	# `flip` asks for a right-facing figure; a sprite drawn facing right (`faces`) is mirrored the other way round.
+	var want_right: bool = opts.get("flip", false)
+	var flip := mirrored(spr, want_right)
 	var mod: Color = opts.get("modulate", Color.WHITE)
 	var anim: Dictionary = spr.get("anim", {})
 	var fx: float = spr.get("foot_x", 0.5)
@@ -47,6 +49,7 @@ static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts 
 		region = Rect2((f % int(swing.cols)) * swing.w, (f / int(swing.cols)) * swing.h, swing.w, swing.h)
 		dh = h * swing.tall
 		fx = swing.foot_x
+		flip = mirrored(swing, want_right)
 		anim = {"playing": true}
 	elif not anim.is_empty() and opts.get("breathe", 1.0) > 0.0:
 		src = sheet
@@ -67,6 +70,11 @@ static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts 
 	var bands := 1 if breathe <= 0.0 and not bust else maxi(24, int(dh / 4.0))
 	_bands(ci, src, region, Vector2(left, foot.y), w, dh, bands, breathe, phase, flip, bust, mod)
 	return Rect2(foot.x - h * 0.2, foot.y - h, h * 0.4, h)
+
+
+## Whether art drawn facing `art.faces` (left unless it says right) must be mirrored to face right (or left).
+static func mirrored(art: Dictionary, want_right: bool) -> bool:
+	return want_right != (art.get("faces", "left") == "right")
 
 
 ## True while `t` (seconds since a strike began) is inside the sprite's attack.

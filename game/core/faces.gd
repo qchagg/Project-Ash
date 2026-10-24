@@ -14,9 +14,14 @@ const FACES := {
 
 ## Battle sprites built from body uploads, by game key: they replace the src and idle in Data.SPRITES.
 const BODIES := {
-	"brann": {"src": "res://art/sprites/brann.webp", "foot_x": 0.6393, "anim": {"w": 389, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/brann-idle.webp"}, "attack": {"w": 612, "h": 503, "cols": 8, "n": 18, "fps": 16, "tall": 1.497, "foot_x": 0.5326, "hit": 0.438, "src": "res://art/sprites/brann-attack.webp"}},
-	"smoke": {"src": "res://art/sprites/smoke.webp", "foot_x": 0.3392, "anim": {"w": 407, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/smoke-idle.webp"}},
-	"kaede": {"src": "res://art/sprites/surya.webp", "foot_x": 0.509, "anim": {"w": 301, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/surya-idle.webp"}},
+	"brann": {"src": "res://art/sprites/brann.webp", "foot_x": 0.6393, "faces": "right", "anim": {"w": 389, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/brann-idle.webp"}, "attack": {"w": 612, "h": 503, "cols": 8, "n": 18, "fps": 16, "tall": 1.497, "foot_x": 0.5326, "hit": 0.438, "faces": "left", "src": "res://art/sprites/brann-attack.webp"}},
+	"seer": {"src": "res://art/sprites/seer.webp", "foot_x": 0.4558, "faces": "left"},
+	"smoke": {"src": "res://art/sprites/smoke.webp", "foot_x": 0.3392, "faces": "left", "anim": {"w": 407, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/smoke-idle.webp"}},
+	"snake": {"src": "res://art/sprites/snake.webp", "foot_x": 0.2712, "faces": "left"},
+	"sorrel": {"src": "res://art/sprites/sorrel.webp", "foot_x": 0.4095, "faces": "left"},
+	"kaede": {"src": "res://art/sprites/surya.webp", "foot_x": 0.509, "faces": "left", "anim": {"w": 301, "h": 560, "cols": 9, "n": 61, "fps": 12, "src": "res://art/sprites/surya-idle.webp"}},
+	"caller": {"src": "res://art/sprites/tidecaller.webp", "foot_x": 0.4071, "faces": "left"},
+	"ilse": {"src": "res://art/sprites/varuni.webp", "foot_x": 0.338, "faces": "right"},
 }
 
 ## Keyed card art, by game key: the phone build's cards show it over the element's glow, centred on the

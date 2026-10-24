@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dybi0x8bk8nxd"
-path="res://.godot/imported/varuni-idle.webp-1af971f9a4588115a117a8eb9ca30ce7.ctex"
+uid="uid://ceglgbyq4q44b"
+path="res://.godot/imported/snake.webp-eefcd77c71e29a4f54634047cd4068c8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/sprites/varuni-idle.webp"
-dest_files=["res://.godot/imported/varuni-idle.webp-1af971f9a4588115a117a8eb9ca30ce7.ctex"]
+source_file="res://art/sprites/snake.webp"
+dest_files=["res://.godot/imported/snake.webp-eefcd77c71e29a4f54634047cd4068c8.ctex"]
 
 [params]
 
-compress/mode=1
+compress/mode=0
 compress/high_quality=false
-compress/lossy_quality=0.8
+compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

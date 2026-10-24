@@ -1,7 +1,8 @@
 class_name CardArt
 extends Control
 ## A hero's portrait in its tier frame, with the element sigil. Name plates sit below it, never on it.
-## A hero with keyed card art (Faces.CARDS) stands in their element's glow instead, full height, centred on the figure.
+## A hero with keyed card art (Faces.CARDS), or a cut-out portrait, stands in their element's glow instead, full height,
+## centred on the figure.
 
 var hero := ""
 var stars := 1
@@ -24,6 +25,9 @@ func setup(hero_key: String, star_count: int) -> CardArt:
 	stars = star_count
 	var h := Data.hero(hero)
 	_card = Faces.CARDS.get(hero, {})
+	# A cut-out portrait (no painted ground) is shown like card art, in the element's glow.
+	if _card.is_empty() and h.portrait.get("keyed", false):
+		_card = {"src": h.portrait.src, "cx": h.portrait.get("cx", 0.5)}
 	_tex = load(_card.src if _card else h.portrait.src)
 	_t = float(hash(hero) % 1000) / 100.0
 	mouse_filter = Control.MOUSE_FILTER_IGNORE

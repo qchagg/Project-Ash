@@ -98,6 +98,66 @@ const HEROES := [
 		"lore": "Galeblade swore to guard Vetrolés for as long as the forest needed him, and the forest took him at his word. Each year the leaves grow further over him: first a cloak, then a mantle, now a thicket that rustles when there is no wind and no longer comes off. He has forgotten his face, and some mornings his name. He still challenges every trespasser to one duel, first blood, and still keeps his word to those who win. The woodcutters who knew him as a man leave bread at the old shrine. Lately it is not always gone by morning, and the paths have started to wander. They say the oath will be done when there is nothing left of him but forest. He has never said otherwise.", "skills": [
 		{"name": "Gust Step", "flavor": "A rustle of leaves, and he is already behind you.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.6, "cd": 4, "fx": {"stun": 1}, "desc": "Steps through the wind to strike one enemy. Stuns it for its next action."},
 		{"name": "Cyclone Cut", "flavor": "The thicket spins, and everything in it is cut.", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 1.0, "cd": 2, "desc": "A spinning cut across a full row."}]},
+	{"key": "snake", "favored": ["lore", "wits"], "bio": "A serpent scholar of the island archives who reads the wind's grammar and corrects it.", "name": "Snake", "title": "Archive Serpent", "elem": "wind", "range": "ranged",
+		"max_hp": 900, "atk": 105, "def": 55, "spd": 92, "r": 2, "c": 1,
+		"portrait": {"src": "res://art/faces/snake.webp", "eyes": [43, 29], "chin": 42, "keyed": true, "cx": 0.48}, "full": {"src": "res://art/sprites/snake.webp", "x": 30, "w": 1.25, "face": [42, 9]},
+		"home": "lautlangit",
+		"lore": "[Working bio: the name and story are placeholders until his real ones are settled.] The island scribes of Lautlangit say the serpents were the first to write, coiling their letters into the sand. This one never stopped. He travels with a braid of brass rings, one for every library he has read to the last page, and he is running out of braid.",
+		"lines": {
+			"greet": ["You stand as if you expect me to bite. I only bite arguments.",
+				"Patience. The wind has a sentence to finish.",
+				"Another fight. Try to make it an interesting one."],
+			"camp": ["The fur is for the cold. The scales are for everything else.",
+				"I counted the stars once. Then they moved, and I had to start again.",
+				"Sleep. I will be reading; I rarely need the dark."]},
+		"skills": [
+		{"name": "Coil Lash", "flavor": "The braid strikes before the arm does.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.5, "cd": 3, "fx": {"stun": 1}, "desc": "A whipping strike on one target. Stuns it for its next action."},
+		{"name": "Molt", "flavor": "He sheds the blow, and so does everyone near him.", "kind": "shield", "pattern": "all", "power": 1.6, "cd": 4, "desc": "Shields every ally. Shields hold until broken."}]},
+	{"key": "smoke", "favored": ["might", "finesse"], "bio": "A masked brawler who fights like a fire that has learned to wait.", "name": "Smoke", "title": "Masked Ember", "elem": "fire", "range": "melee",
+		"max_hp": 1250, "atk": 120, "def": 70, "spd": 98, "r": 0, "c": 2,
+		"portrait": {"src": "res://art/sprites/smoke.webp", "eyes": [41, 6], "chin": 9, "keyed": true, "cx": 0.41}, "full": {"src": "res://art/sprites/smoke.webp", "x": 41, "w": 1.0, "face": [41, 6]},
+		"home": "xochitlan",
+		"lore": "[Working bio: a placeholder until his real story is settled.] Nobody in the smoking hills of Xochitlan has seen his face. The mask is red so that the blood never shows, he says, though no one has ever seen him bleed. He fights barehanded because, he claims, weapons make people careless.",
+		"lines": {
+			"greet": ["Talk if you must. I listen better than I speak.",
+				"The mask stays on. Ask me something else.",
+				"Point me at whoever is loudest."],
+			"camp": ["Fire is patient until it isn't. So am I.",
+				"Sleep with your boots on. Old habit; good habit.",
+				"The ash here is warm. It reminds me of home, which is not a compliment."]},
+		"skills": [
+		{"name": "Smother", "flavor": "A hand over the mouth of the fire, and then the fist.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.5, "cd": 3, "fx": {"burn": 2}, "desc": "A burning blow to one exposed enemy. Burns for 2 rounds."},
+		{"name": "Ash Veil", "flavor": "He disappears into his own smoke, and the whole row pays for it.", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 0.9, "cd": 3, "desc": "Sweeps a full row."}]},
+	{"key": "seer", "favored": ["lore", "resolve"], "bio": "A blindfolded seer who sees the fire coming because she has already watched it burn.", "name": "Seer", "title": "Ashen Seer", "elem": "fire", "range": "ranged",
+		"max_hp": 820, "atk": 125, "def": 40, "spd": 94, "r": 2, "c": 2,
+		"portrait": {"src": "res://art/faces/seer.webp", "eyes": [47, 32], "chin": 45, "keyed": true, "cx": 0.5}, "full": {"src": "res://art/sprites/seer.webp", "x": 46, "w": 1.0, "face": [48, 6]},
+		"home": "djeliba",
+		"lore": "[Working bio: a placeholder until the Seer's real story is settled.] The Seer tied the blindfold on the night her visions began and has not taken it off. The red ribbons are prophecies she has given that came true; there are more of them every year, and fewer people willing to ask.",
+		"lines": {
+			"greet": ["I knew you'd come. Not why; just that you would.",
+				"Don't apologise for the next thing you do. I've already forgiven it.",
+				"The fire's ahead of us. It usually is."],
+			"camp": ["Sit closer. You're in the part of the future that gets cold.",
+				"I dreamed of this fire. The real one is smaller.",
+				"Ask me tomorrow's weather. Go on. I'm always right about rain."]},
+		"skills": [
+		{"name": "Ember Rain", "flavor": "She opens her hand, and the sky remembers how to burn.", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.55, "cd": 4, "fx": {"burn": 1}, "desc": "Embers fall on every enemy tile. Burns for 1 round."},
+		{"name": "Flare", "flavor": "One spark, aimed where the enemy will be.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.6, "cd": 2, "desc": "A searing shot at one target."}]},
+	{"key": "caller", "favored": ["charm", "lore"], "bio": "A horned tide-singer from the coral coast who calls the sea in and asks it to stay.", "name": "Tidecaller", "title": "Coral Cantor", "elem": "water", "range": "ranged",
+		"max_hp": 880, "atk": 110, "def": 48, "spd": 86, "r": 1, "c": 2,
+		"portrait": {"src": "res://art/sprites/tidecaller.webp", "eyes": [28, 4], "chin": 6.8, "keyed": true, "cx": 0.45}, "full": {"src": "res://art/sprites/tidecaller.webp", "x": 42, "w": 1.0, "face": [28, 4]},
+		"home": "mwambao",
+		"lore": "[Working bio: a placeholder until the Tidecaller's real story is settled.] On the Mwambao coast the tide comes when it is called, and for a generation it has been this one calling. The white braids are salt-bleached; the gold is from wrecks the sea gave back as thanks.",
+		"lines": {
+			"greet": ["Listen. Under everything, there's surf.",
+				"The tide doesn't hurry, and neither do I.",
+				"I'll hold the line. Water is very good at holding."],
+			"camp": ["Wounds are just low tide. It comes back in.",
+				"No sea for miles. I can still hear it, if I'm quiet.",
+				"Rest your feet in the stream. Trust me."]},
+		"skills": [
+		{"name": "Mend", "flavor": "The sea takes the hurt out the way it takes footprints.", "kind": "heal", "pattern": "all", "power": 1.2, "cd": 4, "desc": "Heals every ally."},
+		{"name": "Tidal Pillar", "flavor": "A column of seawater, straight through the ranks.", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.15, "cd": 3, "desc": "Strikes an entire lane, front to back."}]},
 ]
 
 # Aptitudes for trials (d20 + bonus against the trial's difficulty), from the earlier Aptitudes screen.
@@ -199,8 +259,11 @@ const SPRITES := {
 	"leaf": {"src": "res://art/sprites/galeblade.webp", "size": 1.14},
 	"blade": {"src": "res://art/sprites/galeblade.webp", "size": 1.14},
 	"caller": {"src": "res://art/sprites/tidecaller.webp", "size": 1.10},
-	"seer": {"src": "res://art/sprites/seer.webp", "size": 1.01},
-	"golem": {"src": "res://art/full/rock.webp", "size": 1.2, "bust": true},
+	"seer": {"src": "res://art/sprites/seer.webp", "size": 1.01, "faces": "right"},
+	# The golem foe stands in as Smoke for now (see Battle.FOES).
+	"golem": {"as": "smoke", "size": 1.05},
+	"snake": {"size": 1.06},
+	"smoke": {"size": 1.05},
 	"rock": {"src": "res://art/full/rock.webp", "size": 1.2, "bust": true},
 }
 
@@ -213,9 +276,16 @@ static var _sprites := {}
 ## art uploads (Faces.BODIES) laid over it.
 static func sprite_for(u: Dictionary) -> Dictionary:
 	var key: String = u.get("hero", u.get("key", ""))
+	key = SPRITES.get(key, {}).get("as", key)
 	if not _sprites.has(key):
 		var s: Dictionary = SPRITES.get(key, {}).duplicate()
-		s.merge(Faces.BODIES.get(key, {}), true)
+		var body: Dictionary = Faces.BODIES.get(key, {})
+		if not body.is_empty():
+			# A new body replaces the old art's loops too, so an old dance never plays over a new still.
+			s.erase("anim")
+			s.erase("attack")
+			s.erase("bust")
+		s.merge(body, true)
 		_sprites[key] = s
 	return _sprites[key]
 
