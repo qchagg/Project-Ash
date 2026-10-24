@@ -1,6 +1,9 @@
 """Key a hero's green-screen battle sprite and its idle clip into the game's sprite and frame sheet.
 
     python3 tools/body-clip.py still.png clip.mp4 out_sprite.webp out_sheet.webp [attack.mp4 out_attack.webp]
+    python3 tools/body-clip.py still.png - out_sprite.webp - [attack.mp4 out_attack.webp]
+
+With no idle clip (-) the still alone becomes the sprite, trimmed to the figure, and the game breathes it.
 
 The still and every frame share one crop (the union of the figure across the clip, feet on the bottom edge), so the
 still and the sheet line up and the figure never jumps when the game swaps between them. The sheet is the clip at
@@ -123,10 +126,22 @@ def attack(src, dst, idle_h, idle_fx_px, idle_bx, still_shape):
 
 
 def main(still_src, clip_src, sprite_dst, sheet_dst, attack_src=None, attack_dst=None):
-    seq = frames(clip_src)
     im = np.asarray(Image.open(still_src).convert("RGB"))
     col, a = face.key(im, face.key_channel(im))
     still = clean(np.dstack([col, a]))
+    if clip_src == "-":
+        bx = box([still[..., 3]])
+        s = Image.fromarray(crop(still, bx))
+        s = s.resize((round(s.width * STILL_H / s.height), STILL_H), Image.LANCZOS) if s.height > STILL_H else s
+        s.save(sprite_dst, "WEBP", quality=88, method=6)
+        fx, _, fh = feet(np.asarray(s)[..., 3])
+        out = {"foot_x": round(fx / s.width, 4)}
+        if attack_src:
+            # The figure fills the sprite, so it stands the whole height of an idle cell.
+            out["attack"] = attack(attack_src, attack_dst, FRAME_H * fh / s.height, 0, bx, still.shape)
+        print(json.dumps(out))
+        return
+    seq = frames(clip_src)
     bx = box([f[..., 3] for f in seq] + [still[..., 3]])
     s = Image.fromarray(crop(still, bx))
     s = s.resize((round(s.width * STILL_H / s.height), STILL_H), Image.LANCZOS) if s.height > STILL_H else s

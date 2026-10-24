@@ -859,7 +859,7 @@ func _faces_exist() -> Array:
 		if not ResourceLoader.exists(Clips.DIR + c + ".ogv"):
 			missing.append(c)
 	for b in Faces.BODIES.values():
-		for src in [b.src, b.anim.src, b.get("attack", {}).get("src", b.src)]:
+		for src in [b.src, b.get("anim", {}).get("src", b.src), b.get("attack", {}).get("src", b.src)]:
 			if not ResourceLoader.exists(src):
 				missing.append(src)
 	return [missing.is_empty(), "%d clips named · missing %s" % [Clips.wanted().size(), missing]]

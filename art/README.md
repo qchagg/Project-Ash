@@ -19,6 +19,8 @@ A 3★ card breathes and a 4★ card comes alive and breaks out of its frame. Ea
 
 ## Bodies (green screen)
 
+Stills alone are enough: a face still or a body still with no video breathes in the game (a slow rise and settle). Videos are extras.
+
 `<character>-body-idle.png` (the battle sprite, full body, facing screen-left, feet in frame) and `<character>-body-movement.mp4` (its idle loop, same framing, starting and ending on the still's pose). They become the battle sprite and its frame sheet; the still and every frame share one crop, so nothing jumps. Add `<character>-body-attack.mp4` (one strike, same camera) and the fighter swings it in battle; the hit lands on the frame where the blow reaches furthest forward.
 
 ## Element palette

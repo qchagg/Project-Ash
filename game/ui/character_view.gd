@@ -117,8 +117,10 @@ func _talk() -> void:
 		app.zoom[hero] = _zoom
 		_rail.queue_redraw()
 	var line := Speech.line_for(hero, "greet")
-	if line == "" or not _bust.say():
+	if line == "":
 		return
+	# The talk clip plays when there is one; a hero with only a still says the line as it breathes.
+	_bust.say()
 	_speech = Speech.say(self, hero, line)
 	_speech.position = Vector2(80, 790)
 

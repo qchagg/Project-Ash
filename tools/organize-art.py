@@ -13,7 +13,8 @@ Upload anywhere under art/ (the root is fine) and run:
    (tools/face-clip.py); other `-face-<mood>.png` stills become expressions. Only what changed is rebuilt.
 3. Bodies: `<character>-body-<pose>.png` (a still, `idle` first) and `<character>-body-<pose>.mp4` (its loop) become the
    battle sprite game/art/sprites/<character>.webp and its frame sheet <character>-idle.webp (tools/body-clip.py);
-   `<character>-body-attack.mp4` adds the swing, <character>-attack.webp.
+   `<character>-body-attack.mp4` adds the swing, <character>-attack.webp. A still with no loop is sprite enough: the
+   game breathes it.
 4. Cards: `<character>-card.png` (the hero on green, for the phone build's cards) is keyed into game/art/cards/.
 5. Writes game/core/faces.gd, the table the game reads (see Faces).
 """
@@ -90,27 +91,30 @@ def stale(src, dst):
 
 def body(d, char):
     """The battle sprite, idle sheet and attack sheet from the body uploads, or None. Rebuilt when an upload is newer.
-    The idle loop is the clip named idle, else movement, else any clip that isn't an attack."""
+    The idle loop is the clip named idle, else movement, else any clip that isn't an attack. With no loop, the still
+    alone is the sprite and the game breathes it."""
     import json
     stills = sorted(d.glob(f"{char}-body-*.png"), key=lambda p: ("idle" not in p.stem, p.name))
     loops = sorted((p for p in d.glob(f"{char}-body-*.mp4") if "attack" not in p.stem),
         key=lambda p: ("idle" not in p.stem, "movement" not in p.stem, p.name))
     hits = sorted(d.glob(f"{char}-body-attack*.mp4"))
-    if not stills or not loops:
+    if not stills:
         return None
     sprites = GAME / "art" / "sprites"
     sprite, sheet, meta = sprites / f"{char}.webp", sprites / f"{char}-idle.webp", sprites / f"{char}-idle.json"
     swing = sprites / f"{char}-attack.webp"
-    srcs = [stills[0], loops[0]] + hits[:1]
+    srcs = [stills[0]] + loops[:1] + hits[:1]
     old = json.loads(meta.read_text()) if meta.exists() else {}
-    if any(stale(p, meta) for p in srcs) or "idle" not in old or bool(hits) != ("attack" in old):
-        args = [str(stills[0]), str(loops[0]), str(sprite), str(sheet)] + ([str(hits[0]), str(swing)] if hits else [])
+    if any(stale(p, meta) for p in srcs) or ("idle" in old) != bool(loops) or bool(hits) != ("attack" in old):
+        args = [str(stills[0]), str(loops[0]) if loops else "-", str(sprite), str(sheet) if loops else "-"]
+        args += [str(hits[0]), str(swing)] if hits else []
         out = subprocess.run([sys.executable, str(ROOT / "tools" / "body-clip.py"), *args], check=True,
             capture_output=True, text=True).stdout
         meta.write_text(out.strip().splitlines()[-1])
     m = json.loads(meta.read_text())
-    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"],
-        "anim": dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")}
+    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"]}
+    if "idle" in m:
+        b["anim"] = dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")
     if "attack" in m:
         b["attack"] = dict(m["attack"], src=f"res://art/sprites/{char}-attack.webp")
     return b

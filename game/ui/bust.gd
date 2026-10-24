@@ -3,7 +3,8 @@ extends Control
 ## A hero from the chest up, alive: their idle clips loop one into the next, and on cue they talk or cast and settle
 ## back into the idle. Every clip of a hero starts and ends on the same pose as their still, so the swaps never show.
 ## Clips are packed (colour over transparency, see tools/face-clip.py); the still is a keyed image of that pose and
-## stands in whenever no frame is up yet, between clips or while a clip is still downloading (see Clips).
+## stands in whenever no frame is up yet, between clips or while a clip is still downloading (see Clips). A hero with
+## a still and no clips breathes: the still rises and settles from the foot, slowly.
 
 signal clip_finished(clip: String)
 
@@ -39,6 +40,7 @@ var _clip := ""
 var _idle := true
 var _since := 0.0
 var _wait := 0.0
+var _t := randf() * 5.0
 
 
 func setup(hero_key: String) -> Bust:
@@ -122,6 +124,7 @@ func _ended() -> void:
 
 func _process(delta: float) -> void:
 	_since += delta
+	_t += delta
 	if _wait > 0.0:
 		_wait -= delta
 		if _wait <= 0.0:
@@ -130,6 +133,7 @@ func _process(delta: float) -> void:
 	var up := _player.is_playing() and _player.stream_position > 0.03
 	if up != _player.visible:
 		_player.visible = up
+	if not up:
 		queue_redraw()
 	# A guard in case the end of a clip is never reported.
 	var length := _player.get_stream_length()
@@ -139,5 +143,10 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	if not _player.visible:
-		draw_texture_rect(_still, Rect2(Vector2.ZERO, size), false)
+	if _player.visible:
+		return
+	# Breathing: a slow rise of under one percent, anchored at the foot so the cut at the chest stays put.
+	var k := 1.0 + 0.008 * sin(_t * TAU / 4.6)
+	draw_set_transform(Vector2(size.x * (1.0 - k) / 2.0, size.y * (1.0 - k)), 0, Vector2(k, k))
+	draw_texture_rect(_still, Rect2(Vector2.ZERO, size), false)
+	draw_set_transform(Vector2.ZERO)
