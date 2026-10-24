@@ -966,8 +966,7 @@ func _play() -> void:
 				var was: Dictionary = view.get(e.id, {})
 				var tile: BattleTile = _tiles.get("%s%d%d" % [e.id.left(1), was.get("r", -1), was.get("c", -1)])
 				if tile and tile.figure:
-					tile.figure.act(e.kind, e.range)
-					await get_tree().create_timer(0.16).timeout
+					await get_tree().create_timer(tile.figure.act(e.kind, e.range)).timeout
 					if not is_inside_tree():
 						return
 			"walk":

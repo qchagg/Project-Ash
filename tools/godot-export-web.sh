@@ -23,7 +23,7 @@ for key, body in re.findall(r"^\t\"(\w+)\": (\{.*\}),$", open("game/core/faces.g
         print(" ".join(set(re.findall(r"\"(\w+-\w+)\"", body))))
 '); do cp "game/art/clips/$b.ogv" "$out/clips/$b.ogg"; done
 # Idle frame sheets stay out of the pack too, and load the same way.
-mkdir -p "$out/sheets" && cp game/art/sprites/*-idle.webp "$out/sheets/"
+mkdir -p "$out/sheets" && cp game/art/sprites/*-idle.webp game/art/sprites/*-attack.webp "$out/sheets/"
 rm -f "$out/index.png" "$out/index.icon.png" "$out/index.apple-touch-icon.png"
 if [ "$preset" = "Web Landscape" ]; then sed -i 's|<title>Ashgrid Playtest|<title>Ashgrid Landscape|' "$out/index.html"; fi
 ls -la "$out"

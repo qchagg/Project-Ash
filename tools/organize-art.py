@@ -12,7 +12,8 @@ Upload anywhere under art/ (the root is fine) and run:
    game/art/clips/<character>-<kind><n>.ogv and `<character>-face-blank.png` into game/art/faces/<character>.webp
    (tools/face-clip.py); other `-face-<mood>.png` stills become expressions. Only what changed is rebuilt.
 3. Bodies: `<character>-body-<pose>.png` (a still, `idle` first) and `<character>-body-<pose>.mp4` (its loop) become the
-   battle sprite game/art/sprites/<character>.webp and its frame sheet <character>-idle.webp (tools/body-clip.py).
+   battle sprite game/art/sprites/<character>.webp and its frame sheet <character>-idle.webp (tools/body-clip.py);
+   `<character>-body-attack.mp4` adds the swing, <character>-attack.webp.
 4. Cards: `<character>-card.png` (the hero on green, for the phone build's cards) is keyed into game/art/cards/.
 5. Writes game/core/faces.gd, the table the game reads (see Faces).
 """
@@ -88,22 +89,31 @@ def stale(src, dst):
 
 
 def body(d, char):
-    """The battle sprite and idle sheet from the body uploads, or None. Rebuilt when an upload is newer."""
-    stills = sorted(d.glob(f"{char}-body-*.png"), key=lambda p: ("idle" not in p.stem, p.name))
-    clips = sorted(d.glob(f"{char}-body-*.mp4"), key=lambda p: ("idle" not in p.stem, p.name))
-    if not stills or not clips:
-        return None
-    sprite = GAME / "art" / "sprites" / f"{char}.webp"
-    sheet = GAME / "art" / "sprites" / f"{char}-idle.webp"
-    meta = GAME / "art" / "sprites" / f"{char}-idle.json"
-    if stale(stills[0], sheet) or stale(clips[0], sheet) or not meta.exists():
-        out = subprocess.run([sys.executable, str(ROOT / "tools" / "body-clip.py"), str(stills[0]), str(clips[0]),
-            str(sprite), str(sheet)], check=True, capture_output=True, text=True).stdout
-        meta.write_text(out.strip().splitlines()[-1])
+    """The battle sprite, idle sheet and attack sheet from the body uploads, or None. Rebuilt when an upload is newer.
+    The idle loop is the clip named idle, else movement, else any clip that isn't an attack."""
     import json
-    anim = json.loads(meta.read_text())
-    anim["src"] = f"res://art/sprites/{char}-idle.webp"
-    return {"src": f"res://art/sprites/{char}.webp", "anim": anim}
+    stills = sorted(d.glob(f"{char}-body-*.png"), key=lambda p: ("idle" not in p.stem, p.name))
+    loops = sorted((p for p in d.glob(f"{char}-body-*.mp4") if "attack" not in p.stem),
+        key=lambda p: ("idle" not in p.stem, "movement" not in p.stem, p.name))
+    hits = sorted(d.glob(f"{char}-body-attack*.mp4"))
+    if not stills or not loops:
+        return None
+    sprites = GAME / "art" / "sprites"
+    sprite, sheet, meta = sprites / f"{char}.webp", sprites / f"{char}-idle.webp", sprites / f"{char}-idle.json"
+    swing = sprites / f"{char}-attack.webp"
+    srcs = [stills[0], loops[0]] + hits[:1]
+    old = json.loads(meta.read_text()) if meta.exists() else {}
+    if any(stale(p, meta) for p in srcs) or "idle" not in old or bool(hits) != ("attack" in old):
+        args = [str(stills[0]), str(loops[0]), str(sprite), str(sheet)] + ([str(hits[0]), str(swing)] if hits else [])
+        out = subprocess.run([sys.executable, str(ROOT / "tools" / "body-clip.py"), *args], check=True,
+            capture_output=True, text=True).stdout
+        meta.write_text(out.strip().splitlines()[-1])
+    m = json.loads(meta.read_text())
+    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"],
+        "anim": dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")}
+    if "attack" in m:
+        b["attack"] = dict(m["attack"], src=f"res://art/sprites/{char}-attack.webp")
+    return b
 
 
 def card(d, char):
@@ -173,8 +183,7 @@ def build():
     lines += ["}", "", "## Battle sprites built from body uploads, by game key: they replace the src and idle in Data.SPRITES.",
         "const BODIES := {"]
     for key, b in bodies.items():
-        lines.append(f'\t"{key}": {{"src": "{b["src"]}", "anim": {{' + ", ".join(
-            f'"{k}": {gd(v) if isinstance(v, str) else v}' for k, v in b["anim"].items()) + "}},")
+        lines.append(f'\t"{key}": {gdv(b)},')
     lines += ["}", "", "## Keyed card art, by game key: the phone build's cards show it over the element's glow, centred on the",
         "## figure (`cx`, its centre across the image).", "const CARDS := {"]
     for key, c in cards.items():
@@ -192,6 +201,15 @@ def build():
         if "compress/mode=0" in t:
             imp.write_text(t.replace("compress/mode=0", "compress/mode=1").replace("lossy_quality=0.7", "lossy_quality=0.8"))
     print(f"faces: {', '.join(faces)}")
+
+
+def gdv(v):
+    """Like gd, but numbers stay numbers."""
+    if isinstance(v, dict):
+        return "{" + ", ".join(f'"{k}": {gdv(x)}' for k, x in v.items()) + "}"
+    if isinstance(v, str):
+        return f'"{v}"'
+    return str(v)
 
 
 def gd(v):

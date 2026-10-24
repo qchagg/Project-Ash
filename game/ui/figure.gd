@@ -20,7 +20,8 @@ static func height(spr: Dictionary, base: float) -> float:
 
 
 ## Draws `spr` with its feet at `foot`, `h` tall. Options: flip (face the other way), t (seconds, for the idle),
-## breathe (0 still … 1 normal), shadow, modulate (tint and fade, for the fallen).
+## breathe (0 still … 1 normal), shadow, modulate (tint and fade, for the fallen), swing (seconds into the sprite's
+## attack, while it plays; see `swinging`). A sheet whose feet aren't centred says where they are (`foot_x`).
 static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts := {}) -> Rect2:
 	if spr.is_empty():
 		return Rect2()
@@ -28,37 +29,55 @@ static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts 
 	var flip: bool = opts.get("flip", false)
 	var mod: Color = opts.get("modulate", Color.WHITE)
 	var anim: Dictionary = spr.get("anim", {})
-	var src: Texture2D
-	var region: Rect2
+	var fx: float = spr.get("foot_x", 0.5)
+	var src: Texture2D = tex(spr.src)
+	var region := Rect2(Vector2.ZERO, src.get_size())
+	var dh := h
 	# The idle sheet, once it is here (see Clips); until then the still sprite stands in and breathes.
 	var sheet: Texture2D = Clips.sheet(anim.src) if not anim.is_empty() else null
 	if sheet == null:
 		anim = {}
-	if not anim.is_empty() and opts.get("breathe", 1.0) > 0.0:
+	var swing: Dictionary = spr.get("attack", {})
+	var st: float = opts.get("swing", -1.0)
+	var swing_tex: Texture2D = Clips.sheet(swing.src) if swinging(spr, st) else null
+	if swing_tex:
+		# The attack: its own cells, taller than the idle's by `tall`, the feet where the swing sheet says.
+		var f := mini(int(st * swing.fps), int(swing.n) - 1)
+		src = swing_tex
+		region = Rect2((f % int(swing.cols)) * swing.w, (f / int(swing.cols)) * swing.h, swing.w, swing.h)
+		dh = h * swing.tall
+		fx = swing.foot_x
+		anim = {"playing": true}
+	elif not anim.is_empty() and opts.get("breathe", 1.0) > 0.0:
 		src = sheet
 		var f := int(t * anim.fps) % int(anim.n)
 		region = Rect2((f % int(anim.cols)) * anim.w, (f / int(anim.cols)) * anim.h, anim.w, anim.h)
-	else:
-		src = tex(spr.src)
-		region = Rect2(Vector2.ZERO, src.get_size())
-	var w := h * region.size.x / region.size.y
+	var w := dh * region.size.x / region.size.y
+	var left := foot.x - w * ((1.0 - fx) if flip else fx)
 	if opts.get("shadow", true):
 		# A soft dark oval where the feet meet the ground, darker at its heart.
 		ci.draw_set_transform(foot, 0, Vector2(1, 0.22))
 		for i in 6:
 			var k := 1.0 - i / 6.0
-			ci.draw_circle(Vector2.ZERO, w * 0.42 * k, Color(0, 0, 0, 0.11 * mod.a))
+			ci.draw_circle(Vector2.ZERO, h * 0.26 * k, Color(0, 0, 0, 0.11 * mod.a))
 		ci.draw_set_transform(Vector2.ZERO)
 	var bust: bool = spr.get("bust", false)
 	var breathe: float = 0.0 if not anim.is_empty() else opts.get("breathe", 1.0)
 	var phase: float = t * TAU * 0.32
-	var bands := 1 if breathe <= 0.0 and not bust else maxi(24, int(h / 4.0))
-	_bands(ci, src, region, foot, w, h, bands, breathe, phase, flip, bust, mod)
-	return Rect2(foot.x - w / 2, foot.y - h, w, h)
+	var bands := 1 if breathe <= 0.0 and not bust else maxi(24, int(dh / 4.0))
+	_bands(ci, src, region, Vector2(left, foot.y), w, dh, bands, breathe, phase, flip, bust, mod)
+	return Rect2(foot.x - h * 0.2, foot.y - h, h * 0.4, h)
+
+
+## True while `t` (seconds since a strike began) is inside the sprite's attack.
+static func swinging(spr: Dictionary, t: float) -> bool:
+	var swing: Dictionary = spr.get("attack", {})
+	return t >= 0.0 and not swing.is_empty() and t < swing.n / swing.fps
 
 
 ## The figure in horizontal bands, each shifted by how high it sits (the breathing), faded at the foot for a bust.
-static func _bands(ci: CanvasItem, src: Texture2D, region: Rect2, foot: Vector2, w: float, h: float, n: int, breathe: float,
+## `at` is the bottom-left corner.
+static func _bands(ci: CanvasItem, src: Texture2D, region: Rect2, at: Vector2, w: float, h: float, n: int, breathe: float,
 		phase: float, flip: bool, bust: bool, mod: Color) -> void:
 	for i in n:
 		var y0 := float(i) / n
@@ -69,7 +88,7 @@ static func _bands(ci: CanvasItem, src: Texture2D, region: Rect2, foot: Vector2,
 		var a := mod.a
 		if bust:
 			a *= clampf((1.0 - y1) / 0.22, 0.0, 1.0)
-		var dst := Rect2(foot.x - w / 2, foot.y - h + y0 * h + dy, w, (y1 - y0) * h + 1.0)
+		var dst := Rect2(at.x, at.y - h + y0 * h + dy, w, (y1 - y0) * h + 1.0)
 		var srect := Rect2(region.position.x, region.position.y + y0 * region.size.y, region.size.x, (y1 - y0) * region.size.y)
 		if flip:
 			# A negative width mirrors the band in place.

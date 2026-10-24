@@ -51,7 +51,7 @@ func _init() -> void:
 		["Rule · Ground: a ranged cross aimed at an empty tile hits above and below it; the AI still aims at units", _b_ground],
 		["Rule · Ground: single-target and melee skills still need a unit; an area stays put when its unit falls first", _b_ground_limits],
 		["Playback · a round marks the ally and enemy turns, and Varuni's Rain of Renewal cues her cut-in", _b_turn_marks],
-		["Faces · every clip and still a hero names is in the project", _faces_exist],
+		["Faces · every clip, still and body sheet a hero names is in the project", _faces_exist],
 		["Plan · a hero steps then acts: Brann steps to the front row and Rockfall lands, though he planned it from the second row", _b_step_then_act],
 		["Plan · queue order holds: Varuni's heal lands on Sorrel before he steps away; he then casts from his new tile", _b_step_order],
 		["Plan · steps reach 2 tiles, never onto a unit or a tile another hero has claimed; stepping home cancels", _b_step_tiles],
@@ -858,6 +858,10 @@ func _faces_exist() -> Array:
 	for c in Clips.wanted():
 		if not ResourceLoader.exists(Clips.DIR + c + ".ogv"):
 			missing.append(c)
+	for b in Faces.BODIES.values():
+		for src in [b.src, b.anim.src, b.get("attack", {}).get("src", b.src)]:
+			if not ResourceLoader.exists(src):
+				missing.append(src)
 	return [missing.is_empty(), "%d clips named · missing %s" % [Clips.wanted().size(), missing]]
 
 

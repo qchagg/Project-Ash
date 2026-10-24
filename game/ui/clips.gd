@@ -47,13 +47,14 @@ static func sheet(src: String) -> Texture2D:
 	return tex
 
 
-## Every idle sheet the game's sprites use.
+## Every idle and attack sheet the game's sprites use.
 static func wanted_sheets() -> Array[String]:
 	var out: Array[String] = []
 	for key in Data.SPRITES:
-		var src: String = Data.sprite_for({"key": key}).get("anim", {}).get("src", "")
-		if src != "" and src not in out:
-			out.append(src)
+		var spr := Data.sprite_for({"key": key})
+		for src in [spr.get("anim", {}).get("src", ""), spr.get("attack", {}).get("src", "")]:
+			if src != "" and src not in out:
+				out.append(src)
 	return out
 
 
