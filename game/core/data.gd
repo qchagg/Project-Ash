@@ -160,6 +160,29 @@ const STUN_CAP := 2
 const STATS := ["max_hp", "atk", "def", "spd"]
 
 
+## Full-body battle sprites (cut out, trimmed, feet on the bottom edge), by hero or foe key. `size` is each one's
+## height against the others, set in the Battle Sprites viewer. `anim` is a sheet of idle frames (`cols` across).
+## The golem has no full-body art yet, so it stands in with its waist-up cutout (`bust`).
+const SPRITES := {
+	"kaede": {"src": "res://art/sprites/surya.webp", "size": 1.05},
+	"brann": {"src": "res://art/sprites/brann.webp", "size": 1.08},
+	"sorrel": {"src": "res://art/sprites/sorrel.webp", "size": 1.08},
+	"ilse": {"src": "res://art/sprites/varuni.webp", "size": 1.04,
+		"anim": {"src": "res://art/sprites/varuni-idle.webp", "w": 436, "h": 560, "cols": 9, "n": 61, "fps": 12}},
+	"leaf": {"src": "res://art/sprites/galeblade.webp", "size": 1.14},
+	"blade": {"src": "res://art/sprites/galeblade.webp", "size": 1.14},
+	"caller": {"src": "res://art/sprites/tidecaller.webp", "size": 1.10},
+	"seer": {"src": "res://art/sprites/seer.webp", "size": 1.01},
+	"golem": {"src": "res://art/full/rock.webp", "size": 1.2, "bust": true},
+	"rock": {"src": "res://art/full/rock.webp", "size": 1.2, "bust": true},
+}
+
+
+## The battle sprite for a unit or hero (by its hero key, else its own key), or {} when it has none.
+static func sprite_for(u: Dictionary) -> Dictionary:
+	return SPRITES.get(u.get("hero", u.get("key", "")), {})
+
+
 static func hero(key: String) -> Dictionary:
 	for h in HEROES:
 		if h.key == key:

@@ -40,8 +40,8 @@ func _choose_road() -> void:
 	var row := Forge.hbox(16)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	if Forge.wide():
-		# One line on a wide screen: the faces, then the way to change them, then the commit.
-		row.add_child(_party_row())
+		# One line on a wide screen: the party standing, then the way to change them, then the commit.
+		row.add_child(_party_row(62))
 		var gap := Control.new()
 		gap.custom_minimum_size.x = 40
 		row.add_child(gap)
@@ -104,7 +104,7 @@ func _road_card(key: String) -> Control:
 	v.add_child(where)
 	where.add_child(Forge.glyph("elem_" + r.elem, 20, Forge.ELEM[r.elem]))
 	where.add_child(Forge.sc("%s · %d stops" % [region.name, r.depth], 18, Forge.LABEL))
-	var about := Forge.label(r.about, 20, Forge.MUTED, Forge.SANS_ITALIC)
+	var about := Forge.label(r.about, 18 if Forge.wide() else 20, Forge.MUTED, Forge.SANS_ITALIC)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	about.custom_minimum_size.x = 200 if Forge.wide() else 360
 	v.add_child(about)
@@ -136,6 +136,8 @@ func _party_row(px := 112) -> Control:
 
 
 func _face(uid: String, px := 112) -> Control:
+	if Forge.wide():
+		return _figure(uid, px)
 	var c := app.col.by(uid)
 	var h := Data.hero(c.hero)
 	var hp := app.run.health(uid) if app.run else 1.0
@@ -160,6 +162,20 @@ func _face(uid: String, px := 112) -> Control:
 	return v
 
 
+## The wide build's party member: standing, with their health on the road under their feet.
+func _figure(uid: String, px: int) -> Control:
+	var c := app.col.by(uid)
+	var hp := app.run.health(uid) if app.run else -1.0
+	var v := Forge.vbox(2)
+	var s := Stand.new().setup(c.hero, c.stars, hp)
+	s.custom_minimum_size = Vector2(px * 1.3, px * 2.4)
+	v.add_child(s)
+	var l := Forge.sc(Data.hero(c.hero).name, 15, Forge.MUTED if hp != 0.0 else Forge.DIM)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(l)
+	return v
+
+
 # ---------- on the road ----------
 
 func _on_the_road() -> void:
@@ -179,7 +195,7 @@ func _on_the_road() -> void:
 		rebuild())
 	top.add_child(home)
 	if Forge.wide():
-		top.add_child(_party_row(64))
+		top.add_child(_party_row(46))
 		top.move_child(home, top.get_child_count() - 1)
 	else:
 		body.add_child(_party_row())

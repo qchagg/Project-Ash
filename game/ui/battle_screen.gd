@@ -18,8 +18,10 @@ const HIT_STOP := 0.09
 ## The strip's middle: the queue chips, the forecast bar or the round's log, whichever is showing.
 const MID_H := 104.0
 const HEAD := 100.0
-## A tile on the wide (landscape) board, where the grids stand side by side.
-const WIDE_TILE := Vector2(132, 118)
+## A floor tile on the wide (landscape) board, where the grids stand side by side and fighters stand on the tiles.
+const WIDE_TILE := Vector2(134, 92)
+## Room above the far lane for the fighters standing in it.
+const HEADROOM := 150.0
 
 var b: Battle
 ## The board as currently shown (unit id -> snapshot); it trails the engine during playback.
@@ -88,10 +90,11 @@ func _build() -> void:
 	if Forge.wide():
 		# Side on: your squad on the left facing right, the foes on the right facing left, the round and the actions
 		# in a column beside them.
-		var row := Forge.hbox(24)
+		var row := Forge.hbox(28)
 		body.add_child(row)
 		row.add_child(_grid("P"))
 		row.add_child(_grid("E"))
+		row.draw.connect(func(): _stage(row))
 		var side := Forge.vbox(12)
 		side.size_flags_horizontal = SIZE_EXPAND_FILL
 		row.add_child(side)
@@ -160,6 +163,28 @@ func _new_fight() -> void:
 # ---------- layout ----------
 
 ## A side's grid. The foes' front row sits at the bottom of theirs and yours at the top, so the fronts face across the strip.
+## The ground both sides stand on: a lit floor under the lanes, darker at its edges, and a seam of gold light where
+## the two front rows face each other.
+func _stage(row: Control) -> void:
+	var p: Control = row.get_child(0)
+	var e: Control = row.get_child(1)
+	var top := p.position.y + HEADROOM - 26
+	var bottom := p.position.y + p.size.y + 22
+	var left := p.position.x - 24
+	var right := e.position.x + e.size.x + 24
+	var floor_r := Rect2(left, top, right - left, bottom - top)
+	# Warm in the middle, falling to ink at the edges.
+	for i in 10:
+		var k := i / 10.0
+		row.draw_rect(floor_r.grow(-k * 40), Color(Forge.PLAQUE.lerp(Color("#2a1d12"), k), 0.16))
+	var mid := (p.position.x + p.size.x + e.position.x) / 2
+	for i in 4:
+		row.draw_line(Vector2(mid, top + 6), Vector2(mid, bottom - 6), Color(Forge.GOLD, 0.03 * (4 - i)), 3.0 + i * 6.0)
+	row.draw_line(Vector2(mid, top + 6), Vector2(mid, bottom - 6), Color(Forge.GOLD_LIGHT, 0.4), 1.0)
+	Forge.diamond(row, Vector2(mid, top), 6, Forge.GOLD)
+	Forge.diamond(row, Vector2(mid, bottom), 6, Forge.GOLD)
+
+
 ## On a wide screen the grids turn on their side: lanes run down, and the two front rows meet in the middle.
 func _grid(side: String) -> Control:
 	var g := Control.new()
@@ -167,7 +192,7 @@ func _grid(side: String) -> Control:
 	var tw := WIDE_TILE.x if wide else (632.0 - GAP * (b.cols - 1)) / b.cols
 	var th: float = WIDE_TILE.y if wide else TILE_H.get(b.rows, 88.0)
 	if wide:
-		g.custom_minimum_size = Vector2(b.rows * tw + (b.rows - 1) * GAP, b.cols * th + (b.cols - 1) * GAP)
+		g.custom_minimum_size = Vector2(b.rows * tw + (b.rows - 1) * GAP, HEADROOM + b.cols * th + (b.cols - 1) * GAP)
 	else:
 		g.custom_minimum_size = Vector2(632, b.rows * th + (b.rows - 1) * GAP)
 	for r in b.rows:
@@ -180,12 +205,22 @@ func _grid(side: String) -> Control:
 			var row := b.rows - 1 - r if side == "E" else r
 			if wide:
 				var depth := r if side == "E" else b.rows - 1 - r
-				t.position = Vector2(depth * (tw + GAP), c * (th + GAP))
+				t.position = Vector2(depth * (tw + GAP), HEADROOM + c * (th + GAP))
 			else:
 				t.position = Vector2(c * (tw + GAP), row * (th + GAP))
 			t.size = Vector2(tw, th)
 			g.add_child(t)
 			_tiles["%s%d%d" % [side, r, c]] = t
+	if wide:
+		# The fighters stand over the floor, the far lane first so nearer fighters overlap the ones behind them.
+		for c in b.cols:
+			for r in b.rows:
+				var fig := BattleFigure.new()
+				var t: BattleTile = _tiles["%s%d%d" % [side, r, c]]
+				fig.tile = t
+				t.figure = fig
+				g.add_child(fig)
+				fig.place()
 	return g
 
 
@@ -627,6 +662,8 @@ func unit_view(side: String, r: int, c: int) -> Dictionary:
 		var out := {"id": u.id, "name": u.name, "elem": u.elem, "max_hp": u.max_hp, "view": s}
 		if u.has("short"): out.short = u.short
 		if u.has("portrait"): out.portrait = u.portrait
+		out.sprite = Data.sprite_for(u)
+		out.side = u.side
 		if s.alive:
 			return out
 		fallen = out
@@ -922,6 +959,15 @@ func _play() -> void:
 				pending.append(e)
 			"log":
 				_log.text = e.text
+			"act":
+				# On the landscape board the fighter who acts moves first: a lunge for a blow, a step and lift for a cast.
+				var was: Dictionary = view.get(e.id, {})
+				var tile: BattleTile = _tiles.get("%s%d%d" % [e.id.left(1), was.get("r", -1), was.get("c", -1)])
+				if tile and tile.figure:
+					tile.figure.act(e.kind, e.range)
+					await get_tree().create_timer(0.16).timeout
+					if not is_inside_tree():
+						return
 			"walk":
 				var was: Dictionary = view.get(e.id, {})
 				if not was.is_empty():
@@ -972,6 +1018,12 @@ func _play() -> void:
 	view = b.snapshot()
 	if b.phase == "over":
 		var win := b.result == "win"
+		if win:
+			# The fighters still standing celebrate as the banner comes in.
+			for t in _tiles.values():
+				var u := unit_view(t.side, t.r, t.c)
+				if t.figure and t.side == "P" and not u.is_empty() and u.view.alive:
+					t.figure.cheer()
 		await Banner.play(app, "victory" if win else "defeat", "round %d" % b.round_num, Forge.GOLD if win else Forge.MUTED).finished
 	_playing = false
 	var first := b.living("P").filter(func(u): return u.st.stun == 0)

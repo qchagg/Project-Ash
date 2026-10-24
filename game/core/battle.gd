@@ -120,6 +120,7 @@ static func card_unit(col: Collection, uid: String, b: Battle) -> Dictionary:
 	var c := col.by(uid)
 	var h := Data.hero(c.hero).duplicate(true)
 	h.key = uid
+	h.hero = c.hero
 	h.merge(col.stats(c), true)
 	h.stars = c.stars
 	h.augs = c.augs.map(func(a): return a.aug)
@@ -623,6 +624,8 @@ func perform(u: Dictionary, a: Dictionary, r: int, c: int, links: int, ctx: Vari
 	var nm := name_of(u)
 	if not _trigger_tiles("on_act", u):
 		return
+	# Who acts, for a screen to show them moving (a lunge, a cast) before the action lands.
+	events.append({"t": "act", "id": u.id, "kind": a.kind, "range": a.get("range", u.get("range", "ranged"))})
 	# A hero's signature skill plays their cut-in before it lands.
 	if a.get("is_skill", false) and a.get("cutin", false) and u.has("cutin"):
 		events.append({"t": "cutin", "src": u.cutin, "id": u.id, "name": a.name})

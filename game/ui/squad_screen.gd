@@ -26,19 +26,30 @@ func _build() -> void:
 	n.size_flags_vertical = SIZE_SHRINK_CENTER
 	head_right.add_child(n)
 
-	body.add_child(_heading("the field"))
-	body.add_child(_seats())
-	body.add_child(_hint())
-	body.add_child(_heading("formation"))
-	body.add_child(_grid())
-	body.add_child(_heading("bench"))
-	body.add_child(_bench())
-	body.add_child(_heading("the team"))
-	body.add_child(_readout())
+	# Wide: the formation on the left, everything about who is in it on the right. Phone: one column.
+	var left: VBoxContainer = body
+	var right: VBoxContainer = body
+	if Forge.wide():
+		var cols := Forge.hbox(40)
+		body.add_child(cols)
+		left = Forge.vbox(20)
+		right = Forge.vbox(20)
+		right.size_flags_horizontal = SIZE_EXPAND_FILL
+		cols.add_child(left)
+		cols.add_child(right)
+	right.add_child(_heading("the field"))
+	right.add_child(_seats())
+	right.add_child(_hint())
+	left.add_child(_heading("formation"))
+	left.add_child(_grid())
+	right.add_child(_heading("bench"))
+	right.add_child(_bench())
+	right.add_child(_heading("the team"))
+	right.add_child(_readout())
 	var go := Forge.studs("back to the road" if app.run else "choose a road")
 	go.size_flags_horizontal = SIZE_SHRINK_CENTER
 	go.pressed.connect(func(): app.show_tab("expedition"))
-	body.add_child(go)
+	right.add_child(go)
 
 
 func _heading(text: String) -> Control:
@@ -73,7 +84,7 @@ func _seat(uid: String, w: float) -> Control:
 	var c := app.col.by(uid)
 	var h := Data.hero(c.hero)
 	var v := _card(c, w)
-	var art: CardArt = v.get_child(0)
+	var art: Control = v.get_child(0)
 	var picked := uid == _sel
 	if picked:
 		Rim.on(art, "flow", [Forge.GOLD_DEEP, Forge.GOLD_LIGHT, Forge.GOLD, Color("#fff1c4")], 4.0, -4.0)
@@ -139,6 +150,8 @@ func _hint() -> Control:
 # --- formation ---------------------------------------------------------------------------------
 
 func _grid() -> Control:
+	if Forge.wide():
+		return _side_grid()
 	var v := Forge.vbox(8)
 	var foe := Forge.sc("the enemy is this way", 16, Forge.DIM)
 	foe.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -154,6 +167,36 @@ func _grid() -> Control:
 		l.size_flags_vertical = SIZE_SHRINK_CENTER
 		row.add_child(l)
 		for c in Collection.COLS:
+			row.add_child(_tile(Vector2i(r, c), t, r in want))
+	v.add_child(_range_note())
+	return v
+
+
+## The wide build's formation, side on like its battles: deep to front from left to right, lanes running down, the
+## enemy off to the right.
+func _side_grid() -> Control:
+	var v := Forge.vbox(6)
+	var t := 112.0
+	var heads := Forge.hbox(8)
+	v.add_child(heads)
+	for i in Collection.ROWS:
+		var r := Collection.ROWS - 1 - i
+		var l := Forge.sc(ROW_NAMES[r] if r < ROW_NAMES.size() else str(r + 1), 16, Forge.DIM)
+		l.custom_minimum_size.x = t
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		heads.add_child(l)
+	var foe := Forge.sc("the enemy is this way  →", 16, Forge.DIM)
+	foe.size_flags_horizontal = SIZE_EXPAND_FILL
+	heads.add_child(foe)
+	var room := Control.new()
+	room.custom_minimum_size.y = 96
+	v.add_child(room)
+	var want := _wanted_rows()
+	for c in Collection.COLS:
+		var row := Forge.hbox(8)
+		v.add_child(row)
+		for i in Collection.ROWS:
+			var r := Collection.ROWS - 1 - i
 			row.add_child(_tile(Vector2i(r, c), t, r in want))
 	v.add_child(_range_note())
 	return v
@@ -181,7 +224,16 @@ func _tile(at: Vector2i, t: float, wanted: bool) -> Control:
 	tile.draw.connect(func():
 		var r := Rect2(Vector2.ZERO, tile.size)
 		tile.draw_rect(r, Color(Forge.GOLD, 0.12) if wanted else Color(Forge.PLAQUE, 0.6))
-		if tex:
+		if tex and Forge.wide():
+			# The wide build shows who stands here as a fighter on the tile, in their element's light.
+			var foot := Vector2(r.size.x / 2, r.size.y * 0.8)
+			tile.draw_set_transform(foot, 0, Vector2(1, 0.3))
+			for i in 6:
+				tile.draw_circle(Vector2.ZERO, r.size.x * 0.45 * (1.0 - i / 6.0), Color(Forge.ELEM[h.elem], 0.06))
+			tile.draw_set_transform(Vector2.ZERO)
+			var spr := Data.sprite_for({"hero": h.key})
+			Figure.draw(tile, spr, foot, Figure.height(spr, r.size.y * 1.45), {"flip": true, "breathe": 0.0})
+		elif tex:
 			Forge.portrait(tile, tex, r.grow(-4), h.portrait, 0.75, "squad")
 			# Element sigil, bottom left, and the range under it.
 			var c := Vector2(24, r.size.y - 24)
@@ -223,7 +275,7 @@ func _range_note() -> Control:
 			text = "%s is ranged and works from any row. Deeper rows sit out of melee's reach, which only touches the front-most unit in a lane." % h.name
 	var l := Forge.label(text, 22, Forge.MUTED, Forge.SANS_ITALIC)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = W
+	l.custom_minimum_size.x = 400.0 if Forge.wide() else W
 	return l
 
 
@@ -383,9 +435,15 @@ func _note(text: String) -> Label:
 func _card(c: Dictionary, w: float) -> VBoxContainer:
 	var h := Data.hero(c.hero)
 	var v := Forge.vbox(8)
-	var art := CardArt.new().setup(c.hero, c.stars)
-	art.drift = 0.0
-	art.custom_minimum_size = Vector2(w, w * 1.3)
+	# The wide build shows the hero standing; the phone build shows their card.
+	var art: Control
+	if Forge.wide():
+		art = Stand.new().setup(c.hero, c.stars)
+		art.custom_minimum_size = Vector2(w, w * 1.6)
+	else:
+		art = CardArt.new().setup(c.hero, c.stars)
+		art.drift = 0.0
+		art.custom_minimum_size = Vector2(w, w * 1.3)
 	v.add_child(art)
 	var n := Forge.sc(h.name, 18, Forge.PARCHMENT, true, 0.1)
 	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

@@ -2,7 +2,9 @@ class_name BattleTile
 extends Control
 ## One tile of a battle grid: the unit standing there as a small card (portrait, sigil, name, HP, statuses), or an
 ## empty tile. Lit when it can be aimed at; flashes and floats numbers when the fight touches it. Draws from the
-## screen's current view of the board, so playback can show each beat.
+## screen's current view of the board, so playback can show each beat. On the landscape board a BattleFigure stands
+## on the tile instead of a card, and the tile is floor: a pool of light under the fighter, and the move, attack and
+## danger lights.
 
 const HP_LOW := Color("#e86a5a")
 const FLOAT_COLORS := {"crit": Color("#ffb347"), "resist": Color("#cbbd9f"), "hurt": Color("#f3e6c4"), "blocked": Color("#9fb3c8"),
@@ -14,6 +16,8 @@ var r := 0
 var c := 0
 ## 0 → 1 as the unit here walks onto the field at the start of a fight; 1 when settled.
 var enter := 1.0
+## The fighter standing here on the landscape board (null on the card board).
+var figure: BattleFigure
 ## Clock for the selected hero's comet rim.
 var _t := 0.0
 var _from := Vector2.ZERO
@@ -32,7 +36,9 @@ func _ready() -> void:
 ## The unit here marches in from `from` (an offset), bobbing in step, and sparks as it lands.
 func _process(delta: float) -> void:
 	_t += delta
-	if side == "P" and screen and not screen.view.is_empty():
+	if figure:
+		queue_redraw()
+	elif side == "P" and screen and not screen.view.is_empty():
 		var u := screen.unit_view(side, r, c)
 		if not u.is_empty() and screen.is_selected(u):
 			queue_redraw()
@@ -59,6 +65,9 @@ func _draw() -> void:
 	var area := screen.area_kind(side, r, c)
 	var tint: Color = Forge.HARM if area == "harm" else Forge.MEND
 	var threat := screen.threat_at(side, r, c)
+	if figure:
+		_floor(rect, u, lit, area, tint, threat)
+		return
 	if u.is_empty():
 		draw_style_box(Forge.flat(Color(Forge.PLAQUE, 0.55), Color(Forge.BRONZE, 0.3), 1), rect)
 		var fx := screen.b.effects_at(side, r, c)
@@ -163,6 +172,56 @@ func _draw() -> void:
 		draw_string(Forge.tracked(Forge.SC_HEAVY, 4), Vector2(0, size.y / 2 + 8), word, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, Color(Forge.PARCHMENT, 0.7))
 
 
+## The landscape board's floor: a dark slab, a pool of light under whoever stands here (gold under the hero you're
+## moving, with a comet running round it), and the same move, attack and danger lights as the card board.
+func _floor(rect: Rect2, u: Dictionary, lit: bool, area: String, tint: Color, threat: int) -> void:
+	# The floor shows through: a tile is only a faint slab, scored at its edges.
+	draw_rect(rect, Color(Forge.PLAQUE, 0.22))
+	draw_line(rect.position + Vector2(3, 1), Vector2(rect.end.x - 3, 1), Color(Forge.GOLD_LIGHT, 0.05), 1.0)
+	draw_rect(rect, Color(Forge.BRONZE, 0.13), false, 1.0)
+	var foot := Vector2(size.x / 2, size.y * BattleFigure.FOOT)
+	if not u.is_empty() and u.view.alive:
+		var sel := screen.is_selected(u)
+		var col: Color = Forge.GOLD if sel else Forge.ELEM[u.elem]
+		draw_set_transform(foot, 0, Vector2(1, 0.34))
+		for i in 7:
+			var k := 1.0 - i / 7.0
+			draw_circle(Vector2.ZERO, size.x * 0.5 * k, Color(col, (0.07 if sel else 0.045)))
+		draw_arc(Vector2.ZERO, size.x * 0.44, 0, TAU, 48, Color(col, 0.6 if sel else 0.3), 3.0, true)
+		if sel:
+			var head := fposmod(_t * 0.45, 1.0) * TAU
+			for i in 14:
+				var k := i / 13.0
+				draw_arc(Vector2.ZERO, size.x * 0.44, head - 1.0 * (1 - k) - 0.08, head - 1.0 * (1 - k), 4, Color("#fff1c4", k), 3.0, true)
+		draw_set_transform(Vector2.ZERO)
+	var ghost := screen.ghost_at(side, r, c)
+	if u.is_empty() and not ghost.is_empty():
+		_dashed(rect.grow(-3), Color(Forge.MOVE, 0.8))
+	elif u.is_empty() and screen.is_step(side, r, c):
+		_glow(rect, Forge.MOVE, 0.16)
+	elif area != "":
+		_glow(rect, tint, 0.2)
+	elif lit:
+		# Setting the formation lights where a hero may stand in gold; otherwise lit means aimable.
+		var lc: Color = Forge.GOLD_DEEP if screen.b.phase == "form" else (tint if screen._armed_act().get("kind", "dmg") != "dmg" else Forge.HARM)
+		draw_rect(rect.grow(-1), Color(lc, 0.5), false, 1.5)
+	if u.is_empty():
+		var fx := screen.b.effects_at(side, r, c)
+		if fx.size():
+			_tag(Vector2(8, 8), fx[0].label.to_lower(), Color("#ff7a3d"))
+	if screen.aim_center(side, r, c):
+		_crosshair(tint)
+	if threat > 0:
+		_threat(rect, threat)
+
+
+## Light cast on the floor: brightest at the tile's edge, fading toward its middle.
+func _glow(rect: Rect2, col: Color, a: float) -> void:
+	draw_rect(rect.grow(-1), Color(col, a))
+	draw_rect(rect.grow(-4), Color(col, a * 0.6), false, 6.0)
+	draw_rect(rect.grow(-1), Color(col, 0.8), false, 1.5)
+
+
 ## The forecast number over a unit: red for damage, green for healing or shield; the one in the bar gets a frame.
 func _preview(pv: Dictionary) -> void:
 	var dmg: bool = pv.kind == "dmg"
@@ -225,6 +284,9 @@ func _tag(at: Vector2, text: String, color: Color, from_right := false) -> float
 
 
 func flash() -> void:
+	if figure:
+		figure.flash()
+		return
 	var t := create_tween()
 	t.tween_property(self, "modulate", Color(1.5, 1.4, 1.15), 0.08)
 	t.tween_property(self, "modulate", Color.WHITE, 0.22)
@@ -232,6 +294,9 @@ func flash() -> void:
 
 ## A number or word rising off the tile and fading.
 func float_text(text: String, cls: String) -> void:
+	if figure and not screen.unit_view(side, r, c).is_empty():
+		figure.float_text(text, cls)
+		return
 	var l := Forge.sc(text, 30, FLOAT_COLORS.get(cls, Forge.PARCHMENT), true, 0.04)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.size = Vector2(size.x, 40)

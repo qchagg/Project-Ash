@@ -22,13 +22,13 @@ func _ready() -> void:
 	root.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(root)
 
-	var head := Forge.margins(MarginContainer.new(), 44, 56, 44, 0)
+	var head := Forge.margins(MarginContainer.new(), 40, 26, 40, 0) if Forge.wide() else Forge.margins(MarginContainer.new(), 44, 56, 44, 0)
 	root.add_child(head)
 	var hv := Forge.vbox(30)
 	head.add_child(hv)
 	var top := Forge.hbox(14)
 	hv.add_child(top)
-	top.add_child(Forge.sc("Heroes", 52, Forge.GOLD, true, 0.16))
+	top.add_child(Forge.sc("Heroes", 40 if Forge.wide() else 52, Forge.GOLD, true, 0.16))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	top.add_child(spacer)
@@ -52,12 +52,13 @@ func _ready() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	root.add_child(scroll)
-	var pad := Forge.margins(MarginContainer.new(), 44, 48, 44, 48)
+	var pad := Forge.margins(MarginContainer.new(), 40, 8, 40, 24) if Forge.wide() else Forge.margins(MarginContainer.new(), 44, 48, 44, 48)
 	pad.size_flags_horizontal = SIZE_EXPAND_FILL
 	scroll.add_child(pad)
 	_grid = GridContainer.new()
-	_grid.columns = 4 if Forge.wide() else 2
-	_grid.add_theme_constant_override("h_separation", 34)
+	# Wide: the whole cast standing in one row, as fighters. Phone: cards, two across.
+	_grid.columns = 6 if Forge.wide() else 2
+	_grid.add_theme_constant_override("h_separation", 12 if Forge.wide() else 34)
 	_grid.add_theme_constant_override("v_separation", 56)
 	pad.add_child(_grid)
 	_fill()
@@ -86,6 +87,8 @@ func _tile(h: Dictionary, copies: Array) -> Control:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			app.show_hero(h.key))
 
+	if Forge.wide():
+		return _figure_tile(h, copies, best, fielded)
 	var art := CardArt.new().setup(h.key, best.stars)
 	art.custom_minimum_size = Vector2(TILE_W, ART_H)
 	tile.add_child(art)
@@ -120,6 +123,42 @@ func _tile(h: Dictionary, copies: Array) -> Control:
 		stars.add_child(Forge.glyph("star", 18, Data.TIER_COLORS[best.stars].lightened(0.15)))
 	plate.add_child(stars)
 	for c in [art, plate, name, title, stars]:
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tile
+
+
+## The wide build's hero: standing in their light, name and stars beneath, copies and the squad pennant beside them.
+func _figure_tile(h: Dictionary, copies: Array, best: Dictionary, fielded: bool) -> Control:
+	var tile := Forge.vbox(8)
+	tile.custom_minimum_size.x = 196
+	tile.mouse_filter = Control.MOUSE_FILTER_STOP
+	tile.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	tile.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			app.show_hero(h.key))
+	Forge.press_weight(tile, 0.96)
+	var stand := Stand.new().setup(h.key, best.stars)
+	stand.custom_minimum_size = Vector2(196, 300)
+	tile.add_child(stand)
+	stand.draw.connect(func():
+		if fielded:
+			var x := stand.size.x - 34
+			stand.draw_colored_polygon(PackedVector2Array([Vector2(x, 0), Vector2(x + 26, 0), Vector2(x + 26, 34),
+				Vector2(x + 13, 27), Vector2(x, 34)]), Forge.GOLD)
+		if copies.size() > 1:
+			stand.draw_string(Forge.SANS_BOLD, Vector2(0, 22), "×%d" % copies.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Forge.MUTED))
+	var name := Forge.sc(h.name, 26, Forge.PARCHMENT, true, 0.12)
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tile.add_child(name)
+	var title := Forge.sc(h.title, 16, Forge.LABEL)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tile.add_child(title)
+	var stars := Forge.hbox(4)
+	stars.alignment = BoxContainer.ALIGNMENT_CENTER
+	for i in best.stars:
+		stars.add_child(Forge.glyph("star", 16, Data.TIER_COLORS[best.stars].lightened(0.15)))
+	tile.add_child(stars)
+	for c in [name, title, stars]:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return tile
 
