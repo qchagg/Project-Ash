@@ -2,7 +2,7 @@ class_name Clips
 extends RefCounted
 ## Heroes' video clips (idles, talk, skills) live outside the game pack, so the pack stays small and a clip costs
 ## nothing until it is wanted. In the editor and the checks they load from res://art/clips/; in the web build the
-## export leaves them out and they ship beside the page in clips/, fetched one at a time into user:// as the app
+## export leaves them out and they ship beside the page in clips/ (as .ogg, a type the host serves), fetched one at a time into user:// as the app
 ## starts (idles first) and kept there. Until a clip has arrived, `stream` returns null and a Bust shows its still.
 
 const DIR := "res://art/clips/"
@@ -63,7 +63,7 @@ static func _next() -> void:
 	if _queue.is_empty():
 		return
 	var c: String = _queue[0]
-	if _http.request(_base + c + ".ogv") != OK:
+	if _http.request(_base + c + ".ogg") != OK:
 		_queue.pop_front()
 		_next()
 
