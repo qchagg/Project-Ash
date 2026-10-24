@@ -17,7 +17,7 @@ const FOES := [
 	# The golem's slot, played by Smoke for now: his name and art, the golem's rules (the reference fights depend on them).
 	{"key": "golem", "name": "Smoke", "short": "Smoke", "elem": "earth", "legacy_elem": "fire", "range": "melee",
 		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 1,
-		"portrait": {"src": "res://art/sprites/smoke.webp", "eyes": [41, 6], "chin": 9}, "skills": [
+		"portrait": {"src": "res://art/faces/smoke.webp", "eyes": [53, 44], "chin": 57}, "skills": [
 		{"name": "Magma Fist", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.5, "cd": 3, "fx": {"burn": 2}},
 		{"name": "Quake", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 0.8, "cd": 3}]},
 	{"key": "blade", "name": "Galeblade", "short": "Galeblade", "elem": "wind", "range": "melee",
@@ -27,12 +27,12 @@ const FOES := [
 		{"name": "Cyclone Cut", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 1.0, "cd": 2}]},
 	{"key": "caller", "name": "Tidecaller", "short": "Tidecaller", "elem": "water", "range": "ranged",
 		"max_hp": 900, "atk": 125, "def": 45, "spd": 85, "r": 1, "c": 2,
-		"portrait": {"src": "res://art/portraits/caller.webp", "eyes": [42, 44], "chin": 60}, "skills": [
+		"portrait": {"src": "res://art/faces/tidecaller.webp", "eyes": [50, 35], "chin": 47}, "skills": [
 		{"name": "Mend", "kind": "heal", "pattern": "all", "power": 1.2, "cd": 4},
 		{"name": "Tidal Pillar", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.15, "cd": 3}]},
 	{"key": "seer", "name": "Ashen Seer", "short": "Seer", "elem": "fire", "range": "ranged",
 		"max_hp": 800, "atk": 135, "def": 35, "spd": 95, "r": 2, "c": 1,
-		"portrait": {"src": "res://art/portraits/seer.webp", "eyes": [33, 40], "chin": 61}, "skills": [
+		"portrait": {"src": "res://art/faces/seer.webp", "eyes": [47, 32], "chin": 45}, "skills": [
 		{"name": "Ember Rain", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.55, "cd": 4, "fx": {"burn": 1}},
 		{"name": "Flare", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.6, "cd": 2}]},
 ]

@@ -17,8 +17,9 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-# Greenness (the key channel over the larger of the other two) at which a pixel starts and finishes turning clear.
-SOFT, HARD = 34.0, 88.0
+# Greenness (the key channel over the larger of the other two) at which a pixel starts and finishes turning clear,
+# as shares of the backdrop's own greenness: a bright #00FF00 backdrop and a dark green one both key cleanly.
+SOFT, HARD = 0.3, 0.76
 
 
 def key_channel(rgb):
@@ -28,7 +29,14 @@ def key_channel(rgb):
     return 1 if m[1] > max(m[0], m[2]) else -1
 
 
-def key(rgb, ch=1):
+def backdrop(rgb, ch=1):
+    """How green (or magenta) the frame's border is: the backdrop's greenness."""
+    b = np.concatenate([rgb[:8].reshape(-1, 3), rgb[:, :8].reshape(-1, 3), rgb[:, -8:].reshape(-1, 3)]).astype(np.float32)
+    m = np.median(b, 0)
+    return float(m[1] - max(m[0], m[2])) if ch == 1 else float(min(m[0], m[2]) - m[1])
+
+
+def key(rgb, ch=1, level=None):
     """Straight RGBA from an RGB frame: clear where the backdrop shows, spill taken out where it bled."""
     f = rgb.astype(np.float32)
     r, g, b = f[..., 0], f[..., 1], f[..., 2]
@@ -36,7 +44,8 @@ def key(rgb, ch=1):
         over = g - np.maximum(r, b)
     else:
         over = np.minimum(r, b) - g
-    a = 1.0 - np.clip((over - SOFT) / (HARD - SOFT), 0.0, 1.0)
+    level = max(level if level is not None else backdrop(rgb, ch), 40.0)
+    a = 1.0 - np.clip((over - SOFT * level) / ((HARD - SOFT) * level), 0.0, 1.0)
     a = ndimage.gaussian_filter(a, 0.6)
     a[a < 0.04] = 0.0
     # Despill where the backdrop can reach: see-through parts and a few pixels in from every edge. There the key

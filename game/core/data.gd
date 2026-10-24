@@ -115,7 +115,7 @@ const HEROES := [
 		{"name": "Molt", "flavor": "He sheds the blow, and so does everyone near him.", "kind": "shield", "pattern": "all", "power": 1.6, "cd": 4, "desc": "Shields every ally. Shields hold until broken."}]},
 	{"key": "smoke", "favored": ["might", "finesse"], "bio": "A masked brawler who fights like a fire that has learned to wait.", "name": "Smoke", "title": "Masked Ember", "elem": "fire", "range": "melee",
 		"max_hp": 1250, "atk": 120, "def": 70, "spd": 98, "r": 0, "c": 2,
-		"portrait": {"src": "res://art/sprites/smoke.webp", "eyes": [41, 6], "chin": 9, "keyed": true, "cx": 0.41}, "full": {"src": "res://art/sprites/smoke.webp", "x": 41, "w": 1.0, "face": [41, 6]},
+		"portrait": {"src": "res://art/faces/smoke.webp", "eyes": [53, 44], "chin": 57, "keyed": true, "cx": 0.5}, "full": {"src": "res://art/sprites/smoke.webp", "x": 41, "w": 1.0, "face": [41, 6]},
 		"home": "xochitlan",
 		"lore": "[Working bio: a placeholder until his real story is settled.] Nobody in the smoking hills of Xochitlan has seen his face. The mask is red so that the blood never shows, he says, though no one has ever seen him bleed. He fights barehanded because, he claims, weapons make people careless.",
 		"lines": {
@@ -145,7 +145,7 @@ const HEROES := [
 		{"name": "Flare", "flavor": "One spark, aimed where the enemy will be.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.6, "cd": 2, "desc": "A searing shot at one target."}]},
 	{"key": "caller", "favored": ["charm", "lore"], "bio": "A horned tide-singer from the coral coast who calls the sea in and asks it to stay.", "name": "Tidecaller", "title": "Coral Cantor", "elem": "water", "range": "ranged",
 		"max_hp": 880, "atk": 110, "def": 48, "spd": 86, "r": 1, "c": 2,
-		"portrait": {"src": "res://art/sprites/tidecaller.webp", "eyes": [28, 4], "chin": 6.8, "keyed": true, "cx": 0.45}, "full": {"src": "res://art/sprites/tidecaller.webp", "x": 42, "w": 1.0, "face": [28, 4]},
+		"portrait": {"src": "res://art/faces/tidecaller.webp", "eyes": [50, 35], "chin": 47, "keyed": true, "cx": 0.5}, "full": {"src": "res://art/sprites/tidecaller.webp", "x": 42, "w": 1.0, "face": [28, 4]},
 		"home": "mwambao",
 		"lore": "[Working bio: a placeholder until the Tidecaller's real story is settled.] On the Mwambao coast the tide comes when it is called, and for a generation it has been this one calling. The white braids are salt-bleached; the gold is from wrecks the sea gave back as thanks.",
 		"lines": {
