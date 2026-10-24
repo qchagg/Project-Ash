@@ -5,9 +5,11 @@ extends RefCounted
 
 const FACES := {
 	"brann": {"char": "brann", "still": "res://art/faces/brann.webp", "idle": ["brann-idle1", "brann-idle2"], "talk": ["brann-talk1", "brann-talk2"], "skills": ["brann-spell1", "brann-spell2"], "chant": "brann-spell1", "other": [], "moods": {}},
+	"seer": {"char": "seer", "still": "res://art/faces/seer.webp", "idle": ["seer-idle1", "seer-idle2"], "talk": ["seer-talk1", "seer-talk2"], "skills": ["seer-spell1", "seer-spell2"], "chant": "seer-spell1", "other": [], "moods": {}},
 	"snake": {"char": "snake", "still": "res://art/faces/snake.webp", "idle": ["snake-idle1", "snake-idle2"], "talk": ["snake-talk1", "snake-talk2"], "skills": ["snake-spell1", "snake-spell2"], "chant": "snake-spell1", "other": [], "moods": {}},
+	"sorrel": {"char": "sorrel", "still": "res://art/faces/sorrel.webp", "idle": ["sorrel-idle1", "sorrel-idle2"], "talk": ["sorrel-talk1", "sorrel-talk2"], "skills": ["sorrel-spell1", "sorrel-spell2"], "chant": "sorrel-spell1", "other": [], "moods": {}},
 	"kaede": {"char": "surya", "still": "res://art/faces/surya.webp", "idle": ["surya-idle1", "surya-idle2"], "talk": ["surya-talk1", "surya-talk2"], "skills": ["surya-spell1", "surya-spell2"], "chant": "surya-spell1", "other": [], "moods": {}},
-	"ilse": {"char": "varuni", "still": "res://art/faces/varuni.webp", "idle": ["varuni-idle1", "varuni-idle2"], "talk": ["varuni-talk1"], "skills": ["varuni-spell3", "varuni-spell2"], "chant": "varuni-spell1", "other": [], "moods": {}},
+	"ilse": {"char": "varuni", "still": "res://art/faces/varuni.webp", "idle": ["varuni-idle1", "varuni-idle2"], "talk": ["varuni-talk1", "varuni-talk2"], "skills": ["varuni-spell3", "varuni-spell2"], "chant": "varuni-spell1", "other": [], "moods": {}},
 }
 
 

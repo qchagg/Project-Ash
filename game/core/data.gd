@@ -59,7 +59,14 @@ const HEROES := [
 		"max_hp": 900, "atk": 135, "def": 45, "spd": 105, "r": 1, "c": 0,
 		"portrait": {"src": "res://art/portraits/sorrel.webp", "eyes": [48.5, 40.5], "chin": 67, "crops": {"squad": [12, 7.5, 65.5], "tile": [0, 0.5, 73.5]}}, "full": {"src": "res://art/full/sorrel.webp", "x": 50, "w": 1.4, "face": [51, 35]},
 		"home": "gwyntmoor",
-		"lore": "The herds of Gwyntmoor teach their foals to read the wind before they read anything else, and Sorrel was the best reader the ridges had seen in a generation. He was also the vainest, which the herd forgave for exactly as long as he kept winning the autumn shoot. He left the year the elders ordered a raid on a rival herd's winter grazing; he would not loose an arrow at foals, and said so in front of everyone. Now he hires out his bow to anyone with a fair cause and a good table. He braids silver into his hair before every fight. If the wind is going to carry his name, he says, it may as well carry it looking well.", "skills": [
+		"lore": "The herds of Gwyntmoor teach their foals to read the wind before they read anything else, and Sorrel was the best reader the ridges had seen in a generation. He was also the vainest, which the herd forgave for exactly as long as he kept winning the autumn shoot. He left the year the elders ordered a raid on a rival herd's winter grazing; he would not loose an arrow at foals, and said so in front of everyone. Now he hires out his bow to anyone with a fair cause and a good table. He braids silver into his hair before every fight. If the wind is going to carry his name, he says, it may as well carry it looking well.", "lines": {
+			"greet": ["The wind says you're about to ask me something. Go on.",
+				"One arrow is a promise. Two is an apology. I don't apologise.",
+				"Stand downwind of me; you'll hear more of the world."],
+			"camp": ["The gale is resting too. Listen: it breathes slower at night.",
+				"I'll take first watch. My eyes are better, and my legs don't tire.",
+				"Every star is a fletching. Someone up there is a very good archer."]},
+		"skills": [
 		{"name": "Crosswind", "flavor": "His arrows ride the gale four ways at once.", "kind": "dmg", "range": "ranged", "pattern": "cross", "power": 1.0, "cd": 2, "desc": "Hits a tile and its four neighbors."},
 		{"name": "Pinning Shot", "flavor": "One arrow, and the target forgets how to move.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
 	{"key": "ilse", "favored": ["lore", "charm"], "bio": "Tide chantress of Jaladesh, once cursed as a sea-witch.", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
