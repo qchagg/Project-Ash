@@ -406,6 +406,7 @@ func _unique(list: Array) -> Array:
 
 
 func _celebrate() -> void:
+	Sfx.play("summon", 0.0)
 	if Faces.of(hero).get("chant", "") != "":
 		CutIn.play(app, hero, Faces.of(hero).chant)
 

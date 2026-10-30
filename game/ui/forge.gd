@@ -158,7 +158,7 @@ static func _button(text: String, px: int, styles: Dictionary, colors: Dictionar
 
 
 ## Gives a control a physical press: it sinks and brightens while held, then springs back past its size.
-## Every Forge button has it; tiles and cards call it for themselves.
+## Every Forge button has it; tiles and cards call it for themselves. The press ticks (Sfx "tap").
 static func press_weight(c: Control, depth := 0.93) -> void:
 	var tw := [null]
 	var go := func(scale: float, glow: float, t: float, spring: bool):
@@ -172,11 +172,15 @@ static func press_weight(c: Control, depth := 0.93) -> void:
 		t2.tween_property(c, "modulate", Color(glow, glow, glow * 0.95), t)
 		tw[0] = t2
 	if c is BaseButton:
-		c.button_down.connect(func(): go.call(depth, 1.25, 0.06, false))
+		c.button_down.connect(func():
+			Sfx.play("tap")
+			go.call(depth, 1.25, 0.06, false))
 		c.button_up.connect(func(): go.call(1.0, 1.0, 0.28, true))
 	else:
 		c.gui_input.connect(func(e: InputEvent):
 			if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+				if e.pressed:
+					Sfx.play("tap")
 				go.call(depth if e.pressed else 1.0, 1.25 if e.pressed else 1.0, 0.06 if e.pressed else 0.28, not e.pressed))
 
 
@@ -263,6 +267,7 @@ static func studs(text: String, primary := true, height := 80) -> Button:
 	var b := _button(text, 26, styles, {"font_color": GOLD_LIGHT if primary else PARCHMENT, "font_hover_color": GOLD_LIGHT,
 		"font_pressed_color": GOLD_LIGHT, "font_disabled_color": Color(PARCHMENT, 0.35)})
 	b.custom_minimum_size.y = height
+	b.pressed.connect(Sfx.play.bind("confirm", 0.0))
 	if primary:
 		# The one commit on a screen breathes, so the eye finds it.
 		Rim.on(b, "pulse", [GOLD_LIGHT], 2.0, -4.0)
@@ -313,6 +318,19 @@ static func link(text: String, glyph_name := "back", px := 24) -> Button:
 		b.add_theme_color_override("icon_pressed_color", GOLD_LIGHT)
 		b.add_theme_constant_override("h_separation", 10)
 	b.custom_minimum_size.y = 80
+	return b
+
+
+## Sound on or off: a quiet speaker glyph in the corner of every tab's title row.
+static func sound_toggle() -> Button:
+	var b := link("", "sound_on" if Sfx.on() else "sound_off", 28)
+	b.custom_minimum_size = Vector2(56, 56)
+	b.tooltip_text = "Sound"
+	b.add_theme_color_override("icon_normal_color", GOLD if Sfx.on() else DIM)
+	b.pressed.connect(func():
+		Sfx.set_on(not Sfx.on())
+		b.icon = icon("sound_on" if Sfx.on() else "sound_off")
+		b.add_theme_color_override("icon_normal_color", GOLD if Sfx.on() else DIM))
 	return b
 
 

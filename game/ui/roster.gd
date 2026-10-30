@@ -34,6 +34,7 @@ func _ready() -> void:
 	top.add_child(spacer)
 	top.add_child(_chip("crown", Forge.GOLD, app.col.crowns, "Ashcrowns", "Raise a 3★ card to 4★ on its Evolve page."))
 	top.add_child(_chip("augment", Forge.GOLD_LIGHT, app.col.loose.size(), "Loose augments", "Augments not slotted on any card. Fit them to a skill on a card's Equip page."))
+	top.add_child(Forge.sound_toggle())
 
 	var filters := Forge.hbox(8)
 	hv.add_child(filters)

@@ -53,6 +53,8 @@ func _init() -> void:
 		["Playback · a round marks the ally and enemy turns, and Varuni's Rain of Renewal cues her cut-in", _b_turn_marks],
 		["Faces · every clip, still and body sheet a hero names is in the project", _faces_exist],
 		["Facing · heroes face right and foes face left, whichever way their art was drawn", _facing],
+		["Sound · every cue the game plays has a sound file, and a cue with none is silent rather than an error", _sounds],
+		["Health bars · a hit drops the bar at once and leaves a pale chunk that drains; a heal fills it", _hp_lag],
 		["Plan · a hero steps then acts: Brann steps to the front row and Rockfall lands, though he planned it from the second row", _b_step_then_act],
 		["Plan · queue order holds: Varuni's heal lands on Sorrel before he steps away; he then casts from his new tile", _b_step_order],
 		["Plan · steps reach 2 tiles, never onto a unit or a tile another hero has claimed; stepping home cancels", _b_step_tiles],
@@ -883,6 +885,45 @@ func _facing() -> Array:
 				wrong.append(key)
 	return [wrong.is_empty() and Figure.mirrored({"faces": "right"}, false) and not Figure.mirrored({}, false),
 		"%d sprites · facing wrong %s" % [Data.SPRITES.size(), wrong]]
+
+
+func _sounds() -> Array:
+	var cues := {}
+	var re := RegEx.create_from_string("Sfx\\.play(?:\\.bind)?\\(\"([a-z_]+)\"")
+	var missing := []
+	for dir in ["res://ui/", "res://core/"]:
+		for f in DirAccess.get_files_at(dir):
+			if f.ends_with(".gd"):
+				for m in re.search_all(FileAccess.get_file_as_string(dir + f)):
+					cues[m.get_string(1)] = true
+	# Cues chosen from a table at playback.
+	for c in ["crit", "hit", "shield", "mend", "burn", "stun", "victory", "defeat", "cast", "swing"]:
+		cues[c] = true
+	for c in cues:
+		if Sfx.variants(c).is_empty():
+			missing.append(c)
+	return [missing.is_empty() and Sfx.variants("no_such_cue").is_empty() and cues.size() >= 15,
+		"%d cues · %d variations of hit · missing %s" % [cues.size(), Sfx.variants("hit").size(), missing]]
+
+
+func _hp_lag() -> Array:
+	var s := BattleScreen.new()
+	var full := s.hp_fx("P-x", 100, 100)
+	var hit := s.hp_fx("P-x", 60, 100)
+	s._process(0.2)
+	var held := s.hp_fx("P-x", 60, 100)
+	for i in 20:
+		s._process(0.1)
+	var drained := s.hp_fx("P-x", 60, 100)
+	var heal := s.hp_fx("P-x", 90, 100)
+	for i in 10:
+		s._process(0.1)
+	var filled := s.hp_fx("P-x", 90, 100)
+	s.free()
+	var ok: bool = full.lead == 1.0 and hit.lead == 0.6 and hit.lag == 1.0 and held.lag == 1.0 \
+		and is_equal_approx(drained.lag, 0.6) and heal.gain and heal.lead == 0.6 and is_equal_approx(filled.lead, 0.9) and not filled.gain
+	return [ok, "hit 100→60: bar %.2f, chunk %.2f, still %.2f after 0.2s, %.2f after 2.2s · heal to 90 fills %.2f → %.2f" % [
+		hit.lead, hit.lag, held.lag, drained.lag, heal.lead, filled.lead]]
 
 
 func _b_turn_marks() -> Array:

@@ -34,6 +34,7 @@ func _ready() -> void:
 	top.add_child(spacer)
 	head_right = Forge.hbox(14)
 	top.add_child(head_right)
+	top.add_child(Forge.sound_toggle())
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED

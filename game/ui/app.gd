@@ -4,7 +4,10 @@ extends Control
 ## The nav (Heroes · Expedition · Town) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.46"
+const VERSION := "v0.47"
+## Moving between screens: how long the new one takes to come in, and how far it rises as it does.
+const FADE := 0.2
+const RISE := 18.0
 
 var col := Collection.new()
 ## The town between expeditions; kept for the session while you move between tabs.
@@ -23,6 +26,7 @@ var _screen: Control
 
 func _ready() -> void:
 	Forge.setup()
+	Sfx.warm()
 	Clips.fetch_all(self)
 	_showcase()
 	var bg := ColorRect.new()
@@ -105,12 +109,27 @@ func show_fight() -> void:
 	_open(BattleScreen.new().setup(self))
 
 
+## Swaps in a screen. The old one stops (no input, no clocks) and fades while the new one rises in over it, so moving
+## between places reads as a move rather than a cut.
 func _open(screen: Control) -> void:
 	if _screen:
-		_screen.queue_free()
+		var old := _screen
+		old.process_mode = Node.PROCESS_MODE_DISABLED
+		old.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var out := create_tween()
+		out.tween_property(old, "modulate:a", 0.0, FADE * 0.8)
+		out.tween_callback(old.queue_free)
+		Sfx.play("page")
 	_screen = screen
 	_content.add_child(screen)
 	screen.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	if _content.get_child_count() > 1:
+		screen.modulate.a = 0.0
+		var rise := create_tween().set_parallel()
+		rise.tween_property(screen, "modulate:a", 1.0, FADE).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		var settle := screen.position
+		screen.position.y += RISE
+		rise.tween_property(screen, "position:y", settle.y, FADE * 1.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	if nav:
 		nav.queue_free()
 		nav = null

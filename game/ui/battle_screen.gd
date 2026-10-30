@@ -13,8 +13,14 @@ const TILE_H := {3: 112.0, 4: 88.0}
 const BEAT := 0.42
 ## The open action panel's height: the hero line, two rows of buttons, the armed skill and a two-line hint.
 const PANEL_H := 300.0
-## The freeze before a heavy hit's shake, in seconds.
-const HIT_STOP := 0.09
+## The freeze on a heavy hit, in real seconds: the whole board stops, then the blow's shake lets it go.
+const HIT_STOP := 0.08
+## How hard the board shakes at full trauma, in pixels, and how fast trauma drains (per second).
+const SHAKE_PX := 16.0
+const SHAKE_DECAY := 2.4
+## A health bar's pale chunk: how long it hangs after a hit before it drains, and how fast it drains (share per second).
+const LAG_HOLD := 0.35
+const LAG_RATE := 0.9
 ## The strip's middle: the queue chips, the forecast bar or the round's log, whichever is showing.
 const MID_H := 104.0
 const HEAD := 100.0
@@ -46,6 +52,13 @@ var _danger := false
 var _intents: Array = []
 ## The clips whose cut-in has already played this fight.
 var _cut_seen: Array = []
+## Shake: trauma 0..1 (it shakes by trauma², so small knocks stay small) and where the board sits at rest.
+var _trauma := 0.0
+var _home := Vector2.ZERO
+## Each fighter's health bar as it is shown (unit id -> {lead, lag, hold}), easing after the engine's number.
+var _hp_fx := {}
+## The element of whoever is acting, for the colour of the sparks where they hit.
+var _actor_elem := ""
 var _danger_btn: Button
 var _retreat: Button
 var _tiles := {}
@@ -130,6 +143,7 @@ func _intro() -> void:
 func _new_fight() -> void:
 	_paid = 0
 	_spoils = ""
+	_hp_fx = {}
 	_aim_at = Vector2i(-1, -1)
 	_fc = []
 	b = Battle.new()
@@ -454,14 +468,62 @@ func _hp_bar(e: Dictionary) -> Control:
 	return bar
 
 
-## A short, sharp shake of the whole screen that settles back where it was.
-func _shake(strength := 10.0) -> void:
-	var home := position
-	var t := create_tween()
-	for i in 6:
-		var k := strength * (1.0 - i / 6.0)
-		t.tween_property(self, "position", home + Vector2(randf_range(-k, k), randf_range(-k, k)), 0.035)
-	t.tween_property(self, "position", home, 0.05)
+## Shakes the board: trauma adds up across blows that land close together and drains away (see _process).
+func _shake(trauma := 0.5) -> void:
+	if _trauma <= 0.0:
+		_home = position
+	_trauma = minf(1.0, _trauma + trauma)
+
+
+## Stops the world for a moment on a heavy blow (tweens and figures freeze too), measured in real time.
+func _hit_stop() -> void:
+	Engine.time_scale = 0.03
+	await get_tree().create_timer(HIT_STOP, true, false, true).timeout
+	Engine.time_scale = 1.0
+
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0
+
+
+func _process(delta: float) -> void:
+	if _trauma > 0.0:
+		_trauma = maxf(0.0, _trauma - delta * SHAKE_DECAY)
+		var k := _trauma * _trauma * SHAKE_PX
+		position = _home + Vector2(randf_range(-k, k), randf_range(-k, k)) if _trauma > 0.0 else _home
+	var moving := false
+	for id in _hp_fx:
+		var f: Dictionary = _hp_fx[id]
+		if f.lead < f.target:
+			f.lead = minf(f.target, f.lead + delta * 1.6)
+			moving = true
+		if f.lag > f.lead:
+			f.hold -= delta
+			if f.hold <= 0.0:
+				f.lag = maxf(f.lead, f.lag - delta * LAG_RATE)
+			moving = true
+		elif f.lag < f.lead:
+			f.lag = f.lead
+	if moving:
+		for t in _tiles.values():
+			t.queue_redraw()
+
+
+## A fighter's health bar as it should be drawn now: `lead` the bar itself, `lag` the pale chunk of what a hit just
+## took (it hangs, then drains), `gain` true while a heal is filling the bar. Shares of max health, 0..1.
+func hp_fx(id: String, hp: int, max_hp: int) -> Dictionary:
+	var target := clampf(float(hp) / max_hp, 0.0, 1.0)
+	if not _hp_fx.has(id):
+		_hp_fx[id] = {"lead": target, "lag": target, "target": target, "hold": 0.0}
+	var f: Dictionary = _hp_fx[id]
+	if not is_equal_approx(target, f.target):
+		if target < f.target:
+			# A hit: the bar drops at once; what it lost stays as a pale chunk for a moment.
+			f.lag = maxf(f.lag, f.lead)
+			f.lead = target
+			f.hold = LAG_HOLD
+		f.target = target
+	return {"lead": f.lead, "lag": f.lag, "gain": f.lead < f.target, "target": f.target}
 
 
 func _redraw_tiles() -> void:
@@ -965,6 +1027,8 @@ func _play() -> void:
 				# On the landscape board the fighter who acts moves first: a lunge for a blow, a step and lift for a cast.
 				var was: Dictionary = view.get(e.id, {})
 				var tile: BattleTile = _tiles.get("%s%d%d" % [e.id.left(1), was.get("r", -1), was.get("c", -1)])
+				_actor_elem = b.unit(e.id).get("elem", "")
+				Sfx.play("cast" if e.kind in ["heal", "shield", "buff", "guard"] else "swing")
 				if tile and tile.figure:
 					await get_tree().create_timer(tile.figure.act(e.kind, e.range)).timeout
 					if not is_inside_tree():
@@ -977,6 +1041,7 @@ func _play() -> void:
 				var words := {"opening": ["opening volley", "celerity strikes first"], "ally": ["ally turn", "round %d" % b.round_num],
 					"enemy": ["enemy turn", ""]}
 				var w: Array = words.get(e.name, [e.name, ""])
+				Sfx.play("banner", 0.0, -3.0)
 				await Banner.play(app, w[0], w[1], Forge.GOLD if e.name != "enemy" else Color("#e86a5a")).finished
 				if not is_inside_tree():
 					return
@@ -986,15 +1051,18 @@ func _play() -> void:
 					continue
 				_cut_seen.append(e.clip)
 				var who := b.unit(e.id)
+				Sfx.play("cutin", 0.0)
 				await CutIn.pop(app, who.get("hero", who.key), e.clip, e.name, Battle.name_of(who), who.elem).finished
 				if not is_inside_tree():
 					return
 			"step":
 				# A hit on a weakness or a knockout lands with weight: a beat of freeze, then the screen shakes.
 				var heavy: bool = pending.any(func(p): return p.t == "float" and p.cls == "crit")
+				var fallen := []
 				for id in e.snap:
 					if view.get(id, {}).get("alive", false) and not e.snap[id].alive:
 						heavy = true
+						fallen.append({"side": id.left(1), "r": e.snap[id].r, "c": e.snap[id].c})
 				view = e.snap
 				for t in _tiles.values():
 					t.queue_redraw()
@@ -1004,19 +1072,46 @@ func _play() -> void:
 					var from: BattleTile = _tiles["%s%d%d" % [w.side, w.from.x, w.from.y]]
 					to.intro(0.0, from.position - to.position)
 				walks = []
+				# What landed where: a tile hit takes the hitter's element in its sparks; a mended one glows green.
+				var kinds := {}
 				for p in pending:
-					var tile: BattleTile = _tiles.get("%s%d%d" % [p.side, p.r, p.c])
+					if p.t == "float":
+						kinds["%s%d%d" % [p.side, p.r, p.c]] = p.cls
+				var heard := {}
+				for p in pending:
+					var key := "%s%d%d" % [p.side, p.r, p.c]
+					var tile: BattleTile = _tiles.get(key)
 					if tile == null:
 						continue
+					var cls: String = kinds.get(key, "hurt")
 					if p.t == "flash":
 						tile.flash()
-						Burst.on(tile, Forge.GOLD_LIGHT, 30, 5)
+						if cls in ["mend", "shield"]:
+							Burst.on(tile, Forge.MEND if cls == "mend" else Color("#7cc7ff"), 34, 7)
+						else:
+							tile.recoil(cls == "crit")
+							var col: Color = Forge.ELEM.get(_actor_elem, Forge.GOLD_LIGHT)
+							Burst.on(tile, col.lightened(0.3), 44 if cls == "crit" else 32, 9 if cls == "crit" else 6)
+							Burst.slash(tile, col.lightened(0.5), 1.0 if p.side == "E" else -1.0, cls == "crit")
 					else:
 						tile.float_text(p.txt, p.cls)
+						heard[p.cls] = true
+				for cls in heard:
+					var cue: String = {"crit": "crit", "hurt": "hit", "resist": "hit", "blocked": "shield", "mend": "mend",
+						"shield": "shield", "burn": "burn", "stun": "stun"}.get(cls, "")
+					if cue != "":
+						Sfx.play(cue, 0.08, -4.0 if cls == "resist" else 0.0)
 				pending = []
+				for u in fallen:
+					var tile: BattleTile = _tiles.get("%s%d%d" % [u.side, u.r, u.c])
+					if tile:
+						tile.fall()
+				if fallen.size():
+					Sfx.play("ko", 0.04)
 				if heavy:
-					await get_tree().create_timer(HIT_STOP).timeout
-					_shake()
+					_hit_stop()
+					await get_tree().create_timer(HIT_STOP, true, false, true).timeout
+					_shake(0.75 if fallen.size() else 0.5)
 				await get_tree().create_timer(BEAT).timeout
 				if not is_inside_tree():
 					return
@@ -1029,6 +1124,7 @@ func _play() -> void:
 				var u := unit_view(t.side, t.r, t.c)
 				if t.figure and t.side == "P" and not u.is_empty() and u.view.alive:
 					t.figure.cheer()
+		Sfx.play("victory" if win else "defeat", 0.0)
 		await Banner.play(app, "victory" if win else "defeat", "round %d" % b.round_num, Forge.GOLD if win else Forge.MUTED).finished
 	_playing = false
 	var first := b.living("P").filter(func(u): return u.st.stun == 0)

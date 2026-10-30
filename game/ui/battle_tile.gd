@@ -21,6 +21,8 @@ var figure: BattleFigure
 ## Clock for the selected hero's comet rim.
 var _t := 0.0
 var _from := Vector2.ZERO
+## 0 → 1 as the unit here falls (1 when it fell before this screen saw it, so it simply lies there).
+var _ko := 1.0
 
 
 func _ready() -> void:
@@ -55,6 +57,7 @@ func intro(delay: float, from: Vector2) -> void:
 	t.tween_method(func(v): enter = v; queue_redraw(), 0.0, 1.0, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func():
 		var u := screen.unit_view(side, r, c)
+		Sfx.play("step", 0.12)
 		Burst.on(self, Forge.ELEM.get(u.get("elem", ""), Forge.GOLD), 46, 10))
 
 
@@ -132,10 +135,7 @@ func _draw() -> void:
 	draw_string(f, Vector2(8, size.y - 20), Battle.name_of(u).to_lower(), HORIZONTAL_ALIGNMENT_LEFT, size.x - 12, 17, Forge.PARCHMENT)
 	var hp: int = u.view.hp
 	draw_string(Forge.SANS_BOLD, Vector2(size.x - 50, size.y - 4), str(hp), HORIZONTAL_ALIGNMENT_RIGHT, 44, 15, Forge.MUTED)
-	var bar := Rect2(6, size.y - 12, size.x - 62, 5)
-	draw_rect(bar, Color(Forge.INK, 0.9))
-	var pct := clampf(float(hp) / u.max_hp, 0, 1)
-	draw_rect(Rect2(bar.position, Vector2(bar.size.x * pct, bar.size.y)), HP_LOW if pct < 0.35 else Forge.GAIN)
+	hp_bar(self, Rect2(6, size.y - 12, size.x - 62, 5), screen.hp_fx(u.id, hp, u.max_hp), Color(Forge.INK, 0.9))
 	# Statuses, top-right.
 	var st: Dictionary = u.view.st
 	var tags := []
@@ -167,9 +167,9 @@ func _draw() -> void:
 	if not pv.is_empty():
 		_preview(pv)
 	if not alive:
-		draw_rect(rect, Color(Forge.INK, 0.72))
+		draw_rect(rect, Color(Forge.INK, 0.72 * _ko))
 		var word := "down %d" % u.view.downed if u.view.downed > 0 else "ko"
-		draw_string(Forge.tracked(Forge.SC_HEAVY, 4), Vector2(0, size.y / 2 + 8), word, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, Color(Forge.PARCHMENT, 0.7))
+		draw_string(Forge.tracked(Forge.SC_HEAVY, 4), Vector2(0, size.y / 2 + 8 + 14 * (1.0 - _ko)), word, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, Color(Forge.PARCHMENT, 0.7 * _ko))
 
 
 ## The landscape board's floor: a dark slab, a pool of light under whoever stands here (gold under the hero you're
@@ -283,6 +283,41 @@ func _tag(at: Vector2, text: String, color: Color, from_right := false) -> float
 	return x if from_right else x + w
 
 
+## A health bar: the bar itself, the pale chunk a hit just took (it hangs, then drains) and, while a heal fills it,
+## a bright edge where it is rising to. `fx` is BattleScreen.hp_fx.
+static func hp_bar(ci: CanvasItem, bar: Rect2, fx: Dictionary, ground: Color) -> void:
+	ci.draw_rect(bar, ground)
+	var w := bar.size.x
+	if fx.lag > fx.lead:
+		ci.draw_rect(Rect2(bar.position + Vector2(w * fx.lead, 0), Vector2(w * (fx.lag - fx.lead), bar.size.y)), Color("#f6e3b4"))
+	if fx.gain:
+		ci.draw_rect(Rect2(bar.position, Vector2(w * fx.target, bar.size.y)), Color(Forge.MEND, 0.35))
+	var low: bool = fx.target < 0.35
+	ci.draw_rect(Rect2(bar.position, Vector2(w * fx.lead, bar.size.y)), HP_LOW if low else Forge.GAIN)
+
+
+## Taking a blow: the card jolts and settles (a heavy one jolts harder). A fighter on the tile staggers instead.
+func recoil(heavy := false) -> void:
+	if figure:
+		figure.recoil(heavy)
+		return
+	pivot_offset = size / 2
+	var t := create_tween()
+	t.tween_property(self, "scale", Vector2.ONE * (0.88 if heavy else 0.93), 0.05)
+	t.tween_property(self, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+
+## The unit here has just fallen: it goes down over a moment rather than at once.
+func fall() -> void:
+	if figure:
+		figure.fall()
+		return
+	_ko = 0.0
+	var t := create_tween()
+	t.tween_method(func(v): _ko = v; queue_redraw(), 0.0, 1.0, 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	Burst.on(self, Color("#8a8178"), 50, 12)
+
+
 func flash() -> void:
 	if figure:
 		figure.flash()
@@ -297,17 +332,33 @@ func float_text(text: String, cls: String) -> void:
 	if figure and not screen.unit_view(side, r, c).is_empty():
 		figure.float_text(text, cls)
 		return
-	var l := Forge.sc(text, 30, FLOAT_COLORS.get(cls, Forge.PARCHMENT), true, 0.04)
+	pop_text(self, text, cls, Vector2(0, size.y / 2 - 30), size.x, 30, 44)
+
+
+## A number or word that punches in large, settles to size and rises away: bigger and with a shudder on a weak spot.
+## Each one lands a little off-centre, so numbers landing together don't sit on top of each other.
+static func pop_text(parent: Control, text: String, cls: String, at: Vector2, width: float, px: int, rise: float) -> void:
+	var heavy := cls == "crit"
+	var l := Forge.sc(text, roundi(px * (1.3 if heavy else 1.0)), FLOAT_COLORS.get(cls, Forge.PARCHMENT), true, 0.04)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.size = Vector2(size.x, 40)
-	l.position = Vector2(0, size.y / 2 - 30)
+	l.size = Vector2(width, px * 1.6)
+	l.position = at + Vector2(randf_range(-14, 14), -8 if heavy else 0)
+	l.pivot_offset = l.size / 2
+	l.scale = Vector2.ONE * (2.0 if heavy else 1.55)
 	l.add_theme_color_override("font_outline_color", Forge.INK)
-	l.add_theme_constant_override("outline_size", 8)
-	add_child(l)
-	var t := create_tween().set_parallel()
-	t.tween_property(l, "position:y", l.position.y - 44, 0.8).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	t.tween_property(l, "modulate:a", 0.0, 0.8).set_delay(0.3)
-	t.chain().tween_callback(l.queue_free)
+	l.add_theme_constant_override("outline_size", 10 if heavy else 8)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(l)
+	var t := l.create_tween()
+	t.tween_property(l, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if heavy:
+		for i in 3:
+			t.tween_property(l, "rotation", 0.06 * (1 if i % 2 == 0 else -1), 0.04)
+		t.tween_property(l, "rotation", 0.0, 0.04)
+	t.tween_interval(0.18)
+	t.tween_property(l, "position:y", l.position.y - rise, 0.7).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	t.parallel().tween_property(l, "modulate:a", 0.0, 0.55).set_delay(0.15)
+	t.tween_callback(l.queue_free)
 
 
 ## A dashed frame, for tiles a hero can step to or will leave.

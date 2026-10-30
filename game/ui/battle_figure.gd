@@ -21,6 +21,8 @@ var _lunge := Vector2.ZERO
 var _cast := 0.0
 ## Seconds into the fighter's attack sheet while it plays, else -1.
 var _swing := -1.0
+## 0 → 1 as the fighter falls (1 if it was already down when this board first saw it).
+var _ko := 1.0
 ## Plates, statuses, the queue number and the forecast: drawn on a layer above every fighter, so the fighter in front
 ## never hides the name of the one behind.
 var _over: Control
@@ -100,8 +102,10 @@ func _draw() -> void:
 		draw_set_transform(Vector2.ZERO)
 	var mod := Color.WHITE
 	if not alive:
-		mod = Color(0.45, 0.42, 0.4, 0.5)
-		foot.y += tile.size.y * 0.12
+		# Falling: a white flare as the blow lands, then the colour drains and the body sinks.
+		var flare := clampf(1.0 - _ko * 5.0, 0.0, 1.0) * 1.2
+		mod = Color.WHITE.lerp(Color(0.45, 0.42, 0.4, 0.5), _ko) + Color(flare, flare, flare, 0)
+		foot.y += tile.size.y * 0.12 * _ko
 	elif _flash > 0.0:
 		var k := 1.0 + _flash * 1.4
 		mod = Color(k, k, k * 0.92)
@@ -110,7 +114,7 @@ func _draw() -> void:
 		draw_circle(foot - Vector2(0, h * 0.4), h * 0.22, Color(Forge.ELEM[u.elem], 0.3))
 		draw_texture_rect(Forge.sigil(u.elem), Rect2(foot - Vector2(h * 0.14, h * 0.54), Vector2(h * 0.28, h * 0.28)), false, Forge.GOLD)
 	else:
-		Figure.draw(self, spr, foot, h, {"t": _t, "flip": tile.side == "P", "breathe": 1.0 if alive else 0.0, "modulate": mod,
+		Figure.draw(self, spr, foot, h, {"t": _t, "flip": tile.side == "P", "breathe": 1.0 if alive else 1.0 - _ko, "modulate": mod,
 			"swing": _swing})
 
 
@@ -177,10 +181,7 @@ func _plate(u: Dictionary, foot: Vector2, alive: bool) -> void:
 		HORIZONTAL_ALIGNMENT_LEFT, w - 44, 14, Forge.PARCHMENT if alive else Forge.DIM)
 	var hp: int = u.view.hp
 	_over.draw_string(Forge.SANS_BOLD, Vector2(r.end.x - 44, r.position.y + 14), str(hp), HORIZONTAL_ALIGNMENT_RIGHT, 38, 13, Forge.MUTED)
-	var bar := Rect2(r.position.x + 6, r.position.y + 19, w - 12, 5)
-	_over.draw_rect(bar, Color(0, 0, 0, 0.9))
-	var pct := clampf(float(hp) / u.max_hp, 0, 1)
-	_over.draw_rect(Rect2(bar.position, Vector2(bar.size.x * pct, bar.size.y)), BattleTile.HP_LOW if pct < 0.35 else Forge.GAIN)
+	BattleTile.hp_bar(_over, Rect2(r.position.x + 6, r.position.y + 19, w - 12, 5), tile.screen.hp_fx(u.id, hp, u.max_hp), Color(0, 0, 0, 0.9))
 
 
 ## The forecast over the head: red for damage, green for healing or shield, framed when it's the one in the bar.
@@ -212,6 +213,22 @@ func _tag(at: Vector2, text: String, color: Color) -> float:
 
 func flash() -> void:
 	_flash = 1.0
+
+
+## Taking a blow: knocked back away from the hitter, then a springy recovery (further on a heavy one).
+func recoil(heavy := false) -> void:
+	var away := -1.0 if tile.side == "P" else 1.0
+	var tw := create_tween()
+	tw.tween_property(self, "_lunge", Vector2(away * (30.0 if heavy else 16.0), 0), 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "_lunge", Vector2.ZERO, 0.4).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+
+## The fighter has just fallen: a flare, then it greys and sinks over a moment, shedding ash.
+func fall() -> void:
+	_ko = 0.0
+	create_tween().tween_property(self, "_ko", 1.0, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var h := Figure.height(_unit().get("sprite", {}), tile.size.y * TALL * depth)
+	Burst.at(self, _foot() - Vector2(0, h * 0.45), Color("#8a8178"), h * 0.35, 14)
 
 
 ## A win: two hops, the second higher, each landing with a little settle.
@@ -251,14 +268,4 @@ func act(kind: String, reach: String) -> float:
 func float_text(text: String, cls: String) -> void:
 	var u := _unit()
 	var h := Figure.height(u.get("sprite", {}), tile.size.y * TALL * depth) if not u.is_empty() else tile.size.y
-	var l := Forge.sc(text, 32, BattleTile.FLOAT_COLORS.get(cls, Forge.PARCHMENT), true, 0.04)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.size = Vector2(size.x, 40)
-	l.position = Vector2(0, _foot().y - h * 0.75)
-	l.add_theme_color_override("font_outline_color", Forge.INK)
-	l.add_theme_constant_override("outline_size", 8)
-	_over.add_child(l)
-	var t := create_tween().set_parallel()
-	t.tween_property(l, "position:y", l.position.y - 56, 0.85).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	t.tween_property(l, "modulate:a", 0.0, 0.85).set_delay(0.3)
-	t.chain().tween_callback(l.queue_free)
+	BattleTile.pop_text(_over, text, cls, Vector2(0, _foot().y - h * 0.75), size.x, 32, 56)
