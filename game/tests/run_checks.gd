@@ -68,6 +68,11 @@ func _init() -> void:
 		["Expedition · health carries between fights, camps heal the standing, the fallen stay down", _x_health],
 		["Expedition · boons stack by rarity and boost the squad; a loss banks half the embers", _x_boons],
 		["Expedition · a fight can field only the named foes, scaled", _x_battle_subset],
+		["Hero picks · a won fight offers three different upgrades that fit, round the squad, past the fallen", _x_pick_offer],
+		["Hero picks · nothing useless is offered: no second Celerity, no Hasten at cooldown 1, no Kindling on a burn", _x_pick_useful],
+		["Hero picks · no offer after a loss or the warden; an elite steps the odds up", _x_pick_when],
+		["Hero picks · a free reroll is earned and saved, then embers at a doubling price up to the cap", _x_pick_reroll],
+		["Hero picks · a pick changes the skill in a fight; a full hero must replace one; a skip pays embers", _x_pick_take],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -1143,3 +1148,143 @@ func _x_battle_subset() -> Array:
 	var foes := b.units.filter(func(u): return u.side == "E")
 	var golem := b.unit("E-golem")
 	return [foes.size() == 2 and golem.max_hp == 2250 and golem.hp == 2250 and golem.atk == 173, "%d foes · golem %d hp, %d atk" % [foes.size(), golem.max_hp, golem.atk]]
+
+
+## The squad's kit as hero picks read it, for four heroes from the base data.
+func _pick_kit() -> Dictionary:
+	var kit := {}
+	for k in ["kaede", "brann", "sorrel", "ilse"]:
+		kit[k] = {"skills": Data.hero(k).skills, "augs": []}
+	return kit
+
+
+func _pick_run(road := "ghats", sd := 7) -> Expedition:
+	var x := Expedition.new().begin(road, sd)
+	x.step(Vector2i(0, 0))
+	return x
+
+
+func _x_pick_offer() -> Array:
+	var bad := []
+	var seen := []
+	for sd in 40:
+		var x := _pick_run("ghats", sd)
+		x.hp["kaede"] = 0.0
+		for i in 3:
+			x.offer_pick(_pick_kit())
+			var o: Dictionary = x.pick_now
+			if o.is_empty() or o.uid == "kaede":
+				bad.append("seed %d offer %d: %s" % [sd, i, o.get("uid", "none")])
+				continue
+			seen.append(o.uid)
+			var pairs: Array = o.options.map(func(p): return "%s/%d" % [p.aug, p.skill])
+			for p in o.options:
+				if pairs.count("%s/%d" % [p.aug, p.skill]) != 1 or not Data.fits(p.aug, Data.hero(o.uid).skills[p.skill]):
+					bad.append("seed %d %s" % [sd, pairs])
+			if o.options.size() != Expedition.PICK_OFFERS:
+				bad.append("seed %d %d options" % [sd, o.options.size()])
+			x.skip_pick()
+	var turns := ["brann", "sorrel", "ilse"].all(func(k): return seen.count(k) == 40)
+	return [bad.is_empty() and turns, "120 offers · brann %d, sorrel %d, ilse %d · %s" % [seen.count("brann"), seen.count("sorrel"), seen.count("ilse"), ", ".join(bad.slice(0, 2)) if bad.size() else "all fit"]]
+
+
+func _x_pick_useful() -> Array:
+	var x := _pick_run()
+	var uid := "kaede"
+	var skills: Array = [Data.hero("kaede").skills[0].duplicate(true), Data.hero("kaede").skills[1].duplicate(true)]
+	skills[0].cd = 1
+	x.picks[uid] = [{"aug": "celerity", "skill": 1}]
+	var opts := x.pick_options(uid, skills)
+	var has := func(aug, i): return opts.any(func(o): return o.aug == aug and o.skill == i)
+	var ok: bool = not has.call("celerity", 0) and not has.call("hasten", 0) and has.call("hasten", 1) \
+		and not has.call("kindling", 0) and not has.call("kindling", 1) and has.call("keen", 0) and not has.call("wellspring", 0)
+	x.picks[uid].append({"aug": "lingering", "skill": 0})
+	var again := x.pick_options(uid, skills)
+	var ok2: bool = not again.any(func(o): return o.aug == "lingering" and o.skill == 0) and again.any(func(o): return o.aug == "lingering" and o.skill == 1)
+	return [ok and ok2, "%d options for Surya, then %d" % [opts.size(), again.size()]]
+
+
+func _x_pick_when() -> Array:
+	var lost := _pick_run()
+	lost.finish_fight(false, {"kaede": 0.0})
+	lost.offer_pick(_pick_kit())
+	var boss := _pick_run()
+	boss.at = Vector2i(boss.layers.size() - 1, 0)
+	boss.finish_fight(true, {"kaede": 1.0})
+	boss.offer_pick(_pick_kit())
+	var rarities := {"battle": 0, "elite": 0}
+	for t in rarities:
+		for sd in 200:
+			var x := _pick_run("ghats", sd)
+			x.layers[0][0].type = t
+			x.offer_pick(_pick_kit())
+			for o in x.pick_now.options:
+				rarities[t] += o.rarity
+	return [lost.pick_now.is_empty() and boss.pick_now.is_empty() and boss.rerolls == 0 and rarities.elite > rarities.battle, "rarity total, skirmish %d · elite %d" % [rarities.battle, rarities.elite]]
+
+
+func _x_pick_reroll() -> Array:
+	var x := _pick_run()
+	x.offer_pick(_pick_kit())
+	x.skip_pick()
+	x.offer_pick(_pick_kit())
+	var saved := x.rerolls
+	var before: Array = x.pick_now.options.duplicate()
+	var who: String = x.pick_now.uid
+	x.embers = 1000
+	x.reroll_pick()
+	var free_ok: bool = x.rerolls == 1 and x.embers == 1000 and x.pick_now.uid == who
+	x.reroll_pick()
+	var prices := []
+	for i in 6:
+		prices.append(x.reroll_price())
+		x.reroll_pick()
+	var fresh := _pick_run()
+	fresh.offer_pick(_pick_kit())
+	fresh.rerolls = 0
+	fresh.embers = 19
+	var broke: bool = not fresh.can_reroll() and not fresh.reroll_pick() and fresh.embers == 19
+	x.skip_pick()
+	x.offer_pick(_pick_kit())
+	return [saved == 2 and free_ok and prices == [20, 40, 80, 160, 320, 320] and broke and x.reroll_price() == 0 and before.size() == 3,
+		"two saved · prices %s · 19 embers can't pay" % [prices]]
+
+
+func _x_pick_take() -> Array:
+	var col := Collection.new()
+	var c := col.by("kaede")
+	var x := _pick_run()
+	var base: float = Data.hero("kaede").skills[0].power
+	var kit := {"kaede": {"skills": Data.hero("kaede").skills, "augs": []}}
+	x.pick_turns = {}
+	x.offer_pick(kit)
+	x.pick_now.options = [{"aug": "keen", "skill": 0, "rarity": 0}]
+	var first: Dictionary = x.pick_now.options[0]
+	var preview: float = x.pick_preview(first).power
+	x.take_pick(first)
+	var b := Battle.new()
+	var u := Battle.card_unit(col, "kaede", b)
+	x.fit_out(u, c)
+	var hits: bool = is_equal_approx(u.skills[0].power, preview) and u.skills[0].power > base
+	x.picks.kaede.append({"aug": "hasten", "skill": 1})
+	x.offer_pick(kit)
+	x.pick_now.options = [{"aug": "kindling", "skill": 0, "rarity": 1}]
+	var o: Dictionary = x.pick_now.options[0]
+	var refused: bool = not x.take_pick(o) and x.picks.kaede.size() == 2
+	var swapped: bool = x.take_pick(o, 0) and x.picks.kaede.size() == 2 and x.picks.kaede.any(func(p): return p.aug == "kindling") and not x.picks.kaede.any(func(p): return p.aug == "keen")
+	var held := Expedition.new().begin("ghats", 1)
+	held.step(Vector2i(0, 0))
+	var slotted := [{"aug": "keen", "skill": 0, "locked": false}]
+	held.offer_pick({"kaede": {"skills": Data.hero("kaede").skills, "augs": slotted}})
+	var stacked: float = held.pick_preview({"aug": "keen", "skill": 0}).power
+	var bare := Expedition.new().begin("ghats", 1)
+	var plain := Battle.card_unit(col, "brann", b)
+	var kept: Array = plain.skills
+	bare.fit_out(plain, col.by("brann"))
+	x.offer_pick(kit)
+	var had := x.embers
+	var share := x.skip_share()
+	x.skip_pick()
+	var both: float = Data.apply_augs(Data.hero("kaede").skills, [{"aug": "keen", "skill": 0}, {"aug": "keen", "skill": 0}])[0].power
+	return [is_equal_approx(stacked, both) and hits and refused and swapped and plain.skills == kept and share > 0 and x.embers == had + share and x.pick_now.is_empty(),
+		"Foxfire Lance power %.3f → %.3f · full hero refused without a choice · skip +%d" % [base, u.skills[0].power, share]]

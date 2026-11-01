@@ -199,12 +199,14 @@ func _on_the_road() -> void:
 		top.move_child(home, top.get_child_count() - 1)
 	else:
 		body.add_child(_party_row())
-	if not run.boons.is_empty():
+	if not run.boons.is_empty() or not run.picks.is_empty():
 		body.add_child(_boon_row())
 	_map = _road_map()
 	body.add_child(_map)
 	# Start with the next step in view.
 	_scroll_to_next.call_deferred()
+	if not run.pick_now.is_empty():
+		_hero_pick.call_deferred()
 
 
 func _boon_row() -> Control:
@@ -221,6 +223,20 @@ func _boon_row() -> Control:
 		h.add_child(Forge.glyph("node_boon", 20, col))
 		h.add_child(Forge.sc(Expedition.BOONS[b.key].name, 18, col))
 		row.add_child(p)
+	for uid in app.run.picks:
+		var c := app.col.by(uid)
+		var skills: Array = Data.hero(c.hero).skills
+		for k in app.run.picks[uid]:
+			var aug: Dictionary = Data.AUGS[k.aug]
+			var col: Color = Forge.ELEM[aug.fam]
+			var p := PanelContainer.new()
+			p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.INK, 0.7), Color(col, 0.9), 2, Vector4(12, 4, 14, 4)))
+			p.tooltip_text = "%s · %s: %s" % [Data.hero(c.hero).name, skills[k.skill].name, aug.desc]
+			var h := Forge.hbox(8)
+			p.add_child(h)
+			h.add_child(Forge.glyph("character", 20, col))
+			h.add_child(Forge.sc("%s · %s" % [Data.hero(c.hero).name, aug.name], 18, col))
+			row.add_child(p)
 	return row
 
 
@@ -413,39 +429,144 @@ func _boon_pick(p: Vector2i) -> void:
 		v.add_child(_para("A blessing for the rest of this road. Take one."))
 		for b in offers:
 			var col: Color = Forge.RARITY[b.rarity]
-			var card := Button.new()
-			card.focus_mode = Control.FOCUS_NONE
-			card.custom_minimum_size = Vector2(0, 104)
-			card.add_theme_stylebox_override("normal", Forge.flat(Color(Forge.INK, 0.8), Color(col, 0.55), 2))
-			card.add_theme_stylebox_override("hover", Forge.flat(Color(Forge.INK, 0.9), col, 2))
-			card.add_theme_stylebox_override("pressed", Forge.flat(Color(Forge.INK, 0.9), col, 2))
-			card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-			Forge.press_weight(card, 0.96)
-			var m := Forge.margins(MarginContainer.new(), 20, 12, 20, 12)
-			m.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			m.set_anchors_preset(PRESET_FULL_RECT)
-			card.add_child(m)
-			var h := Forge.hbox(16)
-			h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			m.add_child(h)
-			h.add_child(Forge.glyph("node_boon", 40, col))
-			var tv := Forge.vbox(2)
-			tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			h.add_child(tv)
-			tv.add_child(Forge.sc(Expedition.BOONS[b.key].name, 24, col, true))
-			var d := Forge.label(Expedition.boon_text(b), 21, Forge.PARCHMENT)
-			d.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			tv.add_child(d)
-			if b.rarity >= 2:
-				Rim.on(card, "comet", [col], 2.0)
+			var card := _offer_card("node_boon", col, Expedition.BOONS[b.key].name, Expedition.boon_text(b), b.rarity)
 			card.pressed.connect(func():
 				run.take(b)
 				Burst.on(card, col, 60, 10)
 				await get_tree().create_timer(0.3).timeout
-				holder[0].get_parent().get_parent().get_parent().queue_free()
+				_close_event(holder[0])
 				rebuild())
 			v.add_child(card)
 		holder[0] = v, "")
+
+
+## One choice in an event: a glyph, a name and what it does. Rare ones turn a comet round the edge.
+func _offer_card(glyph_name: String, col: Color, heading: String, text: String, rarity: int) -> Button:
+	var card := Button.new()
+	card.focus_mode = Control.FOCUS_NONE
+	card.custom_minimum_size = Vector2(0, 104)
+	card.add_theme_stylebox_override("normal", Forge.flat(Color(Forge.INK, 0.8), Color(col, 0.55), 2))
+	card.add_theme_stylebox_override("hover", Forge.flat(Color(Forge.INK, 0.9), col, 2))
+	card.add_theme_stylebox_override("pressed", Forge.flat(Color(Forge.INK, 0.9), col, 2))
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	Forge.press_weight(card, 0.96)
+	var m := Forge.margins(MarginContainer.new(), 20, 12, 20, 12)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.set_anchors_preset(PRESET_FULL_RECT)
+	card.add_child(m)
+	var h := Forge.hbox(16)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(h)
+	h.add_child(Forge.glyph(glyph_name, 40, col))
+	var tv := Forge.vbox(2)
+	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tv.size_flags_horizontal = SIZE_EXPAND_FILL
+	h.add_child(tv)
+	tv.add_child(Forge.sc(heading, 24, col, true))
+	var d := Forge.label(text, 21, Forge.PARCHMENT)
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tv.add_child(d)
+	if rarity >= 2:
+		Rim.on(card, "comet", [col], 2.0)
+	return card
+
+
+## Closes the event whose content box is `v`.
+func _close_event(v: Control) -> void:
+	v.get_parent().get_parent().get_parent().queue_free()
+
+
+# ---------- hero picks ----------
+
+## After a won fight: one hero chooses an upgrade for the rest of the road, or rerolls, or skips for embers.
+func _hero_pick() -> void:
+	var run := app.run
+	var uid: String = run.pick_now.uid
+	var hero := Data.hero(app.col.by(uid).hero)
+	var holder := [null]
+	_event("character", "%s grows" % hero.name, 0, func(v: VBoxContainer):
+		holder[0] = v
+		var top := Forge.hbox(16)
+		v.add_child(top)
+		# A wide screen is short, and the heading already names them, so only the phone shows the face.
+		if not Forge.wide():
+			top.add_child(_face(uid, 92))
+		var line := _para("A change that lasts for this road. It holds for %s alone." % hero.name)
+		line.size_flags_horizontal = SIZE_EXPAND_FILL
+		top.add_child(line)
+		for o in run.pick_now.options:
+			var col: Color = Forge.RARITY[o.rarity]
+			var card := _offer_card("character", col, run.pick_preview(o).name, _pick_text(o), o.rarity)
+			card.pressed.connect(func():
+				if run.picks_full(uid):
+					_close_event(v)
+					_replace_pick(o)
+					return
+				run.take_pick(o)
+				Sfx.play("confirm")
+				Burst.on(card, col, 60, 10)
+				await get_tree().create_timer(0.3).timeout
+				_close_event(v)
+				rebuild())
+			v.add_child(card)
+		var foot := Forge.hbox(14)
+		v.add_child(foot)
+		var price := run.reroll_price()
+		var again := Forge.ember("reroll · %s" % ("free (%d)" % run.rerolls if price == 0 else "%d embers" % price), 64)
+		again.add_theme_font_size_override("font_size", 20)
+		again.size_flags_horizontal = SIZE_EXPAND_FILL
+		again.disabled = not run.can_reroll()
+		again.pressed.connect(func():
+			run.reroll_pick()
+			Sfx.play("tap")
+			_close_event(v)
+			_hero_pick())
+		foot.add_child(again)
+		var skip := Forge.link("skip · +%d embers" % run.skip_share(), "chevron", 20)
+		skip.pressed.connect(func():
+			run.skip_pick()
+			_close_event(v)
+			rebuild())
+		foot.add_child(skip), "")
+
+
+## What a pick does, and the numbers it moves on that skill.
+func _pick_text(o: Dictionary) -> String:
+	var run := app.run
+	var was := run.pick_before(o)
+	var now := run.pick_preview(o)
+	var text: String = Data.AUGS[o.aug].desc.split(".")[0] + "."
+	if now.cd != was.cd:
+		text += " Cooldown %d → %d." % [was.cd, now.cd]
+	if not is_equal_approx(now.power, was.power):
+		text += " Power %d%% → %d%%." % [roundi(was.power * 100), roundi(now.power * 100)]
+	return text
+
+
+## A full hero gives up an old pick for the new one, or goes back to the offer.
+func _replace_pick(o: Dictionary) -> void:
+	var run := app.run
+	var uid: String = run.pick_now.uid
+	var c := app.col.by(uid)
+	var skills: Array = Data.hero(c.hero).skills
+	_event("character", "replace which?", 0, func(v: VBoxContainer):
+		v.add_child(_para("%s holds %d picks on a road. %s takes the place of one." % [Data.hero(c.hero).name, Expedition.PICK_SLOTS, run.pick_preview(o).name]))
+		var held: Array = run.picks[uid]
+		for i in held.size():
+			var aug: Dictionary = Data.AUGS[held[i].aug]
+			var card := _offer_card("swap", Forge.ELEM[aug.fam], "%s · %s" % [skills[held[i].skill].name, aug.name], aug.desc.split(".")[0] + ".", 0)
+			card.pressed.connect(func():
+				run.take_pick(o, i)
+				Sfx.play("confirm")
+				_close_event(v)
+				rebuild())
+			v.add_child(card)
+		var back := Forge.link("back to the offer", "back", 20)
+		back.pressed.connect(func():
+			_close_event(v)
+			_hero_pick())
+		v.add_child(back), "")
 
 
 func _trial(p: Vector2i) -> void:
@@ -494,8 +615,8 @@ func _summary() -> void:
 		"lose": "The squad was carried home. Half of what they gathered made it back."}[run.over]
 	v.add_child(_para(text))
 	v.add_child(_gain("ember", "%d embers to the town" % run.banked()))
-	if not run.boons.is_empty():
-		v.add_child(_note("Boons fade when the road ends:"))
+	if not run.boons.is_empty() or not run.picks.is_empty():
+		v.add_child(_note("Boons and hero picks fade when the road ends:"))
 		v.add_child(_boon_row())
 	var go := Forge.studs("bank and go home", true, 84)
 	go.size_flags_horizontal = SIZE_SHRINK_CENTER

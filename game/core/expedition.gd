@@ -45,6 +45,18 @@ const BOONS := {
 	"tithe": {"name": "Pilgrim's Tithe", "stat": "embers", "amount": [0.10, 0.18, 0.28, 0.45], "about": "Embers found on this road +%d%%."},
 }
 
+## Hero picks: after a won fight one standing hero is offered three upgrades drawn from their own skills. A pick is an
+## augment (Data.AUGS) bound to a skill for the rest of the run. This is the rarity each augment is offered at.
+const PICK_RARITY := {"keen": 0, "wellspring": 0, "bulwark": 0, "hasten": 1, "kindling": 1, "lingering": 1, "celerity": 2}
+const PICK_OFFERS := 3
+## Picks a hero holds on a road. A new pick past this replaces an old one.
+const PICK_SLOTS := 2
+## A paid reroll costs this, doubling each time on the same offer, up to the cap. A free one is earned with each offer.
+const REROLL_COST := 20
+const REROLL_COST_CAP := 320
+## Skipping a pick pays this share of a skirmish's purse.
+const SKIP_SHARE := 0.25
+
 ## Embers per node at danger 1; more danger, more embers.
 const PURSE := {"battle": 40, "elite": 80, "boss": 160, "cache": 50, "trial": 45}
 ## Share of max health a camp restores, by Infirmary level (0 = no Infirmary yet).
@@ -61,6 +73,17 @@ var at := Vector2i(-1, -1)
 ## Each card's health as a share of its max (missing = full). 0 means fallen for the rest of the run.
 var hp := {}
 var boons: Array = []
+## Each card's hero picks on this road: uid -> array of {aug, skill}. They fade with the run.
+var picks := {}
+## How many offers each card has had, so the offers go round the squad.
+var pick_turns := {}
+## The offer waiting on the player: {uid, options, gear}, or {} when there is none.
+var pick_now := {}
+## Free rerolls in hand, and paid rerolls used on the offer waiting.
+var rerolls := 0
+var paid_rerolls := 0
+## Every reroll on the run so far, which keeps each new draw different.
+var reroll_total := 0
 var embers := 0
 ## "" while the road goes on, then "win", "lose" or "home" (turned back).
 var over := ""
@@ -264,6 +287,151 @@ func bonus(stat: String) -> float:
 
 static func boon_text(b: Dictionary) -> String:
 	return BOONS[b.key].about % roundi(BOONS[b.key].amount[b.rarity] * 100)
+
+
+# ---------- hero picks ----------
+
+## After a won fight: the standing hero with the fewest offers so far is offered upgrades. `kit` is
+## {uid: {skills (base), augs (the card's)}} in squad order; ties go to the first. No offer after the warden, or when no upgrade would help that hero.
+func offer_pick(kit: Dictionary) -> void:
+	pick_now = {}
+	if over != "" or at.x < 0 or node(at).type == "boss":
+		return
+	var who := ""
+	for uid in kit:
+		if not fallen(uid) and (who == "" or pick_turns.get(uid, 0) < pick_turns.get(who, 0)):
+			who = uid
+	if who == "":
+		return
+	pick_turns[who] = pick_turns.get(who, 0) + 1
+	rerolls += 1
+	paid_rerolls = 0
+	_draw_pick(who, kit[who])
+
+
+## Elites and the warden's road step the odds up, as they do for boons.
+func _draw_pick(uid: String, gear: Dictionary) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = run_seed * 97 + at.x * 13 + at.y + uid.hash() % 1000 + reroll_total * 1009
+	var options := pick_options(uid, gear.skills, gear.augs)
+	var out := []
+	while out.size() < PICK_OFFERS and not options.is_empty():
+		var chosen := _pick_one(options, r, node(at).type == "elite")
+		out.append(chosen)
+		options.erase(chosen)
+	pick_now = {} if out.is_empty() else {"uid": uid, "options": out, "gear": gear}
+
+
+## One option: roll a rarity, then take from the nearest rarity that has anything.
+func _pick_one(options: Array, r: RandomNumberGenerator, step_up: bool) -> Dictionary:
+	var roll := r.randi() % 100
+	var want := 0
+	var acc := 0
+	for i in RARITY_WEIGHTS.size():
+		acc += RARITY_WEIGHTS[i]
+		if roll < acc:
+			want = i
+			break
+	if step_up:
+		want = mini(want + 1, RARITIES.size() - 1)
+	var best := -1
+	for o in options:
+		if best < 0 or absi(o.rarity - want) < absi(best - want):
+			best = o.rarity
+	var tier := options.filter(func(o): return o.rarity == best)
+	return tier[r.randi() % tier.size()]
+
+
+## Everything that would actually help this hero now, as {aug, skill, rarity}. Each augment fits the skill, and one
+## that would do nothing is left out: a second Celerity, Hasten at cooldown 1, Kindling on what already burns.
+func pick_options(uid: String, skills: Array, augs: Array = []) -> Array:
+	var now := Data.apply_augs(skills, augs + picks.get(uid, []))
+	var has_celerity := now.any(func(s): return s.get("celerity", false))
+	var out := []
+	for aug in PICK_RARITY:
+		for i in skills.size():
+			if Data.fits(aug, skills[i]) and _helps(aug, now[i], has_celerity):
+				out.append({"aug": aug, "skill": i, "rarity": PICK_RARITY[aug]})
+	return out
+
+
+func _helps(aug: String, s: Dictionary, has_celerity: bool) -> bool:
+	match aug:
+		"hasten": return s.cd > 1
+		"kindling": return s.get("fx", {}).get("burn", 0) == 0
+		"lingering": return not "lingering" in s.augs
+		"celerity": return not has_celerity
+	return true
+
+
+## What a reroll costs now: 0 while a free one is in hand.
+func reroll_price() -> int:
+	return 0 if rerolls > 0 else mini(REROLL_COST << paid_rerolls, REROLL_COST_CAP)
+
+
+func can_reroll() -> bool:
+	return not pick_now.is_empty() and embers >= reroll_price()
+
+
+## A new draw for the same hero. Free rerolls go first, then embers at a doubling price.
+func reroll_pick() -> bool:
+	if not can_reroll():
+		return false
+	if rerolls > 0:
+		rerolls -= 1
+	else:
+		embers -= reroll_price()
+		paid_rerolls += 1
+	reroll_total += 1
+	_draw_pick(pick_now.uid, pick_now.gear)
+	return true
+
+
+func picks_full(uid: String) -> bool:
+	return picks.get(uid, []).size() >= PICK_SLOTS
+
+
+## Takes an option. A hero with full slots must name the pick it replaces.
+func take_pick(option: Dictionary, replace := -1) -> bool:
+	if pick_now.is_empty() or not option in pick_now.options:
+		return false
+	var uid: String = pick_now.uid
+	var held: Array = picks.get(uid, [])
+	if held.size() >= PICK_SLOTS:
+		if replace < 0 or replace >= held.size():
+			return false
+		held.remove_at(replace)
+	held.append({"aug": option.aug, "skill": option.skill})
+	picks[uid] = held
+	pick_now = {}
+	return true
+
+
+func skip_share() -> int:
+	return roundi(purse("battle") * SKIP_SHARE)
+
+
+func skip_pick() -> void:
+	if not pick_now.is_empty():
+		embers += skip_share()
+		pick_now = {}
+
+
+## The skill as this option would leave it, for the offer's preview.
+func pick_preview(option: Dictionary) -> Dictionary:
+	var held: Array = pick_now.gear.augs + picks.get(pick_now.uid, [])
+	return Data.apply_augs(pick_now.gear.skills, held + [{"aug": option.aug, "skill": option.skill}])[option.skill]
+
+
+## The skill as it stands before the option, to set against the preview.
+func pick_before(option: Dictionary) -> Dictionary:
+	return Data.apply_augs(pick_now.gear.skills, pick_now.gear.augs + picks.get(pick_now.uid, []))[option.skill]
+
+
+## Puts a card's picks on a unit about to fight, on top of the augments it already carries.
+func fit_out(u: Dictionary, c: Dictionary) -> void:
+	if picks.has(c.uid):
+		u.skills = Data.apply_augs(Data.hero(c.hero).skills, c.augs + picks[c.uid])
 
 
 ## A cache: embers, scaled by the node's rarity. Rare or better also leaves an augment (the screen picks which).

@@ -161,6 +161,7 @@ func _new_fight() -> void:
 		var u := Battle.card_unit(app.col, uid, b)
 		if run:
 			run.boost(u)
+			run.fit_out(u, app.col.by(uid))
 			u.hp = maxi(1, roundi(u.max_hp * run.health(uid)))
 		heroes.append(u)
 		pos[uid] = app.col.tile(uid)
@@ -1009,6 +1010,8 @@ func _settle_run(win: bool) -> void:
 			health[u.key] = float(u.hp) / u.max_hp if u.alive else 0.0
 	app.run.finish_fight(win, health)
 	_paid = maxi(1, app.run.embers - before)
+	if win:
+		app.run.offer_pick(app.squad_kit())
 
 
 ## Plays back what the engine just resolved, a beat at a time, then settles on the board as it stands.

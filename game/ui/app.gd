@@ -54,6 +54,13 @@ func _deep_link() -> void:
 	if hash in ["town", "heroes"]:
 		show_tab(hash)
 		return
+	if hash == "event-pick":
+		run = Expedition.new().begin("ghats", 7)
+		run.step(Vector2i(0, 0))
+		run.finish_fight(true, {})
+		run.offer_pick(squad_kit())
+		_open(ExpeditionScreen.new().setup(self))
+		return
 	if not hash.begins_with("event-"):
 		return
 	var want: String = {"camp": "rest", "fight": "battle", "warden": "boss"}.get(hash.trim_prefix("event-"), hash.trim_prefix("event-"))
@@ -75,6 +82,15 @@ func _deep_link() -> void:
 				await get_tree().process_frame
 				screen._go(Vector2i(i, j))
 				return
+
+
+## The squad as hero picks read it: {uid: {skills, augs}}, in squad order.
+func squad_kit() -> Dictionary:
+	var kit := {}
+	for uid in col.squad:
+		var c := col.by(uid)
+		kit[uid] = {"skills": Data.hero(c.hero).skills, "augs": c.augs}
+	return kit
 
 
 ## Playtest only: Varuni's starter card is a 4★ so the top tier can be seen without grinding.
