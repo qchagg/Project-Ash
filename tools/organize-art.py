@@ -95,7 +95,7 @@ def stale(src, dst):
 def body(d, char):
     """The battle sprite, idle sheet and attack sheet from the body uploads, or None. Rebuilt when an upload is newer.
     The idle loop is the clip named idle, else movement, else any clip that isn't an attack. With no loop, the still
-    alone is the sprite and the game breathes it."""
+    alone is the sprite, rigged so the game can bring it to life."""
     import json
     stills = sorted(d.glob(f"{char}-body-*.png"), key=lambda p: ("idle" not in p.stem, p.name))
     loops = sorted((p for p in d.glob(f"{char}-body-*.mp4") if "attack" not in p.stem),
@@ -120,6 +120,13 @@ def body(d, char):
         b["anim"] = dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")
     if "attack" in m:
         b["attack"] = dict(m["attack"], src=f"res://art/sprites/{char}-attack.webp")
+    if "idle" not in m:
+        # A still with no loop is rigged so the game can move it (tools/auto-rig.py).
+        if stale(sprite, sprites / f"{char}-rig.json"):
+            out = subprocess.run([sys.executable, str(ROOT / "tools" / "auto-rig.py"), str(sprite)], check=True,
+                capture_output=True, text=True).stdout
+            (sprites / f"{char}-rig.json").write_text(out.strip())
+        b["rig"] = json.loads((sprites / f"{char}-rig.json").read_text())
     return b
 
 
@@ -214,6 +221,8 @@ def gdv(v):
     """Like gd, but numbers stay numbers."""
     if isinstance(v, dict):
         return "{" + ", ".join(f'"{k}": {gdv(x)}' for k, x in v.items()) + "}"
+    if isinstance(v, list):
+        return "[" + ", ".join(gdv(x) for x in v) + "]"
     if isinstance(v, str):
         return f'"{v}"'
     return str(v)

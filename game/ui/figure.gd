@@ -1,11 +1,22 @@
 class_name Figure
 extends RefCounted
 ## Draws a battle sprite standing on a point: the figure, cut out with its feet on the bottom edge, its contact shadow
-## and its idle. A plain sprite breathes in bands (the body above the hips
-## rises and settles while the feet stay planted); a sprite with an `anim` sheet plays its frames instead. A waist-up
-## cutout (`bust`) fades out at the bottom so it still seems to stand. Every screen that shows a fighter uses this.
+## and its idle. A sprite with an `anim` sheet plays its frames. A still with a `rig` (tools/auto-rig.py) is drawn as a
+## mesh and brought to life: the chest breathes, the head nods, the body shifts its weight, and whatever hangs loose
+## (a braid, a sleeve, a hem) sways a beat behind, all while the feet stay planted. A plain still breathes in bands.
+## A waist-up cutout (`bust`) fades out at the bottom so it still seems to stand. Every screen that shows a fighter
+## uses this.
+
+## How far each motion of a rigged still reaches, as shares of the figure's height.
+const RIG_LIFT := 0.009
+const RIG_CHEST := 0.035
+const RIG_NOD := 0.012
+const RIG_LEAN := 0.006
+const RIG_SWAY := 0.016
 
 static var _tex := {}
+## Rigs unpacked for drawing, by sprite src: vertex weights as floats and the triangle indices.
+static var _rigs := {}
 
 
 static func tex(src: String) -> Texture2D:
@@ -67,6 +78,9 @@ static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts 
 	var bust: bool = spr.get("bust", false)
 	var breathe: float = 0.0 if not anim.is_empty() else opts.get("breathe", 1.0)
 	var phase: float = t * TAU * 0.32
+	if spr.has("rig") and anim.is_empty() and not bust:
+		_rigged(ci, spr, src, region, Vector2(left, foot.y), w, dh, breathe, t, flip, mod)
+		return Rect2(foot.x - h * 0.2, foot.y - h, h * 0.4, h)
 	var bands := 1 if breathe <= 0.0 and not bust else maxi(24, int(dh / 4.0))
 	_bands(ci, src, region, Vector2(left, foot.y), w, dh, bands, breathe, phase, flip, bust, mod)
 	return Rect2(foot.x - h * 0.2, foot.y - h, h * 0.4, h)
@@ -102,3 +116,82 @@ static func _bands(ci: CanvasItem, src: Texture2D, region: Rect2, at: Vector2, w
 			# A negative width mirrors the band in place.
 			dst.size.x = -dst.size.x
 		ci.draw_texture_rect_region(src, dst, srect, Color(mod.r, mod.g, mod.b, a))
+
+
+## The rig's weights per vertex (pin, head, chest, loose; 0..1) and its triangles, unpacked once per sprite.
+static func rig_of(spr: Dictionary) -> Dictionary:
+	if _rigs.has(spr.src):
+		return _rigs[spr.src]
+	var r: Dictionary = spr.rig
+	var cols: int = r.cols
+	var rows: int = r.rows
+	var out := {"cols": cols, "rows": rows, "neck": Vector2(r.neck[0], r.neck[1]), "chest_at": Vector2(r.chest_at[0], r.chest_at[1])}
+	for ch in ["pin", "head", "chest", "loose"]:
+		var f := PackedFloat32Array()
+		var digits: String = r[ch]
+		f.resize(digits.length())
+		for i in digits.length():
+			f[i] = digits.unicode_at(i) - 48
+			f[i] /= 9.0
+		out[ch] = f
+	var tri := PackedInt32Array()
+	for y in rows:
+		for x in cols:
+			var i := y * (cols + 1) + x
+			tri.append_array([i, i + 1, i + cols + 1, i + 1, i + cols + 2, i + cols + 1])
+	out.tri = tri
+	_rigs[spr.src] = out
+	return out
+
+
+## Where a rigged still's vertex moves at time `t`, as an offset in shares of the figure's height (x to the right as
+## drawn unflipped). `u`, `v` place the vertex across and down the sprite; `aspect` is its width over its height.
+static func rig_offset(rig: Dictionary, i: int, u: float, v: float, aspect: float, t: float, breathe: float) -> Vector2:
+	var pin: float = rig.pin[i]
+	var free := 1.0 - pin
+	var br := sin(t * TAU * 0.32)
+	var off := Vector2.ZERO
+	# Breath: the body above the hips rises and settles, and the chest swells across.
+	off.y -= br * RIG_LIFT * smoothstep(0.3, 0.95, 1.0 - v) * free
+	var chest: float = rig.chest[i]
+	off.x += (u - rig.chest_at.x) * aspect * chest * RIG_CHEST * br
+	off.y -= chest * RIG_LIFT * 0.4 * br
+	# The head nods and tilts about the neck.
+	var head: float = rig.head[i]
+	var nod := head * RIG_NOD * sin(t * 0.7 + 0.6)
+	off.x += nod * (rig.neck.y - v) * 3.0
+	off.y += head * RIG_NOD * 0.3 * sin(t * 0.55)
+	# The weight shifts from foot to foot, the feet themselves planted.
+	off.x += (1.0 - v) * free * RIG_LEAN * sin(t * 0.41)
+	# Loose parts follow a beat behind, the further out the later, like cloth in a breeze.
+	var loose: float = rig.loose[i]
+	var wave := t * 1.6 - loose * 2.5 - v * 2.2
+	off.x += loose * RIG_SWAY * sin(wave)
+	off.y += loose * RIG_SWAY * 0.3 * cos(wave * 1.3)
+	return off * breathe
+
+
+## A rigged still as one mesh over its rig's grid, each vertex moved by rig_offset. `at` is the bottom-left corner.
+static func _rigged(ci: CanvasItem, spr: Dictionary, src: Texture2D, region: Rect2, at: Vector2, w: float, h: float,
+		breathe: float, t: float, flip: bool, mod: Color) -> void:
+	var rig := rig_of(spr)
+	var cols: int = rig.cols
+	var rows: int = rig.rows
+	var n := (cols + 1) * (rows + 1)
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	pts.resize(n)
+	uvs.resize(n)
+	var ts := src.get_size()
+	var aspect := w / h
+	for y in rows + 1:
+		var v := float(y) / rows
+		for x in cols + 1:
+			var u := float(x) / cols
+			var i := y * (cols + 1) + x
+			var off := rig_offset(rig, i, u, v, aspect, t, breathe) * h
+			var px := u * w + off.x
+			pts[i] = Vector2(at.x + (w - px if flip else px), at.y - h + v * h + off.y)
+			uvs[i] = (region.position + Vector2(u, v) * region.size) / ts
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), rig.tri, pts, PackedColorArray([mod]), uvs,
+		PackedInt32Array(), PackedFloat32Array(), src.get_rid())

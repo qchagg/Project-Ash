@@ -55,6 +55,7 @@ func _init() -> void:
 		["Facing · heroes face right and foes face left, whichever way their art was drawn", _facing],
 		["Sound · every cue the game plays has a sound file, and a cue with none is silent rather than an error", _sounds],
 		["Health bars · a hit drops the bar at once and leaves a pale chunk that drains; a heal fills it", _hp_lag],
+		["Rig · every still with no idle loop is rigged; its feet stay planted while its loose parts sway", _rig],
 		["Plan · a hero steps then acts: Brann steps to the front row and Rockfall lands, though he planned it from the second row", _b_step_then_act],
 		["Plan · queue order holds: Varuni's heal lands on Sorrel before he steps away; he then casts from his new tile", _b_step_order],
 		["Plan · steps reach 2 tiles, never onto a unit or a tile another hero has claimed; stepping home cancels", _b_step_tiles],
@@ -924,6 +925,37 @@ func _hp_lag() -> Array:
 		and is_equal_approx(drained.lag, 0.6) and heal.gain and heal.lead == 0.6 and is_equal_approx(filled.lead, 0.9) and not filled.gain
 	return [ok, "hit 100→60: bar %.2f, chunk %.2f, still %.2f after 0.2s, %.2f after 2.2s · heal to 90 fills %.2f → %.2f" % [
 		hit.lead, hit.lag, held.lag, drained.lag, heal.lead, filled.lead]]
+
+
+func _rig() -> Array:
+	var unrigged := []
+	var worst_foot := 0.0
+	var best_sway := {}
+	for key in Data.SPRITES:
+		var spr := Data.sprite_for({"key": key})
+		if not spr.has("rig"):
+			if not spr.has("anim") and Faces.BODIES.has(key):
+				unrigged.append(key)
+			continue
+		var rig := Figure.rig_of(spr)
+		var cols: int = rig.cols
+		var rows: int = rig.rows
+		var sway := 0.0
+		for i in (cols + 1) * (rows + 1):
+			var u := float(i % (cols + 1)) / cols
+			var v := float(i / (cols + 1)) / rows
+			var most := 0.0
+			for k in 24:
+				most = maxf(most, Figure.rig_offset(rig, i, u, v, 0.7, k * 0.37, 1.0).length())
+			if v == 1.0 and rig.pin[i] > 0.6:
+				worst_foot = maxf(worst_foot, most * (1.0 - 0.0))
+			if rig.loose[i] > 0.8:
+				sway = maxf(sway, most)
+		best_sway[key] = snappedf(sway, 0.001)
+	var swaying := best_sway.values().all(func(x): return x > 0.008)
+	return [unrigged.is_empty() and best_sway.size() >= 5 and worst_foot < 0.004 and swaying,
+		"rigged %s · loose parts reach %s of their height · planted feet move at most %.4f · unrigged %s" % [
+		best_sway.keys(), best_sway.values(), worst_foot, unrigged]]
 
 
 func _b_turn_marks() -> Array:
