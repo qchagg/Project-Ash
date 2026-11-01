@@ -37,8 +37,12 @@ KEYS = {"surya": "kaede", "varuni": "ilse", "brann": "brann", "sorrel": "sorrel"
 SKILL_CLIPS = {"varuni": {"skills": ["spell3", "spell2"], "chant": "spell1"}}
 KEEP = {"README.md"}
 # Body stills that face screen-right (most face left). The game mirrors each sprite to face its side: heroes right,
-# foes left. Attack clips find their own facing from the swing.
-FACING = {"brann": "right", "varuni": "right"}
+# foes left. Attack clips find their own facing from the swing. Judge this from the still itself (where the face and
+# chest point), never from an older upload: a new still can face the other way.
+FACING = {"brann": "right"}
+# Heroes whose body clips are on hold: their idle loops and attack clips stay in art/ but the game uses the still,
+# auto-rigged like everyone else's, so the whole cast moves the same way.
+HOLD_CLIPS = {"surya", "brann", "sorrel", "varuni"}
 
 
 def git(*args):
@@ -101,6 +105,8 @@ def body(d, char):
     loops = sorted((p for p in d.glob(f"{char}-body-*.mp4") if "attack" not in p.stem),
         key=lambda p: ("idle" not in p.stem, "movement" not in p.stem, p.name))
     hits = sorted(d.glob(f"{char}-body-attack*.mp4"))
+    if char in HOLD_CLIPS:
+        loops, hits = [], []
     if not stills:
         return None
     sprites = GAME / "art" / "sprites"
