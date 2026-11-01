@@ -21,7 +21,7 @@ heroes = set(re.findall(r"\{\"key\": \"(\w+)\"", open("game/core/data.gd").read(
 for key, body in re.findall(r"^\t\"(\w+)\": (\{.*\}),$", open("game/core/faces.gd").read(), re.M):
     if key in heroes:
         print(" ".join(set(re.findall(r"\"(\w+-\w+)\"", body))))
-'); do cp "game/art/clips/$b.ogv" "$out/clips/$b.ogg"; done
+' | tr -d '\r'); do cp "game/art/clips/$b.ogv" "$out/clips/$b.ogg"; done
 # Idle frame sheets stay out of the pack too, and load the same way.
 mkdir -p "$out/sheets" && cp game/art/sprites/*-idle.webp game/art/sprites/*-attack.webp "$out/sheets/"
 rm -f "$out/index.png" "$out/index.icon.png" "$out/index.apple-touch-icon.png"

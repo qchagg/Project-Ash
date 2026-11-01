@@ -4,7 +4,7 @@ extends Control
 ## The nav (Heroes · Expedition · Town) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.49"
+const VERSION := "v0.50"
 ## Moving between screens: how long the new one takes to come in, and how far it rises as it does.
 const FADE := 0.2
 const RISE := 18.0
