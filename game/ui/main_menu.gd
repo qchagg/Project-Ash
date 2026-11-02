@@ -4,8 +4,6 @@ extends Control
 ## line about it and a single commit. Between runs the roads take turns; on the road it holds on yours. Everything else
 ## stays quiet: the gold and the sound in the corners, plain links along the foot in place of the nav.
 
-## The places along the foot: the link's words and its App.show_tab key. Home is where you are, so it goes nowhere.
-const PLACES := [["home", ""], ["heroes", "heroes"], ["party", "party"], ["caravan", "town"], ["archive", "archive"], ["travel log", "log"]]
 ## How long a road stays featured, in seconds, and how long its words take to change.
 const HOLD := 8.0
 const WORDS_FADE := 0.25
@@ -69,7 +67,7 @@ func _ready() -> void:
 	if _keys.size() > 1:
 		col.add_child(_dot_row())
 	col.add_child(_gap())
-	col.add_child(_links())
+	col.add_child(NavBar.links(app, "menu"))
 	_show()
 	# The app builds the nav after this screen comes in; home has its own links.
 	app.show_nav.call_deferred(false)
@@ -127,24 +125,6 @@ func _dot_row() -> Control:
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
 			_feature(clampi(int(e.position.x / step), 0, _keys.size() - 1)))
 	return _dots
-
-
-func _links() -> Control:
-	var row := HFlowContainer.new()
-	row.alignment = FlowContainer.ALIGNMENT_BEGIN if Forge.wide() else FlowContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("h_separation", 40)
-	for place in PLACES:
-		var b := Forge.link(place[0], "", 20)
-		b.custom_minimum_size.y = 44
-		if place[1] == "":
-			for k in ["font_color", "font_hover_color"]:
-				b.add_theme_color_override(k, Forge.GOLD_LIGHT)
-			b.draw.connect(func(): Forge.diamond(b, Vector2(b.size.x / 2.0, b.size.y - 2.0), 4, Forge.GOLD))
-		else:
-			b.add_theme_color_override("font_color", Forge.PARCHMENT)
-			b.pressed.connect(app.show_tab.bind(place[1]))
-		row.add_child(b)
-	return row
 
 
 ## Changes the road on show: its words fade through, and its painting comes in over the last.

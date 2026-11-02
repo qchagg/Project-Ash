@@ -11,6 +11,9 @@ const TOL := 46.0
 const EDGE := 12.0
 ## How many pixels in from the edge green is cleared on a hero who wears it.
 const SPILL := 7
+## How strongly a pixel must lean to the ground's hue before it starts to clear, and over what range it clears.
+const HUE := 18
+const HUE_SOFT := 34.0
 
 
 func _initialize() -> void:
@@ -53,6 +56,7 @@ func _key(img: Image, wears_green: bool) -> void:
 	var h := img.get_height()
 	var data := img.get_data()
 	var bg := _ground(data, w, h)
+	var magenta := bg.x > bg.y and bg.z > bg.y
 	var dist := PackedFloat32Array()
 	dist.resize(w * h)
 	for i in w * h:
@@ -61,6 +65,10 @@ func _key(img: Image, wears_green: bool) -> void:
 		var dg := data[o + 1] - bg.y
 		var db := data[o + 2] - bg.z
 		dist[i] = sqrt(dr * dr + dg * dg + db * db)
+		# A ground is rarely one flat colour, so anything as strongly its hue counts as ground too, shadows included.
+		var k: int = mini(data[o], data[o + 2]) - data[o + 1] if magenta else data[o + 1] - maxi(data[o], data[o + 2])
+		if k > HUE:
+			dist[i] = minf(dist[i], TOL * (1.0 - clampf(float(k - HUE) / HUE_SOFT, 0.0, 1.0)))
 	# The ground is what the border reaches, so green the hero wears stays; pockets take only the exact colour.
 	var out := PackedByteArray()
 	out.resize(w * h)
@@ -97,7 +105,11 @@ func _key(img: Image, wears_green: bool) -> void:
 		var o := i * 4
 		if out[i] == 1 or dist[i] < EDGE:
 			data[o + 3] = roundi(255.0 * clampf((dist[i] - EDGE) / (TOL - EDGE), 0.0, 1.0))
-		if near[i] == 1 or not wears_green:
+		if magenta:
+			if near[i] == 1:
+				data[o] = mini(data[o], data[o + 1] + 40)
+				data[o + 2] = mini(data[o + 2], data[o + 1] + 40)
+		elif near[i] == 1 or not wears_green:
 			# The edge still holds the green it was cut from.
 			data[o + 1] = mini(data[o + 1], maxi(data[o], data[o + 2]))
 	img.set_data(w, h, false, Image.FORMAT_RGBA8, data)
