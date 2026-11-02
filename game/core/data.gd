@@ -259,7 +259,7 @@ const SPRITES := {
 	"leaf": {"src": "res://art/sprites/galeblade.webp", "size": 1.14},
 	"blade": {"src": "res://art/sprites/galeblade.webp", "size": 1.14},
 	"caller": {"src": "res://art/sprites/tidecaller.webp", "size": 1.10},
-	"seer": {"src": "res://art/sprites/seer.webp", "size": 1.01, "faces": "right"},
+	"seer": {"src": "res://art/sprites/seer.webp", "size": 1.01},
 	# The golem foe stands in as Smoke for now (see Battle.FOES).
 	"golem": {"as": "smoke", "size": 1.05},
 	"snake": {"size": 1.06},

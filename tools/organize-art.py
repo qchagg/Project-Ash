@@ -36,10 +36,12 @@ KEYS = {"surya": "kaede", "varuni": "ilse", "brann": "brann", "sorrel": "sorrel"
 # "chant" is the clip a hero sings when they evolve; by default their last spell beyond the skills, else their first.
 SKILL_CLIPS = {"varuni": {"skills": ["spell3", "spell2"], "chant": "spell1"}}
 KEEP = {"README.md"}
-# Body stills that face screen-right (most face left). The game mirrors each sprite to face its side: heroes right,
-# foes left. Attack clips find their own facing from the swing. Judge this from the still itself (where the face and
-# chest point), never from an older upload: a new still can face the other way.
-FACING = {"brann": "right"}
+# Every sprite is stored facing left, the one default; the game mirrors heroes to face right and leaves foes facing
+# left. These are the body stills uploaded facing right, mirrored when they're built (an idle loop isn't, so a hero
+# here who comes off HOLD_CLIPS needs their loop flipped too). Attack clips find their own facing from the swing.
+# Judge this from the still itself (where the face points), never from an older upload: a new still can face the
+# other way.
+MIRROR = {"brann"}
 # Heroes whose body clips are on hold: their idle loops and attack clips stay in art/ but the game uses the still,
 # auto-rigged like everyone else's, so the whole cast moves the same way.
 HOLD_CLIPS = {"surya", "brann", "sorrel", "varuni"}
@@ -119,9 +121,14 @@ def body(d, char):
         args += [str(hits[0]), str(swing)] if hits else []
         out = subprocess.run([sys.executable, str(ROOT / "tools" / "body-clip.py"), *args], check=True,
             capture_output=True, text=True).stdout
-        meta.write_text(out.strip().splitlines()[-1])
+        m = json.loads(out.strip().splitlines()[-1])
+        if char in MIRROR:
+            from PIL import Image
+            Image.open(sprite).transpose(Image.FLIP_LEFT_RIGHT).save(sprite, "WEBP", quality=88, method=6)
+            m["foot_x"] = round(1 - m["foot_x"], 4)
+        meta.write_text(json.dumps(m))
     m = json.loads(meta.read_text())
-    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"], "faces": FACING.get(char, "left")}
+    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"]}
     if "idle" in m:
         b["anim"] = dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")
     if "attack" in m:

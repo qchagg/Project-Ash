@@ -53,6 +53,7 @@ func _init() -> void:
 		["Playback · a round marks the ally and enemy turns, and Varuni's Rain of Renewal cues her cut-in", _b_turn_marks],
 		["Faces · every clip, still and body sheet a hero names is in the project", _faces_exist],
 		["Facing · heroes face right and foes face left, whichever way their art was drawn", _facing],
+		["Facing · every sprite is stored facing the same way; only an attack swing keeps its own direction", _facing_default],
 		["Sound · every cue the game plays has a sound file, and a cue with none is silent rather than an error", _sounds],
 		["Health bars · a hit drops the bar at once and leaves a pale chunk that drains; a heal fills it", _hp_lag],
 		["Rig · every still with no idle loop is rigged; its feet stay planted while its loose parts sway", _rig],
@@ -874,6 +875,15 @@ func _faces_exist() -> Array:
 			if not ResourceLoader.exists(src):
 				missing.append(src)
 	return [missing.is_empty(), "%d clips named · missing %s" % [Clips.wanted().size(), missing]]
+
+
+## One default: no sprite says it faces its own way.
+func _facing_default() -> Array:
+	var odd := []
+	for key in Data.SPRITES:
+		if Data.sprite_for({"key": key}).has("faces") or Data.SPRITES[key].has("faces"):
+			odd.append(key)
+	return [odd.is_empty(), "%d sprites · odd %s" % [Data.SPRITES.size(), odd]]
 
 
 ## Heroes face right and foes face left whichever way their art was drawn: every hero's and foe's sprite (and
