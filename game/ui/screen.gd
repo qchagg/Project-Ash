@@ -20,7 +20,7 @@ var ground := ""
 ## Stand on plain ink instead of home's scene, for a page whose own pictures should carry it.
 var black := false
 ## The room around every screen's page: the side margins and the gap between what stands in its body, wide and phone.
-const SIDE := Vector2(96, 44)
+const SIDE := Vector2(124, 44)
 const BODY_GAP := Vector2(48, 44)
 
 
@@ -57,7 +57,6 @@ func _ready() -> void:
 	top.add_child(spacer)
 	head_right = Forge.hbox(14)
 	top.add_child(head_right)
-	top.add_child(Forge.sound_toggle())
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED

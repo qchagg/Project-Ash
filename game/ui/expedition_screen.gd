@@ -85,13 +85,12 @@ func _landing() -> void:
 	heading.size_flags_horizontal = SIZE_EXPAND_FILL
 	heading.add_theme_color_override("font_shadow_color", Color.BLACK)
 	top.add_child(heading)
-	top.add_child(_chip("gold", str(app.town.embers), "Gold in the caravan"))
 	var all := Forge.link("all roads", "", 22)
 	all.pressed.connect(func():
 		_grid = true
 		rebuild())
 	top.add_child(all)
-	top.add_child(Forge.sound_toggle())
+	top.add_child(_chip("gold", str(app.town.embers), "Gold in the caravan"))
 	var gap := Control.new()
 	gap.size_flags_vertical = SIZE_EXPAND_FILL
 	gap.mouse_filter = MOUSE_FILTER_IGNORE
@@ -103,25 +102,13 @@ func _landing() -> void:
 	_info.size_flags_vertical = SIZE_SHRINK_END
 	_info.mouse_filter = MOUSE_FILTER_IGNORE
 	row.add_child(_info)
-	var party: BoxContainer = Forge.hbox(16)
-	party.alignment = BoxContainer.ALIGNMENT_END if wide else BoxContainer.ALIGNMENT_CENTER
-	party.size_flags_vertical = SIZE_SHRINK_END
-	row.add_child(party)
-	if wide:
-		party.add_child(_party_row(52))
-	var edit := Forge.link("party", "tab_squad", 22)
-	edit.pressed.connect(func(): app.show_tab("party"))
-	party.add_child(edit)
-	var go := Forge.studs("set out", true, 76)
-	go.custom_minimum_size.x = 200
-	go.size_flags_vertical = SIZE_SHRINK_CENTER
-	go.pressed.connect(func():
-		app.run = Expedition.new().begin(_road, randi() % 100000)
-		rebuild())
-	party.add_child(go)
+	var go := _next()
+	go.size_flags_vertical = SIZE_SHRINK_END
+	go.size_flags_horizontal = SIZE_SHRINK_END if wide else SIZE_SHRINK_CENTER
+	row.add_child(go)
+	# The roads along the foot: tap one to bring it up. The one commit, next, sits above.
 	var foot := Forge.hbox(12)
 	col.add_child(foot)
-	foot.add_child(_step_button("back", -1))
 	_strip_scroll = ScrollContainer.new()
 	_strip_scroll.size_flags_horizontal = SIZE_EXPAND_FILL
 	_strip_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -130,15 +117,17 @@ func _landing() -> void:
 	foot.add_child(_strip_scroll)
 	_strip = Forge.hbox(10)
 	_strip_scroll.add_child(_strip)
-	foot.add_child(_step_button("next", 1))
 	_show_road()
 
 
-func _step_button(text: String, by: int) -> Button:
-	var b := Forge.ember(text, roundi(THUMB.y))
-	b.size_flags_vertical = SIZE_SHRINK_CENTER
-	b.pressed.connect(func(): _road = Expedition.road_step(_road, by); _show_road())
-	return b
+## The commit of the road choice: on to the party's line-up, where they set out on the road on show.
+func _next() -> Button:
+	var go := Forge.studs("next", true, 72)
+	go.custom_minimum_size.x = 200
+	go.pressed.connect(func():
+		app.setting_out = _road
+		app.show_tab("party"))
+	return go
 
 
 ## Crossfades the big view to the chosen road: the new painting comes in over the last, which goes once it's covered.
@@ -236,28 +225,9 @@ func _choose_road() -> void:
 	body.add_child(roads)
 	for key in Expedition.ROADS:
 		roads.add_child(_road_card(key))
-	body.add_child(_heading("the party"))
-	var row := Forge.hbox(16)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	if Forge.wide():
-		# One line on a wide screen: the party standing, then the way to change them, then the commit.
-		row.add_child(_party_row(62))
-		var gap := Control.new()
-		gap.custom_minimum_size.x = 40
-		row.add_child(gap)
-	else:
-		body.add_child(_party_row())
-	body.add_child(row)
-	var party := Forge.link("edit party", "tab_squad", 22)
-	party.pressed.connect(func(): app.show_tab("party"))
-	row.add_child(party)
-	var go := Forge.studs("set out", true, 84)
-	go.custom_minimum_size.x = 300
-	go.size_flags_vertical = SIZE_SHRINK_CENTER
-	go.pressed.connect(func():
-		app.run = Expedition.new().begin(_road, randi() % 100000)
-		rebuild())
-	row.add_child(go)
+	var go := _next()
+	go.size_flags_horizontal = SIZE_SHRINK_CENTER
+	body.add_child(go)
 
 
 func _road_card(key: String) -> Control:

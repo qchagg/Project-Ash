@@ -48,6 +48,8 @@ func _build() -> void:
 	n.size_flags_vertical = SIZE_SHRINK_CENTER
 	head_right.add_child(n)
 
+	if app.setting_out != "":
+		body.add_child(Forge.sc("setting out for " + Expedition.ROADS[app.setting_out].name, 18, Forge.GOLD))
 	# Wide: the formation on the left, everything about who is in it on the right. Phone: one column.
 	var left: VBoxContainer = body
 	var right: VBoxContainer = body
@@ -68,10 +70,17 @@ func _build() -> void:
 	right.add_child(_bench())
 	right.add_child(_heading("the team"))
 	right.add_child(_readout())
-	var go := Forge.studs("back to the road" if app.run else "choose a road")
+	right.add_child(_commit(84))
+
+
+## The commit under the party: set out on the road just chosen, or go back to the road, or choose one.
+func _commit(h: int) -> Button:
+	var out := app.setting_out != "" and not app.run
+	var go := Forge.studs("set out" if out else ("back to the road" if app.run else "choose a road"), true, h, 18 if Forge.wide() else 22)
+	go.custom_minimum_size.x = 230
 	go.size_flags_horizontal = SIZE_SHRINK_CENTER
-	go.pressed.connect(func(): app.show_tab("expedition"))
-	right.add_child(go)
+	go.pressed.connect(app.set_out if out else app.show_tab.bind("expedition"))
+	return go
 
 
 func _set_view(on: bool) -> void:
@@ -104,10 +113,15 @@ func _lineup() -> void:
 	var count := Forge.sc("%d of %d" % [app.col.squad.size(), Collection.MAX_SQUAD], 16, Forge.LABEL)
 	count.position = Vector2(Screen.SIDE.x * 0.6, 28)
 	_scene.add_child(count)
-	var sound := Forge.sound_toggle()
-	sound.set_anchors_preset(PRESET_TOP_RIGHT)
-	sound.position += Vector2(-Screen.SIDE.x * 0.6 - 40, 14)
-	_scene.add_child(sound)
+	if app.setting_out != "":
+		# Where they are about to go, under the title.
+		var bound := Forge.sc("for " + Expedition.ROADS[app.setting_out].name, 16, Forge.GOLD)
+		bound.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		bound.set_anchors_preset(PRESET_TOP_WIDE)
+		bound.offset_top = BAND - 22
+		bound.offset_bottom = BAND + 4
+		bound.mouse_filter = MOUSE_FILTER_IGNORE
+		_scene.add_child(bound)
 	var n: int = app.col.squad.size()
 	for i in n:
 		_stand_up(app.col.squad[n - 1 - i], LINE[LINE.size() - n + i])
@@ -123,14 +137,15 @@ func _lineup() -> void:
 	var form := Forge.link("formation", "tab_squad", 17)
 	form.pressed.connect(_set_view.bind(false))
 	foot.add_child(form)
+	if app.setting_out != "":
+		var back := Forge.link("roads", "back", 17)
+		back.pressed.connect(app.show_tab.bind("expedition"))
+		foot.add_child(back)
 	var gap := Control.new()
 	gap.size_flags_horizontal = SIZE_EXPAND_FILL
 	gap.mouse_filter = MOUSE_FILTER_IGNORE
 	foot.add_child(gap)
-	var go := Forge.studs("back to the road" if app.run else "choose a road", true, 52, 18)
-	go.custom_minimum_size.x = 230
-	go.pressed.connect(app.show_tab.bind("expedition"))
-	foot.add_child(go)
+	foot.add_child(_commit(52))
 
 
 func _stand_up(uid: String, at: Vector3) -> void:

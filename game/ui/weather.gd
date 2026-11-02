@@ -6,14 +6,16 @@ extends Control
 
 ## `kind` is how a mote is drawn. `color` tints it, `vel` is pixels a second at the nearest depth (and how the rest
 ## drift), `size` is its radius there, `count` how many, `sway` how far it wanders sideways. `mist` adds slow banks of haze,
-## and `extra` a second air of its own kind over the first.
+## and `extra` one more air of its own kind over the first, or a list of them.
 const AIR := {
 	"ice": {"kind": "snow", "color": Color("#e8f4ff"), "vel": Vector2(-30, 96), "size": 7.0, "count": 150, "sway": 30.0},
 	"city": {"kind": "dust", "color": Color("#ffd591"), "vel": Vector2(18, -10), "size": 4.4, "count": 90, "sway": 18.0},
 	"saltglass-1": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 110, "sway": 8.0,
-		"extra": {"kind": "glint", "color": Color("#fff8e6"), "vel": Vector2(4, 0), "size": 7.0, "count": 26, "sway": 0.0}},
+		"extra": [{"kind": "streak", "color": Color("#fff2d6"), "vel": Vector2(360, -10), "size": 4.0, "count": 26, "sway": 4.0},
+			{"kind": "glint", "color": Color("#fff8e6"), "vel": Vector2(4, 0), "size": 7.0, "count": 22, "sway": 0.0}]},
 	"saltglass-2": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 110, "sway": 8.0,
-		"extra": {"kind": "glint", "color": Color("#fff8e6"), "vel": Vector2(4, 0), "size": 7.0, "count": 26, "sway": 0.0}},
+		"extra": [{"kind": "streak", "color": Color("#fff2d6"), "vel": Vector2(360, -10), "size": 4.0, "count": 26, "sway": 4.0},
+			{"kind": "glint", "color": Color("#fff8e6"), "vel": Vector2(4, 0), "size": 7.0, "count": 22, "sway": 0.0}]},
 	"lotus-1": {"kind": "petal", "color": Color("#f590b0"), "vel": Vector2(-26, 30), "size": 24.0, "count": 48, "sway": 34.0},
 	"lotus-2": {"kind": "petal", "color": Color("#f590b0"), "vel": Vector2(-26, 30), "size": 24.0, "count": 48, "sway": 34.0},
 	"imperial": {"kind": "dust", "color": Color("#f4ecd8"), "vel": Vector2(12, -6), "size": 3.6, "count": 70, "sway": 16.0},
@@ -38,7 +40,8 @@ const AIR := {
 	"whale-cathedral": {"kind": "snow", "color": Color("#e8f4ff"), "vel": Vector2(-20, 70), "size": 6.0, "count": 110, "sway": 26.0},
 	"basalt-city": {"kind": "dust", "color": Color("#8ff0d0"), "vel": Vector2(6, -34), "size": 4.2, "count": 70, "sway": 20.0, "mist": Color("#bfeee0")},
 	"avenue": {"kind": "dust", "color": Color("#ffd9b0"), "vel": Vector2(14, -8), "size": 3.8, "count": 70, "sway": 16.0},
-	"undercroft": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(6, -58), "size": 4.0, "count": 70, "sway": 20.0},
+	"undercroft": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(6, -58), "size": 4.0, "count": 80, "sway": 20.0,
+		"extra": {"kind": "ember", "color": Color("#ffa040"), "vel": Vector2(10, -120), "size": 9.0, "count": 54, "sway": 26.0}},
 	"jade": {"kind": "leaf", "color": Color("#b7d9b0"), "vel": Vector2(-40, 34), "size": 18.0, "count": 60, "sway": 36.0,
 		"mist": Color("#d8f0ea")},
 }
@@ -175,7 +178,8 @@ func motes() -> Array:
 ## The painting's air, then its extra air if it has one.
 func airs() -> Array:
 	var air: Dictionary = AIR[art]
-	return [air, air.extra] if air.has("extra") else [air]
+	var extra = air.get("extra", [])
+	return [air] + (extra if extra is Array else [extra])
 
 
 func _draw() -> void:
@@ -221,6 +225,13 @@ func _draw() -> void:
 					_soft_dot(at, r * 1.6, Color(air.color, 0.45 * flash * m.alpha))
 					draw_line(at - Vector2(r * 1.8, 0), at + Vector2(r * 1.8, 0), g, maxf(1.0, r * 0.18), true)
 					draw_line(at - Vector2(0, r * 1.8), at + Vector2(0, r * 1.8), g, maxf(1.0, r * 0.18), true)
+			"ember":
+				# A spark off the vents: a hot core in a flickering glow, trailing as it rises.
+				var heat := 0.65 + 0.35 * sin(_t * 9.0 * m.k + m.ph * 5.0)
+				var trail: Vector2 = -air.vel.normalized() * r * 3.0
+				draw_line(at, at + trail, Color(air.color, 0.6 * heat * m.alpha), maxf(1.0, r * 0.6), true)
+				_soft_dot(at, r * 3.2, Color(air.color, 0.7 * heat * m.alpha))
+				_soft_dot(at, r * 0.8, Color(1.0, 0.92, 0.7, heat * m.alpha))
 			"lantern":
 				# A paper lantern left behind, rising slowly with its flame flickering.
 				var burn := 0.8 + 0.12 * sin(_t * 3.1 + m.ph) + 0.08 * sin(_t * 7.3 + m.ph * 2.0)

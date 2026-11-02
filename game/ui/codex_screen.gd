@@ -11,7 +11,7 @@ const STATUSES := [
 	["cleanse", "water", "Clears Burn from whoever it heals."],
 ]
 ## A region plate's width on a phone and on a wide screen, set two across, and the height of its painting.
-const PLATE_W := Vector2(632, 660)
+const PLATE_W := Vector2(632, 620)
 const BAND_H := 176.0
 const PATTERNS := [
 	["single", "One exposed enemy."],
@@ -50,8 +50,8 @@ func _world() -> void:
 	# A wide screen sets the regions two across, so each keeps the shape it has on a phone.
 	var grid := GridContainer.new()
 	grid.columns = 2 if Forge.wide() else 1
-	grid.add_theme_constant_override("h_separation", 48)
-	grid.add_theme_constant_override("v_separation", 48)
+	grid.add_theme_constant_override("h_separation", 64)
+	grid.add_theme_constant_override("v_separation", 64)
 	body.add_child(grid)
 	for key in Data.REGIONS:
 		grid.add_child(_region_plate(key))
@@ -213,7 +213,14 @@ func _glossary() -> void:
 
 func _settings() -> void:
 	body.add_child(_intro("Settings for the playtest. Most are placeholders until the systems behind them exist."))
-	for row in [["sound", "Music and effects", "not wired yet"], ["motion", "Reduce card drift and backdrops", "not wired yet"],
+	# Sound lives here alone, rather than in a corner of every screen.
+	var sound := Forge.hbox(16)
+	sound.add_child(Forge.sound_toggle())
+	var words := _term("sound", "Music and effects, on or off.", "")
+	words.size_flags_vertical = SIZE_SHRINK_CENTER
+	sound.add_child(words)
+	body.add_child(sound)
+	for row in [["motion", "Reduce card drift and backdrops", "not wired yet"],
 			["language", "English · Français later", "not wired yet"]]:
 		body.add_child(_term(row[0], "%s (%s)" % [row[1], row[2]], ""))
 	body.add_child(Forge.rule())

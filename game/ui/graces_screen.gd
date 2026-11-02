@@ -19,8 +19,8 @@ void fragment() {
 ## How the ones not chosen stand back: dim, but still gold against home's painting behind every place.
 const DIMMED := Color(0.55, 0.55, 0.55, 0.9)
 ## Heights in the row, as a share of the stage: the chosen one, then the rest.
-const TALL := 0.86
-const SHORT := 0.64
+const TALL := 0.78
+const SHORT := 0.58
 ## On a phone, the small row's height as a share of the stage.
 const ROW := 0.24
 const NAMES_H := 40.0
@@ -66,10 +66,10 @@ func _ready() -> void:
 	add_child(Forge.wash(Color(Forge.INK, 0.7), Vector2(0.5, 1.0), Vector2(0.5, 0.35)))
 	_pool = Forge.wash(Color(Forge.GOLD_DEEP, 0.16), Vector2(0.5, 0.55), Vector2(0.5, 0.0), true)
 	add_child(_pool)
-	var m := Forge.margins(MarginContainer.new(), int(Screen.SIDE.x), 44, int(Screen.SIDE.x), 44) if Forge.wide() else Forge.margins(MarginContainer.new(), 44, 56, 44, 40)
+	var m := Forge.margins(MarginContainer.new(), int(Screen.SIDE.x), 56, int(Screen.SIDE.x), 56) if Forge.wide() else Forge.margins(MarginContainer.new(), 44, 56, 44, 40)
 	add_child(m)
 	m.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var box: BoxContainer = Forge.hbox(96) if Forge.wide() else Forge.vbox(32)
+	var box: BoxContainer = Forge.hbox(120) if Forge.wide() else Forge.vbox(32)
 	m.add_child(box)
 	var words := _words()
 	_stage = Control.new()
@@ -119,7 +119,7 @@ func _header() -> Control:
 ## The chosen Grace's name, title, lore and blessing.
 func _words() -> Control:
 	var v := Forge.vbox(10)
-	v.custom_minimum_size.x = 400 if Forge.wide() else 0
+	v.custom_minimum_size.x = 380 if Forge.wide() else 0
 	if Forge.wide():
 		v.add_child(_header())
 		# The words sit in what room the place links leave, so the gap gives way rather than pushing them under the links.

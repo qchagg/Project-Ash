@@ -1,11 +1,14 @@
 class_name MainMenu
 extends Control
-## Home, the first place after the title: the menu of places over the app's scene. The scene turns slowly through the
-## roads (on the road it holds on yours) and the heroes you have starred, each standing on their home's painting, with
-## a quiet line naming what is on show. Whatever is showing when you leave goes with you to every place, its music too.
+## Home, the first place after the title: the menu of places on the left over the app's scene, and on the right a quiet
+## line naming what is on show with a diamond for each slide. The scene turns slowly through the roads (on the road it
+## holds on yours) with the heroes you have starred woven between them, each standing on their home's painting.
+## Whatever is showing when you leave goes with you to every place, its music too.
 
 ## How long each slide stays before the next comes in, and how long its words take to change.
-const HOLD := 14.0
+const HOLD := 12.0
+## A starred hero comes up after every this many roads.
+const HERO_EVERY := 2
 const WORDS_FADE := 0.4
 ## How tall a starred hero stands on home, against the screen's height.
 const HERO_TALL := Vector2(0.9, 0.62)
@@ -31,6 +34,20 @@ static func slides(on_road: String) -> Array:
 	return [on_road] if on_road != "" else Expedition.ROADS.keys()
 
 
+## The slides home turns through: the roads, with a starred hero after every HERO_EVERY of them (and any left over at
+## the end), so a hero you star comes up soon.
+static func weave(roads: Array, heroes: Array) -> Array:
+	var out := []
+	var left := heroes.duplicate()
+	for i in roads.size():
+		out.append({"road": roads[i]})
+		if (i + 1) % HERO_EVERY == 0 and not left.is_empty():
+			out.append({"hero": left.pop_front()})
+	for h in left:
+		out.append({"hero": h})
+	return out
+
+
 ## The road whose music goes with a hero's home, or "" when their home has no road.
 static func home_road(home: String) -> String:
 	for key in Expedition.ROADS:
@@ -42,10 +59,7 @@ static func home_road(home: String) -> String:
 func _ready() -> void:
 	clip_contents = true
 	var wide := Forge.wide()
-	_slides = slides(app.run.road if app.run else "").map(func(k): return {"road": k})
-	for h in app.starred:
-		if Backdrop.ART.has(Data.hero(h).get("home", "")):
-			_slides.append({"hero": h})
+	_slides = weave(slides(app.run.road if app.run else ""), app.starred.filter(func(h): return Backdrop.ART.has(Data.hero(h).get("home", ""))))
 	_at = maxi(0, _slides.find({"road": app.scene_road}))
 	_hero_layer = Control.new()
 	_hero_layer.mouse_filter = MOUSE_FILTER_IGNORE
@@ -65,15 +79,26 @@ func _ready() -> void:
 	m.add_child(col)
 	col.add_child(_top())
 	col.add_child(_gap())
-	if not wide:
+	if wide:
+		# The menu on the left and what is on show on the right, balanced across the painting.
+		var row := Forge.hbox(0)
+		row.mouse_filter = MOUSE_FILTER_IGNORE
+		col.add_child(row)
+		row.add_child(_menu())
+		var mid := Control.new()
+		mid.size_flags_horizontal = SIZE_EXPAND_FILL
+		mid.mouse_filter = MOUSE_FILTER_IGNORE
+		row.add_child(mid)
+		var cap := _caption()
+		cap.size_flags_vertical = SIZE_SHRINK_END
+		row.add_child(cap)
+	else:
 		col.add_child(_caption())
 		var space := Control.new()
 		space.custom_minimum_size.y = 48
 		col.add_child(space)
-	col.add_child(_menu())
+		col.add_child(_menu())
 	col.add_child(_gap())
-	if wide:
-		col.add_child(_caption())
 	_show()
 	# Home is the menu, so the app's own row of links stays away.
 	app.show_nav.call_deferred(false)
@@ -94,18 +119,18 @@ func _process(delta: float) -> void:
 		_feature((_at + 1) % _slides.size())
 
 
-## The corners: what you hold, and the sound.
+## The corner: what you hold, on the right.
 func _top() -> Control:
 	var row := Forge.hbox(10)
+	row.alignment = BoxContainer.ALIGNMENT_END
+	row.custom_minimum_size.y = 40
 	var gold := Forge.glyph("gold", 22, Forge.GOLD_LIGHT)
 	gold.size_flags_vertical = SIZE_SHRINK_CENTER
 	row.add_child(gold)
 	var n := Forge.label(str(app.town.embers), 20, Forge.PARCHMENT, Forge.SANS_BOLD)
-	n.size_flags_horizontal = SIZE_EXPAND_FILL
 	n.size_flags_vertical = SIZE_SHRINK_CENTER
 	_readable(n)
 	row.add_child(n)
-	row.add_child(Forge.sound_toggle())
 	return row
 
 
@@ -144,7 +169,7 @@ func _dot_row() -> Control:
 	var step := 22.0
 	_dots = Control.new()
 	_dots.custom_minimum_size = Vector2(step * _slides.size(), 26)
-	_dots.size_flags_horizontal = SIZE_SHRINK_BEGIN if Forge.wide() else SIZE_SHRINK_CENTER
+	_dots.size_flags_horizontal = SIZE_SHRINK_END if Forge.wide() else SIZE_SHRINK_CENTER
 	_dots.mouse_default_cursor_shape = CURSOR_POINTING_HAND
 	_dots.draw.connect(func():
 		for i in _slides.size():
@@ -200,8 +225,7 @@ func _show() -> void:
 			Forge.sc(h.name, 30 if wide else 28, Forge.PARCHMENT, true, 0.06)]
 	for l in lines:
 		_readable(l)
-		if not wide:
-			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if wide else HORIZONTAL_ALIGNMENT_CENTER
 		_words.add_child(l)
 
 

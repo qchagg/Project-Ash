@@ -12,7 +12,7 @@ const WIDE_COLS := 6
 const WIDE_W := 192
 const WIDE_H := 288
 ## The wide strips: tall, narrow, and running off the edge when the whole cast is showing.
-const STRIP := Vector2(200, 548)
+const STRIP := Vector2(190, 488)
 const SIDE_W := 200.0
 
 ## Wide only: show the cast as standing fighters rather than cards; kept while you move between screens.
@@ -48,7 +48,6 @@ func _ready() -> void:
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	top.add_child(spacer)
 	top.add_child(_chip("augment", Forge.GOLD_LIGHT, app.col.loose.size(), "Loose augments", "Augments not fitted to any hero. Fit them to a skill on a hero's Equip page."))
-	top.add_child(Forge.sound_toggle())
 
 	var filters := Forge.hbox(16 if Forge.wide() else 8)
 	hv.add_child(filters)
@@ -115,7 +114,6 @@ func _wide() -> void:
 	top.add_child(count)
 	top.add_child(_view_switch())
 	top.add_child(_chip("augment", Forge.GOLD_LIGHT, app.col.loose.size(), "Loose augments", "Augments not fitted to any hero. Fit them to a skill on a hero's Equip page."))
-	top.add_child(Forge.sound_toggle())
 	if models:
 		var scroll := ScrollContainer.new()
 		scroll.size_flags_vertical = SIZE_EXPAND_FILL
