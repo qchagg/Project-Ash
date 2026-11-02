@@ -4,10 +4,13 @@ extends Control
 ## The nav (the row of places along the foot) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.66"
+const VERSION := "v0.67"
 ## Moving between screens: how long the new one takes to come in, and how far it rises as it does.
 const FADE := 0.2
 const RISE := 18.0
+## How long the stroke of ink takes to cross when moving between places.
+const WIPE := 0.5
+const INK_WIPE: Shader = preload("res://ui/ink_wipe.gdshader")
 
 var col := Collection.new()
 ## The town between expeditions; kept for the session while you move between tabs.
@@ -173,6 +176,8 @@ func _open(screen: Control) -> void:
 		out.tween_property(old, "modulate:a", 0.0, FADE * 0.8)
 		out.tween_callback(old.queue_free)
 		Sfx.play("page")
+		if screen.get("tab") and not screen is BattleScreen:
+			_ink_wipe()
 	_screen = screen
 	_content.add_child(screen)
 	screen.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
@@ -197,6 +202,21 @@ func _open(screen: Control) -> void:
 	if tab != "":
 		nav = NavBar.make(self, screen)
 		_frame.add_child(nav)
+
+
+## A stroke of ink across the screen, over the change from one place to the next.
+func _ink_wipe() -> void:
+	var ink := ColorRect.new()
+	ink.color = Forge.INK
+	ink.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var m := ShaderMaterial.new()
+	m.shader = INK_WIPE
+	ink.material = m
+	add_child(ink)
+	ink.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var tw := ink.create_tween()
+	tw.tween_method(func(p: float): m.set_shader_parameter("progress", p), 0.0, 1.0, WIPE).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_callback(ink.queue_free)
 
 
 ## Hide the nav while a fight is on: nothing in it is needed mid-battle.
