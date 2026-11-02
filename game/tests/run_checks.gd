@@ -56,6 +56,7 @@ func _init() -> void:
 		["Sound · the button click and page turn stay silent", _muted_cues],
 		["Roads · every road shows a painting the game carries", _road_art],
 		["Skills · every skill has its own icon", _skill_icons],
+		["Graces · each has a figure, carried beside the page", _graces],
 		["Stands · a hero's standing art has its file, travels with the sheets, and their profile crop stays on the art", _hero_stands],
 		["Travel Log · a milestone locks until enough wardens fall and pays once", _travel_log],
 		["Voices · every voice has an actor, every clip has its file, and the web build fetches them", _voices],
@@ -904,6 +905,18 @@ func _skill_icons() -> Array:
 	var kept: bool = grown.name != "Foxfire Lance" and Forge.skill_art(grown) == "res://art/skills/foxfire-lance.webp"
 	var lit: bool = Data.ELEMS.keys().all(func(e): return Forge.SKILL_SHINE.has(e) and Forge.ELEM.has(e))
 	return [bad.is_empty() and kept and lit, "%d skills · missing %s · augmented keeps its icon: %s" % [kits.size(), bad, kept]]
+
+
+func _graces() -> Array:
+	var keys := Graces.LIST.map(func(g): return g.key)
+	var bad := (keys + ["crest"]).filter(func(k): return not FileAccess.file_exists(Graces.art_path(k)) or Graces.art_path(k) not in Clips.wanted_sheets())
+	# Every element a Grace holds is a real one, no two share a name, and the figures stay out of the game pack.
+	var seen := {}
+	for k in keys:
+		seen[k] = true
+	var named: bool = Graces.LIST.all(func(g): return g.elem == "" or Forge.ELEM.has(g.elem)) and seen.size() == keys.size()
+	var outside := FileAccess.get_file_as_string("res://export_presets.cfg").count("art/graces/*") == 2
+	return [bad.is_empty() and named and outside, "%d graces · missing %s · kept out of the pack: %s" % [keys.size(), bad, outside]]
 
 
 func _road_art() -> Array:

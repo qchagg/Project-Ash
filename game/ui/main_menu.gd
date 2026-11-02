@@ -5,7 +5,7 @@ extends Control
 ## stays quiet: the gold and the sound in the corners, plain links along the foot in place of the nav.
 
 ## The places along the foot: the link's words and its App.show_tab key. Home is where you are, so it goes nowhere.
-const PLACES := [["home", ""], ["heroes", "heroes"], ["party", "party"], ["caravan", "town"], ["archive", "archive"], ["travel log", "log"]]
+const PLACES := [["home", ""], ["heroes", "heroes"], ["party", "party"], ["caravan", "town"], ["archive", "archive"], ["graces", "graces"], ["travel log", "log"]]
 ## How long a road stays featured, in seconds, and how long its words take to change.
 const HOLD := 8.0
 const WORDS_FADE := 0.25
