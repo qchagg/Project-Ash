@@ -34,6 +34,13 @@ const GROUNDS := {
 	"lotus": {"art": "aqueduct", "shade": 0.5},
 	"saltglass": {"art": "saltglass", "shade": 0.27},
 }
+## What stands nearest the camera on a road's wide board, in front of the fighters: plants, roots or rocks framing the
+## foot and sides, in art/foregrounds/ (tools/foreground.py). `width` is how wide it is against the screen (over 1
+## pushes the side clumps past the back columns), `sink` how much of its height drops below the bottom edge, and
+## `shade` how dark it stands, so it reads as near the camera rather than part of the painting.
+const FOREGROUNDS := {
+	"wood": {"art": "jungle", "width": 1.3, "sink": 0.33, "shade": 0.85},
+}
 
 var elem := "fire"
 ## Where the glow centres, as a fraction of the size.
@@ -65,6 +72,24 @@ static func ground(road: String) -> Painted:
 
 static func ground_path(art: String) -> String:
 	return "res://art/grounds/ground-%s.webp" % art
+
+
+## A road's foreground for a board `size` big, standing on its foot and centred, or null for a road with none.
+static func foreground(road: String, size: Vector2) -> Control:
+	var f: Dictionary = FOREGROUNDS.get(road, {})
+	if f.is_empty():
+		return null
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var w: float = size.x * f.width
+	holder.size = Vector2(w, w / 2.0)
+	holder.position = Vector2((size.x - w) / 2.0, size.y - holder.size.y * (1.0 - f.sink))
+	holder.add_child(Painted.new().setup("", Color(f.shade, f.shade, f.shade)).layer(foreground_path(f.art)))
+	return holder
+
+
+static func foreground_path(art: String) -> String:
+	return "res://art/foregrounds/fore-%s.webp" % art
 
 
 ## The music of a painting: the road it shows, else the road of the home it hangs in, else "" when its home has no road.

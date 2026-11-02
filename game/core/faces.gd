@@ -29,7 +29,7 @@ const BODIES := {
 }
 
 ## Changes with the idle and attack sheets, so a player's kept copies are replaced (Clips.refresh_sheets).
-const SHEETS_STAMP := "0346f01f8bea"
+const SHEETS_STAMP := "877925897186"
 
 ## The lights in each painted background, found by tools/glow-spots.py: [x, y, radius, colour], as shares of its width.
 const GLOWS := {

@@ -203,7 +203,7 @@ def sheets_stamp():
     h = hashlib.sha1()
     sprites = GAME / "art" / "sprites"
     painted = (GAME / "art" / "backgrounds").glob("*.webp")
-    grounds = (GAME / "art" / "grounds").glob("*.webp")
+    grounds = list((GAME / "art" / "grounds").glob("*.webp")) + list((GAME / "art" / "foregrounds").glob("*.webp"))
     moves = list(sprites.glob("*-attack.webp")) + list(sprites.glob("*-skill.webp"))
     for p in sorted(list(sprites.glob("*-idle.webp")) + moves + list(painted) + list(grounds)):
         h.update(p.name.encode() + p.read_bytes())
