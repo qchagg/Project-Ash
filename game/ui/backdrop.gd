@@ -39,7 +39,7 @@ const GROUNDS := {
 ## pushes the side clumps past the back columns), `sink` how much of its height drops below the bottom edge, and
 ## `shade` how dark it stands, so it reads as near the camera rather than part of the painting.
 const FOREGROUNDS := {
-	"wood": {"art": "jungle", "width": 1.3, "sink": 0.33, "shade": 0.85},
+	"wood": {"art": "jungle", "width": 1.5, "sink": 0.2, "shade": 1.0},
 }
 
 var elem := "fire"
