@@ -60,6 +60,7 @@ func _init() -> void:
 		["Travel Log · a milestone locks until enough wardens fall and pays once", _travel_log],
 		["Voices · every voice has an actor, every clip has its file, and the web build fetches them", _voices],
 		["Choices · every boon\'s stat has a picture on its card", _boon_glyphs],
+		["Air · what tumbles rides gusts that stay in bounds, and only paintings that exist have moving light", _air_light],
 		["Title · it draws from every background the game carries, each with its file", _title_art],
 		["Roads · next and back walk every road and wrap, and the screens' paintings travel with the rest", _road_steps],
 		["Title · the art drifts both ways but never shows an edge, on a phone or a wide screen, and every background has its air", _title_pan],
@@ -971,6 +972,19 @@ func _boon_glyphs() -> Array:
 	for key in Expedition.BOONS:
 		ok = ok and FileAccess.file_exists("res://art/icons/ui/%s.svg" % RunChoices.boon_glyph(key))
 	return [ok, "%d boons" % Expedition.BOONS.size()]
+
+
+func _air_light() -> Array:
+	var w := Weather.over("lotus-1")
+	var lo := 99.0
+	var hi := 0.0
+	for i in 2000:
+		w.step(0.05)
+		lo = minf(lo, w.gust())
+		hi = maxf(hi, w.gust())
+	w.free()
+	var strays: Array = Painted.SKY.keys().filter(func(a): return not a in Backdrop.all_art() and a != "caravan")
+	return [lo >= 1.0 and hi <= Weather.GUST and hi > lo and strays.is_empty(), "wind %.1f to %.1f · %d skies · strays %s" % [lo, hi, Painted.SKY.size(), strays]]
 
 
 func _title_art() -> Array:

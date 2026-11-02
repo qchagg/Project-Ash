@@ -11,13 +11,13 @@ const AIR := {
 	"city": {"kind": "dust", "color": Color("#ffd591"), "vel": Vector2(18, -10), "size": 4.4, "count": 90, "sway": 18.0},
 	"saltglass-1": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 130, "sway": 8.0},
 	"saltglass-2": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 130, "sway": 8.0},
-	"lotus-1": {"kind": "leaf", "color": Color("#f7a8c0"), "vel": Vector2(-26, 30), "size": 7.0, "count": 34, "sway": 34.0},
-	"lotus-2": {"kind": "leaf", "color": Color("#f7a8c0"), "vel": Vector2(-26, 30), "size": 7.0, "count": 34, "sway": 34.0},
+	"lotus-1": {"kind": "petal", "color": Color("#f7a8c0"), "vel": Vector2(-26, 30), "size": 12.0, "count": 34, "sway": 34.0},
+	"lotus-2": {"kind": "petal", "color": Color("#f7a8c0"), "vel": Vector2(-26, 30), "size": 12.0, "count": 34, "sway": 34.0},
 	"imperial": {"kind": "dust", "color": Color("#f4ecd8"), "vel": Vector2(12, -6), "size": 3.6, "count": 70, "sway": 16.0},
 	"plains-1": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(34, -12), "size": 4.2, "count": 90, "sway": 26.0},
 	"plains-2": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(34, -12), "size": 4.2, "count": 90, "sway": 26.0},
 	"basalt-steps": {"kind": "dust", "color": Color("#ff9a4a"), "vel": Vector2(14, -74), "size": 4.4, "count": 90, "sway": 22.0},
-	"lantern-village": {"kind": "dust", "color": Color("#ff8fb0"), "vel": Vector2(8, -30), "size": 4.8, "count": 80, "sway": 20.0},
+	"lantern-village": {"kind": "petal", "color": Color("#ffb7cf"), "vel": Vector2(-34, 26), "size": 12.0, "count": 40, "sway": 34.0},
 	"silk-highlands": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(10, -46), "size": 4.2, "count": 90, "sway": 24.0},
 	"silk-street": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(10, -46), "size": 3.6, "count": 70, "sway": 24.0},
 	"steppe": {"kind": "dust", "color": Color("#f4e2a8"), "vel": Vector2(46, -8), "size": 3.8, "count": 90, "sway": 18.0},
@@ -36,6 +36,12 @@ const AIR := {
 	"jade": {"kind": "leaf", "color": Color("#b7d9b0"), "vel": Vector2(-40, 34), "size": 8.0, "count": 26, "sway": 36.0,
 		"mist": Color("#d8f0ea")},
 }
+## The shapes of what tumbles, as outlines around their middle, one unit long.
+const PETAL := [Vector2(0, -1), Vector2(0.42, -0.62), Vector2(0.56, 0.05), Vector2(0.3, 0.7), Vector2(0, 1), Vector2(-0.3, 0.7), Vector2(-0.56, 0.05), Vector2(-0.42, -0.62)]
+const LEAF := [Vector2(0, -1.2), Vector2(0.3, -0.7), Vector2(0.42, -0.1), Vector2(0.26, 0.55), Vector2(0, 1.2), Vector2(-0.26, 0.55), Vector2(-0.42, -0.1), Vector2(-0.3, -0.7)]
+## The wind's strongest gust against its calm, and how slowly gusts come and go.
+const GUST := 2.4
+const GUST_RATE := 0.21
 ## How far away each depth feels: its share of the motes, then its speed, size and strength against the nearest.
 ## How strongly a light shines at the top of its flicker.
 const LAMP := 0.3
@@ -137,9 +143,17 @@ func step(delta: float) -> void:
 	var vel: Vector2 = AIR[art].vel
 	for m in _motes:
 		var move: Vector2 = vel * m.speed * m.k * delta / s
+		if AIR[art].kind in ["petal", "leaf"]:
+			move.x *= gust()
 		m.p = Vector2(fposmod(m.p.x + move.x, 1.0), fposmod(m.p.y + move.y, 1.0))
 	for b in _banks:
 		b.p.x = fposmod(b.p.x + 0.006 * b.k * delta, 1.0)
+
+
+## The wind now: mostly calm, rising in long breaths, for what is light enough to ride it.
+func gust() -> float:
+	var breath := sin(_t * GUST_RATE * TAU) + 0.5 * sin(_t * GUST_RATE * 2.3 * TAU + 1.0)
+	return 1.0 + (GUST - 1.0) * smoothstep(0.5, 1.3, breath)
 
 
 func motes() -> Array:
@@ -165,10 +179,14 @@ func _draw() -> void:
 			"dust":
 				_soft_dot(at, r * 2.4, Color(air.color, 0.34 * m.alpha * twinkle))
 				_soft_dot(at, r * 0.8, Color(air.color, 0.9 * m.alpha * twinkle))
-			"leaf":
-				var turn: float = m.ph + _t * 0.9
-				draw_set_transform(at, turn, Vector2(1.0, 0.42 + 0.3 * sin(_t * 1.4 + m.ph)))
-				draw_circle(Vector2.ZERO, r, Color(air.color, 0.7 * m.alpha))
+			"leaf", "petal":
+				# It spins as it falls and flips over, its face catching the light and its back in shade.
+				var flip := sin(_t * 1.6 * m.k + m.ph)
+				var face: Color = air.color.lightened(0.18) if flip > 0.0 else air.color.darkened(0.22)
+				draw_set_transform(at, m.ph + _t * 0.8 * m.k, Vector2(r, r) * Vector2(1.0, 0.25 + 0.75 * absf(flip)))
+				draw_colored_polygon(PackedVector2Array(LEAF if air.kind == "leaf" else PETAL), Color(face, 0.82 * m.alpha))
+				if air.kind == "leaf":
+					draw_line(Vector2(0, -1.1), Vector2(0, 1.1), Color(face.darkened(0.3), 0.7 * m.alpha), 0.09)
 				draw_set_transform(Vector2.ZERO)
 
 
