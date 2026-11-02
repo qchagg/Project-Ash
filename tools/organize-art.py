@@ -16,7 +16,8 @@ Upload anywhere under art/ (the root is fine) and run:
    `<character>-body-attack.mp4` adds the swing, <character>-attack.webp. A still with no loop is sprite enough: the
    game breathes it.
    `<character>-sheet-idle.webp` (already keyed, with `<character>-sheet-idle.json` holding cols, rows, n and fps) takes
-   their place: tools/sheet-idle.py makes the sprite and frame sheet from it alone.
+   their place: tools/sheet-idle.py makes the sprite and frame sheet from it alone. Beside it, `-body-attack.mp4` and
+   `-body-skill.mp4` (whole moves facing left) become <character>-attack.webp and <character>-skill.webp.
 4. Cards: `<character>-card.png` (the hero on green, for the phone build's cards) is keyed into game/art/cards/.
 5. Writes game/core/faces.gd, the table the game reads (see Faces).
 """
@@ -115,8 +116,20 @@ def sheet_body(d, char):
             capture_output=True, text=True).stdout
         meta.write_text(out.strip().splitlines()[-1])
     m = json.loads(meta.read_text())
-    return {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"],
+    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"],
         "anim": dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")}
+    # Their moves: `<character>-body-attack.mp4` and `-body-skill.mp4`, whole moves made facing left (Gamelabs clips),
+    # each played through and matched to the height they stand in the idle.
+    for kind in ("attack", "skill"):
+        clip, out, made = d / f"{char}-body-{kind}.mp4", sprites / f"{char}-{kind}.webp", sprites / f"{char}-{kind}.json"
+        if not clip.exists():
+            continue
+        if stale(clip, made) or stale(src, made):
+            res = subprocess.run([sys.executable, str(ROOT / "tools" / "body-clip.py"), "swing", str(sheet), str(meta),
+                str(clip), str(out), kind], check=True, capture_output=True, text=True).stdout
+            made.write_text(res.strip().splitlines()[-1])
+        b[kind] = dict(json.loads(made.read_text()), src=f"res://art/sprites/{char}-{kind}.webp")
+    return b
 
 
 def body(d, char):
@@ -129,7 +142,7 @@ def body(d, char):
     if made:
         return made
     stills = sorted(d.glob(f"{char}-body-*.png"), key=lambda p: ("idle" not in p.stem, p.name))
-    loops = sorted((p for p in d.glob(f"{char}-body-*.mp4") if "attack" not in p.stem),
+    loops = sorted((p for p in d.glob(f"{char}-body-*.mp4") if "attack" not in p.stem and "skill" not in p.stem),
         key=lambda p: ("idle" not in p.stem, "movement" not in p.stem, p.name))
     hits = sorted(d.glob(f"{char}-body-attack*.mp4"))
     if char in HOLD_CLIPS:
@@ -191,7 +204,8 @@ def sheets_stamp():
     sprites = GAME / "art" / "sprites"
     painted = (GAME / "art" / "backgrounds").glob("*.webp")
     grounds = (GAME / "art" / "grounds").glob("*.webp")
-    for p in sorted(list(sprites.glob("*-idle.webp")) + list(sprites.glob("*-attack.webp")) + list(painted) + list(grounds)):
+    moves = list(sprites.glob("*-attack.webp")) + list(sprites.glob("*-skill.webp"))
+    for p in sorted(list(sprites.glob("*-idle.webp")) + moves + list(painted) + list(grounds)):
         h.update(p.name.encode() + p.read_bytes())
     return h.hexdigest()[:12]
 

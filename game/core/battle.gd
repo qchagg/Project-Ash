@@ -626,7 +626,8 @@ func perform(u: Dictionary, a: Dictionary, r: int, c: int, links: int, ctx: Vari
 	if not _trigger_tiles("on_act", u):
 		return
 	# Who acts, for a screen to show them moving (a lunge, a cast) before the action lands.
-	events.append({"t": "act", "id": u.id, "kind": a.kind, "range": a.get("range", u.get("range", "ranged"))})
+	events.append({"t": "act", "id": u.id, "kind": a.kind, "range": a.get("range", u.get("range", "ranged")),
+		"skill": a.get("is_skill", false)})
 	# A hero's skill with a clip (see Faces) plays it as their cut-in before it lands.
 	var clip := Faces.skill_clip(u.get("hero", u.get("key", "")), a.key) if a.get("is_skill", false) else ""
 	if clip != "":

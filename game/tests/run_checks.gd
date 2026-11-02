@@ -52,6 +52,7 @@ func _init() -> void:
 		["Faces · every clip, still and body sheet a hero names is in the project", _faces_exist],
 		["Facing · heroes face right and foes face left, whichever way their art was drawn", _facing],
 		["Facing · every sprite is stored facing the same way; only an attack swing keeps its own direction", _facing_default],
+		["Moves · every hero has an attack and a skill sheet, each quick, and its blow lands while it plays", _moves],
 		["Sound · every cue the game plays has a sound file, and a cue with none is silent rather than an error", _sounds],
 		["Sound · the button click and page turn stay silent", _muted_cues],
 		["Roads · every road shows a painting the game carries", _road_art],
@@ -850,10 +851,23 @@ func _faces_exist() -> Array:
 		if not ResourceLoader.exists(Clips.DIR + c + ".ogv"):
 			missing.append(c)
 	for b in Faces.BODIES.values():
-		for src in [b.src, b.get("anim", {}).get("src", b.src), b.get("attack", {}).get("src", b.src)]:
+		for src in [b.src, b.get("anim", {}).get("src", b.src), b.get("attack", {}).get("src", b.src), b.get("skill", {}).get("src", b.src)]:
 			if not ResourceLoader.exists(src):
 				missing.append(src)
 	return [missing.is_empty(), "%d clips named · missing %s" % [Clips.wanted().size(), missing]]
+
+
+## A fight waits on each move, so every hero's attack and skill play in at most about two seconds and land inside it.
+func _moves() -> Array:
+	var bad := []
+	for h in Data.HEROES:
+		var spr := Data.sprite_for({"key": h.key})
+		for kind in ["attack", "skill"]:
+			var m: Dictionary = spr.get(kind, {})
+			var length: float = float(m.get("n", 0)) / float(m.get("fps", 1.0))
+			if m.is_empty() or length > 2.1 or m.hit <= 0.0 or m.hit >= length:
+				bad.append("%s %s" % [h.key, kind])
+	return [bad.is_empty(), "%d heroes · %s" % [Data.HEROES.size(), bad if bad else "all move"]]
 
 
 ## One default: no sprite says it faces its own way.
@@ -872,7 +886,7 @@ func _facing() -> Array:
 	for key in Data.SPRITES:
 		var spr := Data.sprite_for({"key": key})
 		var hero := not Data.hero(key).is_empty()
-		for art in [spr, spr.get("attack", {})]:
+		for art in [spr, spr.get("attack", {}), spr.get("skill", {})]:
 			if art.is_empty():
 				continue
 			var right: bool = (art.get("faces", "left") == "right") != Figure.mirrored(art, hero)

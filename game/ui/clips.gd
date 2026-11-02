@@ -47,7 +47,7 @@ static func sheet(src: String) -> Texture2D:
 	return tex
 
 
-## Everything that travels in sheets/: the painted backgrounds first, then the grounds, heroes' stands, and every idle and attack sheet.
+## Everything that travels in sheets/: the painted backgrounds first, then the grounds, heroes' stands, and every idle, attack and skill sheet.
 static func wanted_sheets() -> Array[String]:
 	var out: Array[String] = []
 	for art in Backdrop.all_art() + Backdrop.SCREEN_ART:
@@ -59,7 +59,7 @@ static func wanted_sheets() -> Array[String]:
 			out.append(h.portrait.stand)
 	for key in Data.SPRITES:
 		var spr := Data.sprite_for({"key": key})
-		for src in [spr.get("anim", {}).get("src", ""), spr.get("attack", {}).get("src", "")]:
+		for src in [spr.get("anim", {}).get("src", ""), spr.get("attack", {}).get("src", ""), spr.get("skill", {}).get("src", "")]:
 			if src != "" and src not in out:
 				out.append(src)
 	out.append_array(Voice.files())

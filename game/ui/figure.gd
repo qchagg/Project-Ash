@@ -32,7 +32,8 @@ static func height(spr: Dictionary, base: float) -> float:
 
 ## Draws `spr` with its feet at `foot`, `h` tall. Options: flip (face the other way), t (seconds, for the idle),
 ## breathe (0 still … 1 normal), shadow, modulate (tint and fade, for the fallen), swing (seconds into the sprite's
-## attack, while it plays; see `swinging`). A sheet whose feet aren't centred says where they are (`foot_x`).
+## move, while it plays; see `swinging`), move (which: "attack", the default, or "skill"). A sheet whose feet aren't
+## centred says where they are (`foot_x`).
 static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts := {}) -> Rect2:
 	if spr.is_empty():
 		return Rect2()
@@ -50,9 +51,10 @@ static func draw(ci: CanvasItem, spr: Dictionary, foot: Vector2, h: float, opts 
 	var sheet: Texture2D = Clips.sheet(anim.src) if not anim.is_empty() else null
 	if sheet == null:
 		anim = {}
-	var swing: Dictionary = spr.get("attack", {})
+	var move: String = opts.get("move", "attack")
+	var swing: Dictionary = spr.get(move, {})
 	var st: float = opts.get("swing", -1.0)
-	var swing_tex: Texture2D = Clips.sheet(swing.src) if swinging(spr, st) else null
+	var swing_tex: Texture2D = Clips.sheet(swing.src) if swinging(spr, st, move) else null
 	if swing_tex:
 		# The attack: its own cells, taller than the idle's by `tall`, the feet where the swing sheet says.
 		var f := mini(int(st * swing.fps), int(swing.n) - 1)
@@ -91,9 +93,9 @@ static func mirrored(art: Dictionary, want_right: bool) -> bool:
 	return want_right != (art.get("faces", "left") == "right")
 
 
-## True while `t` (seconds since a strike began) is inside the sprite's attack.
-static func swinging(spr: Dictionary, t: float) -> bool:
-	var swing: Dictionary = spr.get("attack", {})
+## True while `t` (seconds since a strike began) is inside the sprite's move: its attack, or its skill.
+static func swinging(spr: Dictionary, t: float, move := "attack") -> bool:
+	var swing: Dictionary = spr.get(move, {})
 	return t >= 0.0 and not swing.is_empty() and t < swing.n / swing.fps
 
 
