@@ -8,9 +8,9 @@ extends RefCounted
 const DIR := "res://audio/sfx/"
 const VOICES := 10
 const SETTINGS := "user://sound.cfg"
-## Cues kept silent: the placeholder button click and page turn grated on every menu move, and the selection
-## sounds (confirm, step) were loud and jarring. A replacement is heard and approved by the user before it plays.
-const MUTED := ["tap", "page", "confirm", "step"]
+## Cues kept silent: the placeholder button click and page turn grated on every menu move. Selection (confirm,
+## step) is the soft wood tick the user chose; any new sound is heard and approved by the user before it plays.
+const MUTED := ["tap", "page"]
 
 static var _streams := {}
 static var _players: Array[AudioStreamPlayer] = []
