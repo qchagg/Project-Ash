@@ -1,7 +1,8 @@
 class_name HeroWide
 extends Control
 ## A hero on a wide screen: the roster down the left, the character large in the middle, and their details on the
-## right. Details and story show their portrait; skills, equip and evolve turn to them standing as a fighter.
+## right. Details and skills show them as their animated fighter, close up, with the backdrop fading to black behind
+## their head; the story shows their portrait; equip and evolve stand them in full beside the page.
 ##
 ## right under a row of tabs. The nav steps aside here and an arrow leads back. A background for the hero's home region
 ## goes behind them when art/backgrounds/<region>.webp exists. Evolve and equip open the phone's page in a column over
@@ -13,6 +14,10 @@ const PANEL_W := 560.0
 const PAGE_W := 780.0
 ## How tall the fighter stands against the screen, and how far and fast the views slide.
 const FIGURE_TALL := 0.84
+## The close-up: how much bigger than standing, the room over their head, and how far down the backdrop's black reaches.
+const FIGURE_ZOOM := 1.5
+const HEAD_ROOM := 34.0
+const TOP_FADE := 0.42
 const TURN := 36.0
 const TURN_TIME := 0.32
 const TABS := ["details", "skills", "story"]
@@ -121,7 +126,7 @@ func _hold_list() -> void:
 
 ## True on the pages that show the hero as a fighter rather than a portrait.
 func _shows_figure() -> bool:
-	return page == "skills" or is_instance_valid(_modal)
+	return page != "story" or is_instance_valid(_modal)
 
 
 ## Moving between the portrait and the fighter: the new view slides in as it fades up.
@@ -142,10 +147,20 @@ func _draw_art() -> void:
 	var left := LIST_W
 	var room := _art.size.x - LIST_W - PANEL_W
 	if _shows_figure():
-		# With a page open beside them they stand in the room it leaves.
-		var x: float = (_art.size.x - PAGE_W) / 2.0 if is_instance_valid(_modal) else left + room / 2.0
 		var spr := Data.sprite_for({"hero": hero})
-		Figure.draw(_art, spr, Vector2(x, _art.size.y - 36.0), Figure.height(spr, _art.size.y * FIGURE_TALL), {"t": _t, "breathe": 1.0, "flip": true})
+		var tall := Figure.height(spr, _art.size.y * FIGURE_TALL)
+		var opts := {"t": _t, "breathe": 1.0, "flip": true}
+		if is_instance_valid(_modal):
+			# With a page open beside them they stand in full in the room it leaves.
+			Figure.draw(_art, spr, Vector2((_art.size.x - PAGE_W) / 2.0, _art.size.y - 36.0), tall, opts)
+			return
+		# Close up, running off the foot of the screen, the top of the head against the black.
+		var y := _art.size.y * TOP_FADE
+		_art.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(_art.size.x, 0), Vector2(_art.size.x, y), Vector2(0, y)]),
+			PackedColorArray([Color(Forge.INK, 0.98), Color(Forge.INK, 0.98), Color(Forge.INK, 0), Color(Forge.INK, 0)]))
+		tall *= FIGURE_ZOOM
+		Figure.draw(_art, spr, Vector2(left + room / 2.0, HEAD_ROOM + tall), tall, opts)
+		_fade_foot(left, room)
 		return
 	var p: Dictionary = Data.hero(hero).portrait
 	var crops: Dictionary = p.get("crops", {})
@@ -161,7 +176,11 @@ func _draw_art() -> void:
 		var c: Array = crops.profile
 		part = Rect2(ts * Vector2(c[0], c[1]) / 100.0, ts * c[2] / 100.0)
 	_art.draw_texture_rect_region(tex, r, part)
-	# Faded at the foot, where the name sits, and into the panel's edge.
+	_fade_foot(left, room)
+
+
+## Faded at the foot, where the name sits.
+func _fade_foot(left: float, room: float) -> void:
 	var y := _art.size.y
 	_art.draw_polygon(PackedVector2Array([Vector2(left, y - 240), Vector2(left + room, y - 240), Vector2(left + room, y), Vector2(left, y)]),
 		PackedColorArray([Color(Forge.INK, 0), Color(Forge.INK, 0), Color(Forge.INK, 0.95), Color(Forge.INK, 0.95)]))
