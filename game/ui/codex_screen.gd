@@ -25,7 +25,6 @@ var elem_filter := ""
 func _init() -> void:
 	tab = "town"
 	title = "archive"
-	backdrop = "serpent-archive"
 
 
 func _build() -> void:

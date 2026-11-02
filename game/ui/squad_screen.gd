@@ -27,15 +27,6 @@ func _init() -> void:
 	title = "party"
 
 
-func setup(a: App) -> Screen:
-	super(a)
-	if Forge.wide():
-		var arts: Array = Backdrop.ART.get(Data.hero(a.col.by(a.col.squad[0]).hero).get("home", ""), [])
-		if not arts.is_empty():
-			backdrop = arts.pick_random()
-	return self
-
-
 func _build() -> void:
 	if _sel != "" and not _sel in app.col.squad:
 		_sel = ""
