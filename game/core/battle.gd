@@ -78,6 +78,8 @@ var dealt := 0
 var taken := 0
 var shatters := {"P": 0, "E": 0}
 var events: Array = []
+## The Grace blessing the player's side (a key of Graces.LIST), or "" for none: then nothing here changes.
+var grace := ""
 var _fx_seq := 0
 
 
@@ -155,6 +157,19 @@ func start(heroes: Array, pos := {}, foe_keys: Array = [], scale := 1.0) -> void
 	taken = 0
 	shatters = {"P": 0, "E": 0}
 	events = []
+
+
+## A Grace's blessing on the heroes, after `start`. Lehra shortens wind heroes' cooldowns now; Ashvini and Sthira act
+## when the fight opens (run_openers), Tarini at each round's end, Jvala in `hurt`.
+func bless(key: String) -> void:
+	grace = key
+	if key != "lehra":
+		return
+	for u in units:
+		if u.side == "P" and u.elem == "wind":
+			for s in u.skills:
+				if s.cd > 1:
+					s.cd -= 1
 
 
 ## The four starter heroes straight from their definitions, so the reference fights ignore the collection.
@@ -573,7 +588,7 @@ func hurt(u: Dictionary, t: Dictionary, a: Dictionary, chain: float, bonus := 1.
 		if fx.get("stun", 0):
 			t.st.stun = maxi(t.st.stun, fx.stun)
 		if fx.get("burn", 0):
-			t.st.burn = maxi(t.st.burn, fx.burn)
+			t.st.burn = maxi(t.st.burn, fx.burn + (1 if grace == "jvala" and u.side == "P" else 0))
 	var note := "%s %d" % [name_of(t), got]
 	if absorbed: note += " (%d shielded)" % absorbed
 	if em > 1: note += " weak"
@@ -813,6 +828,7 @@ func clone() -> Battle:
 	c.cols = cols
 	c.scaled = scaled
 	c.rules = rules.duplicate()
+	c.grace = grace
 	c.round_num = round_num
 	c.phase = phase
 	c.units = units.map(func(u): return u.duplicate(true))
@@ -918,18 +934,29 @@ func _finish() -> void:
 
 ## Celerity: before round 1, every skill carrying it fires once, fastest unit first, at the AI's preferred target.
 ## The opener is not a chain link, its stun lasts at most 1 round, and the cooldown after depends on the card's stars.
+## A Grace opens first: Sthira shields the front row as it stands, then Ashvini's spear flies from the lead hero.
 ## Returns true if the openers ended the battle.
 func run_openers() -> bool:
+	if grace == "sthira":
+		_hold_the_line()
 	var openers := []
 	for u in _by_speed(units.filter(func(x): return x.alive)):
 		for i in u.skills.size():
 			if u.skills[i].get("celerity", false):
 				openers.append([u, i])
-	if openers.is_empty():
+	var lead: Dictionary = living("P")[0] if grace == "ashvini" and not living("P").is_empty() else {}
+	if openers.is_empty() and lead.is_empty():
 		return false
 	phase = "run"
-	events.append({"t": "phase", "name": "opening"})
-	_log("Opening volley", "sys")
+	events.append({"t": "phase", "name": "dawn" if not lead.is_empty() else "opening"})
+	_log("Ashvini's dawn spear" if not lead.is_empty() else "Opening volley", "sys")
+	if not lead.is_empty():
+		var spear := dawn_spear(lead)
+		var p: Variant = pick(lead, spear)
+		if p != null:
+			perform(lead, spear, p.x, p.y, 0)
+			if over():
+				return true
 	for o in openers:
 		var u: Dictionary = o[0]
 		var i: int = o[1]
@@ -949,6 +976,42 @@ func run_openers() -> bool:
 			return true
 	phase = "plan"
 	return false
+
+
+## Ashvini's spear, thrown by the lead hero: a blow of no element at the foe they would choose, from any row to any
+## row. It is not a chain link.
+func dawn_spear(u: Dictionary) -> Dictionary:
+	return {"key": "basic", "name": "Dawn Spear", "kind": "dmg", "range": "ranged", "pattern": "single", "elem": "",
+		"power": Graces.SPEAR_POWER, "cd": 0, "ignores_falloff": true, "is_skill": false}
+
+
+## Sthira: everyone standing in the front row as the fight opens takes a shield.
+func _hold_the_line() -> void:
+	var held := []
+	for u in living("P").filter(func(x): return x.r == 0):
+		var amt := roundi(u.max_hp * Graces.HOLD)
+		u.st.shield += amt
+		_float(u, "+%d" % amt, "shield")
+		held.append(name_of(u))
+	if held.size():
+		_log("Sthira holds the line: %s shielded" % ", ".join(held))
+		_step()
+
+
+## Tarini: the tide lifts the most wounded hero still standing, if anyone is hurt.
+func _tide() -> void:
+	var low := {}
+	for u in living("P"):
+		if u.hp < u.max_hp and (low.is_empty() or float(u.hp) / u.max_hp < float(low.hp) / low.max_hp):
+			low = u
+	if low.is_empty():
+		return
+	var before: int = low.hp
+	low.hp = mini(low.max_hp, low.hp + roundi(low.max_hp * Graces.TIDE))
+	_float(low, "+%d" % (low.hp - before), "mend")
+	_flash(low.side, low.r, low.c)
+	_log("The tide lifts %s: +%d" % [name_of(low), low.hp - before])
+	_step()
 
 
 ## Fastest first; ties keep their order.
@@ -1011,6 +1074,8 @@ func end_of_round() -> void:
 	if burned.size():
 		_log("%s: %s" % ["Ashfall" if ash else "Burn", ", ".join(burned)])
 		_step()
+	if grace == "tarini":
+		_tide()
 	for u in units.filter(func(x): return x.alive):
 		_gain_stacks(u)
 		u.rf = {"moved": false, "damaged": false}

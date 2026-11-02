@@ -180,6 +180,7 @@ func _new_fight() -> void:
 	if run and run.at.x >= 0:
 		var foes := run.foes_for(run.at)
 		b.start(heroes, pos, foes.keys, foes.scale)
+		b.bless(run.grace)
 	else:
 		b.start(heroes, pos)
 	b.phase = "form"
@@ -220,6 +221,8 @@ func _wide_scene() -> void:
 	tl.add_child(_phase)
 	_readable(_round)
 	_readable(_phase)
+	if _grace_tag():
+		tl.add_child(_grace_tag())
 	var tr := Forge.hbox(14)
 	add_child(tr)
 	tr.set_anchors_preset(PRESET_TOP_RIGHT)
@@ -263,6 +266,22 @@ func _wide_scene() -> void:
 func _readable(l: Label) -> void:
 	l.add_theme_color_override("font_outline_color", Forge.INK)
 	l.add_theme_constant_override("outline_size", 6)
+
+
+## The Grace blessing this run, small under the phase, with her blessing on hover; null off the road or unblessed.
+func _grace_tag() -> Control:
+	var g := Graces.by(b.grace)
+	if g.is_empty():
+		return null
+	var h := Forge.hbox(8)
+	h.tooltip_text = g.blessing
+	h.mouse_filter = MOUSE_FILTER_PASS
+	if g.elem != "":
+		h.add_child(Forge.glyph("elem_" + g.elem, 18, Forge.ELEM[g.elem]))
+	var l := Forge.sc("blessed by %s" % g.name, 17, Forge.GOLD_LIGHT)
+	_readable(l)
+	h.add_child(l)
+	return h
 
 
 ## A soft shade under the grid, so it lies on any painting, and a fall to dark at the foot for the skills.
@@ -360,6 +379,8 @@ func _strip() -> Control:
 	words.size_flags_vertical = SIZE_SHRINK_CENTER
 	row.add_child(words)
 	words.add_child(_phase)
+	if _grace_tag():
+		words.add_child(_grace_tag())
 	row.add_child(_danger_btn)
 	_go.custom_minimum_size.x = 200
 	row.add_child(_go)
@@ -1217,7 +1238,7 @@ func _play() -> void:
 				if not was.is_empty():
 					walks.append({"side": e.id.left(1), "from": Vector2i(was.r, was.c), "to": Vector2i(e.r, e.c)})
 			"phase":
-				var words := {"opening": ["opening volley", "celerity strikes first"], "ally": ["ally turn", "round %d" % b.round_num],
+				var words := {"opening": ["opening volley", "celerity strikes first"], "dawn": ["the dawn spear", "ashvini strikes first"],"ally": ["ally turn", "round %d" % b.round_num],
 					"enemy": ["enemy turn", ""]}
 				var w: Array = words.get(e.name, [e.name, ""])
 				Sfx.play("banner", 0.0, -3.0)

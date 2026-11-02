@@ -59,7 +59,7 @@ func _link() -> String:
 	return str(JavaScriptBridge.eval("location.hash", true)).trim_prefix("#") if OS.has_feature("web") else ""
 
 
-## Playtest shortcut: a link ending #event-boon (or camp, wayside, fight, warden) starts a run and steps straight
+## Playtest shortcut: a link ending #event-boon (or camp, wayside, shrine, fight, warden) starts a run and steps straight
 ## onto that kind of stop, so a reviewer can see each one without walking the road. #town, #heroes and #graces open those screens.
 func _deep_link() -> void:
 	var hash := _link()

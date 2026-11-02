@@ -105,6 +105,13 @@ func _init() -> void:
 		["Hero picks · no offer after a loss or the warden; an elite steps the odds up", _x_pick_when],
 		["Hero picks · a free reroll is earned and saved, then embers at a doubling price up to the cap", _x_pick_reroll],
 		["Hero picks · a pick changes the skill in a fight; a full hero must replace one; a skip pays embers", _x_pick_take],
+		["Shrine · one a run on the third layer, three different Graces offered, one blessing taken there and kept", _g_shrine],
+		["Graces · with no blessing a fight opens, burns and ends its rounds as before", _g_none],
+		["Graces · Ashvini: the lead hero's spear strikes before round 1, of no element and no chain link", _g_ashvini],
+		["Graces · Lehra: wind heroes' cooldowns fall by one, never below 1; others keep theirs", _g_lehra],
+		["Graces · Tarini: at round's end the most wounded hero heals 6%; nobody hurt, nobody healed", _g_tarini],
+		["Graces · Sthira: the front row opens shielded for 15% of health, the back row not", _g_sthira],
+		["Graces · Jvala: a hero's burn lasts a round longer; a foe's does not", _g_jvala],
 	]
 	var failed := 0
 	for i in checks.size():
@@ -1817,3 +1824,142 @@ func _b_forecast_crop() -> Array:
 		if h.portrait.get("crops", {}).has("face") or not face.size.is_equal_approx(tile.size) and h.portrait.get("crops", {}).has("tile"):
 			bad.append(h.name)
 	return [bad.is_empty(), "%d heroes · %s" % [Data.HEROES.size(), ", ".join(bad) if bad.size() else "all share the tile crop"]]
+
+
+# ---------- the Graces' blessings ----------
+
+func _g_shrine() -> Array:
+	var bad := []
+	for road in Expedition.ROADS:
+		for sd in 40:
+			var x := Expedition.new().begin(road, sd)
+			var at := []
+			for i in x.layers.size():
+				for j in x.layers[i].size():
+					if x.layers[i][j].type == "shrine":
+						at.append(Vector2i(i, j))
+			if at.size() != 1 or at[0].x != Expedition.SHRINE_LAYER:
+				bad.append("%s/%d %s" % [road, sd, at])
+				continue
+			var offers := x.shrine_offers(at[0])
+			var distinct := {}
+			for k in offers:
+				distinct[k] = true
+			if offers.size() != Graces.OFFERS or distinct.size() != offers.size() or offers.any(func(k): return Graces.by(k).is_empty()):
+				bad.append("%s/%d offers %s" % [road, sd, offers])
+	var y := Expedition.new().begin("lotus", 7)
+	var refused := not y.take_grace("lehra")
+	y.at = Vector2i(Expedition.SHRINE_LAYER, 0)
+	for j in y.layers[Expedition.SHRINE_LAYER].size():
+		if y.layers[Expedition.SHRINE_LAYER][j].type == "shrine":
+			y.at = Vector2i(Expedition.SHRINE_LAYER, j)
+	var offered := y.shrine_offers(y.at)
+	var stranger: String = Graces.LIST.map(func(g): return g.key).filter(func(k): return not k in offered)[0]
+	var not_offered := not y.take_grace(stranger)
+	var took := y.take_grace(offered[1])
+	var once: bool = not y.take_grace(offered[0]) and y.grace == offered[1] and y.shrine_offers(y.at).is_empty()
+	var icon := FileAccess.file_exists("res://art/icons/ui/%s.svg" % Expedition.NODES.shrine.icon)
+	var ok: bool = bad.is_empty() and refused and not_offered and took and once and icon
+	return [ok, "360 maps, one shrine each · away from it %s · not offered %s · took %s · once %s · %s" % [refused, not_offered, y.grace, once, bad.slice(0, 3)]]
+
+
+func _g_none() -> Array:
+	var b := _scenario([["brann", 0, 1], ["sorrel", 1, 0]], [[0, 1]])
+	var before := var_to_str(b.units)
+	b.bless("")
+	var opened := b.run_openers()
+	var same := var_to_str(b.units) == before and b.phase == "plan" and b.events.is_empty()
+	b.unit("P-brann").hp -= 300
+	b.unit("E-post0").st.burn = 2
+	b.end_of_round()
+	var after_round: int = b.unit("P-brann").hp
+	var cd: Array = b.unit("P-sorrel").skills.map(func(s): return s.cd)
+	return [not opened and same and after_round == Data.hero("brann").max_hp - 300 and cd == [2, 3], "no opener %s · board untouched %s · Brann %d after the round · Sorrel cooldowns %s" % [not opened, same, after_round, cd]]
+
+
+func _g_ashvini() -> Array:
+	var b := _scenario([["brann", 0, 1], ["sorrel", 1, 0]], [[0, 1]], ["reach"])
+	b.bless("ashvini")
+	var ended := b.run_openers()
+	var post := b.unit("E-post0")
+	var spear := _lost(post)
+	var dawn := b.events.any(func(e): return e.t == "phase" and e.name == "dawn")
+	var first: bool = b.trace.size() == 1 and b.trace[0].id == "P-brann" and b.trace[0].chain_mult == 1.0
+	# Of no element: a fire post takes the same from it as from a neutral blow at the lead hero's attack.
+	var plain := maxi(1, roundi(b.unit("P-brann").atk * Graces.SPEAR_POWER * 100 / (100 + post.def)))
+	var c := _scenario([["brann", 0, 1]], [[0, 1]], ["reach"])
+	c.run_openers()
+	var ok := not ended and spear == plain and dawn and first and b.phase == "plan" and _lost(c.unit("E-post0")) == 0
+	return [ok, "Brann's spear %d (neutral %d) from the front, before round 1 · a chain link %s · unblessed %d" % [spear, plain, not first, _lost(c.unit("E-post0"))]]
+
+
+func _g_lehra() -> Array:
+	var b := _scenario([["sorrel", 1, 0], ["kaede", 1, 1]], [[0, 1]])
+	var probe := b.mk({"key": "gust", "name": "Gust", "elem": "wind", "range": "ranged", "max_hp": 500, "atk": 100, "def": 40, "spd": 90, "r": 2, "c": 2,
+		"skills": [{"name": "Quick", "kind": "dmg", "pattern": "single", "power": 1.0, "cd": 1}]}, "P")
+	b.units.append(probe)
+	b.bless("lehra")
+	var so: Array = b.unit("P-sorrel").skills.map(func(s): return s.cd)
+	var ka: Array = b.unit("P-kaede").skills.map(func(s): return s.cd)
+	var want_ka: Array = Data.hero("kaede").skills.map(func(s): return s.cd)
+	var floor_ok: bool = probe.skills[0].cd == 1
+	b.phase = "run"
+	var sorrel := b.unit("P-sorrel")
+	b.perform(sorrel, b.act(sorrel, "s0"), 0, 1, 0)
+	return [so == [1, 2] and ka == want_ka and floor_ok and sorrel.cd[0] == 1.0, "Sorrel %s · Surya %s · cooldown 1 stays %s · Crosswind waits %d" % [so, ka, floor_ok, sorrel.cd[0]]]
+
+
+func _g_tarini() -> Array:
+	var b := _scenario([["kaede", 1, 1], ["sorrel", 1, 0]], [[0, 1]])
+	b.bless("tarini")
+	var ka := b.unit("P-kaede")
+	var so := b.unit("P-sorrel")
+	ka.hp = roundi(ka.max_hp * 0.5)
+	so.hp = roundi(so.max_hp * 0.8)
+	var k0: int = ka.hp
+	var s0: int = so.hp
+	b.end_of_round()
+	var healed: int = ka.hp - k0
+	var whole := _scenario([["kaede", 1, 1]], [[0, 1]])
+	whole.bless("tarini")
+	whole.end_of_round()
+	var quiet: bool = whole.events.is_empty() and whole.unit("P-kaede").hp == whole.unit("P-kaede").max_hp
+	return [healed == roundi(ka.max_hp * Graces.TIDE) and so.hp == s0 and quiet, "Surya at 50%% heals %d · Sorrel at 80%% heals %d · at full, nothing %s" % [healed, so.hp - s0, quiet]]
+
+
+func _g_sthira() -> Array:
+	var b := _scenario([["brann", 0, 1], ["sorrel", 1, 0]], [[0, 1]])
+	b.bless("sthira")
+	var br := b.unit("P-brann")
+	var so := b.unit("P-sorrel")
+	var ended := b.run_openers()
+	var want := roundi(br.max_hp * Graces.HOLD)
+	var held: int = br.st.shield
+	var stayed := b.phase == "plan"
+	# The shield takes a hit before health does.
+	b.phase = "run"
+	var hp0: int = br.hp
+	_hit(b, b.unit("E-post0"), br)
+	var soaked: bool = br.hp == hp0 and br.st.shield < held
+	var plain := _scenario([["brann", 0, 1]], [[0, 1]])
+	plain.run_openers()
+	var ok: bool = not ended and stayed and held == want and so.st.shield == 0 and soaked and plain.unit("P-brann").st.shield == 0
+	return [ok, "Brann (front) %d of %d · Sorrel (second row) %d · a hit lands on the shield %s" % [held, want, so.st.shield, soaked]]
+
+
+func _g_jvala() -> Array:
+	var out := []
+	for g in ["", "jvala"]:
+		var b := _scenario([["kaede", 1, 1]], [[0, 1]])
+		b.bless(g)
+		b.phase = "run"
+		var ka := b.unit("P-kaede")
+		var post := b.unit("E-post0")
+		var a := b.act(ka, "basic")
+		a.fx = {"burn": 2}
+		b.perform(ka, a, post.r, post.c, 0)
+		var fire := b.act(post, "basic")
+		fire.fx = {"burn": 2}
+		b.perform(post, fire, ka.r, ka.c, 0)
+		out.append([post.st.burn, ka.st.burn])
+	return [out == [[2, 2], [3, 2]], "unblessed: foe burns %d, hero %d · Jvala: foe burns %d, hero %d" % [out[0][0], out[0][1], out[1][0], out[1][1]]]

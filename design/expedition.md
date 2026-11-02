@@ -62,10 +62,27 @@ layer is always fights, a camp always comes just before the warden, and no elite
 | Camp | Everyone standing heals a share of max health: 30%, more with each Infirmary level (100% at 5). |
 | Boon | Choose one of three blessings for the rest of the run (attack, defense, speed, health, element attack, embers). |
 | Wayside | An unknown stop: a short scene, two or three choices, a one-line outcome. See `design/events.md`. |
+| Shrine | Three of the Graces of Mehfil offer their blessings; take one for the rest of the run, or walk on. |
 | Warden | Four foes, +35% tougher. Beat it to clear the road. |
 
 Boons and Wayside stops have a rarity: common, rare, epic, legendary (60 / 28 / 10 / 2); elites and the warden roll one
 step better.
+
+## Shrines and the Graces
+
+Every road has one shrine, on the third layer, so a path may pass it by. It stands where another stop would have been,
+drawn from its own seed so the rest of the map is unchanged. Like a boon pick in Hades, three of the five Graces (`Graces.LIST`)
+stand side by side; touch one to light her, then take her blessing. A run holds one blessing, shown beside the road's
+name, under the phase in every fight, and on the Graces screen. Rules are `Battle.bless`; with no blessing a fight is
+exactly as before.
+
+| Grace | Blessing |
+|---|---|
+| Ashvini | Before round 1 the lead hero throws her dawn spear: a blow of no element at full attack, any row to any row, not a chain link. |
+| Lehra | Wind heroes' skills wait one round less (never below 1). |
+| Tarini | At each round's end the most wounded hero standing heals 6% of max health. |
+| Sthira | Heroes in the front row when the fight opens are shielded for 15% of max health. |
+| Jvala | Burns heroes cause last one round longer. |
 
 ## Hero picks
 

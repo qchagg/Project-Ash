@@ -263,6 +263,156 @@ func _close_event(v: Control) -> void:
 	v.get_parent().get_parent().get_parent().queue_free()
 
 
+# ---------- the shrine ----------
+
+## A shrine of the Graces, like a boon pick in Hades: three of them stand in a row, each offering her blessing. Touch
+## one to choose her (she lights; the others stand back), then take it; it holds for every fight left on the road.
+func _shrine(p: Vector2i) -> void:
+	var run := app.run
+	var keys := run.shrine_offers(p)
+	if keys.is_empty():
+		return
+	var shade := Control.new()
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	app.add_child(shade)
+	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	shade.draw.connect(func(): shade.draw_rect(Rect2(Vector2.ZERO, shade.size), Color(Forge.INK, 0.97)))
+	var glow := Forge.wash(Color(Forge.GOLD_DEEP, 0.18), Vector2(0.5, 0.6), Vector2(0.5, 0.0), true)
+	shade.add_child(glow)
+	glow.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var m := Forge.margins(MarginContainer.new(), 48, 26, 48, 64) if Forge.wide() else Forge.margins(MarginContainer.new(), 20, 70, 20, 110)
+	shade.add_child(m)
+	m.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var v := Forge.vbox(12 if Forge.wide() else 20)
+	m.add_child(v)
+	var head := Forge.sc("a shrine of the graces", 34 if Forge.wide() else 40, Forge.GOLD_LIGHT, true, 0.16)
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(head)
+	var line := Forge.label("Three of the dancers of Mehfil wait here. One will bless the rest of this road.", 21, Forge.DIM, Forge.SANS_ITALIC)
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(line)
+	var row := Forge.hbox(18 if Forge.wide() else 10)
+	row.size_flags_vertical = SIZE_EXPAND_FILL
+	v.add_child(row)
+	var take := Forge.studs("choose a grace", true, 72 if Forge.wide() else 84)
+	take.disabled = true
+	var chosen := [""]
+	var cols: Array[Control] = []
+	for k in keys:
+		var col := _shrine_grace(k)
+		cols.append(col)
+		row.add_child(col)
+	for i in cols.size():
+		cols[i].gui_input.connect(func(e: InputEvent):
+			if not (e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT) or chosen[0] == keys[i]:
+				return
+			Sfx.play("page")
+			chosen[0] = keys[i]
+			for j in cols.size():
+				_shrine_light(cols[j], j == i)
+			take.disabled = false
+			take.text = ("take %s's blessing" % Graces.by(keys[i]).name).to_lower())
+	var foot := Forge.hbox(24)
+	foot.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_child(foot)
+	take.custom_minimum_size.x = 460
+	foot.add_child(take)
+	var pass_by := Forge.link("walk on", "chevron", 20)
+	pass_by.tooltip_text = "Leave the shrine without a blessing"
+	pass_by.pressed.connect(func():
+		shade.queue_free()
+		rebuild())
+	foot.add_child(pass_by)
+	take.pressed.connect(func():
+		if not run.take_grace(chosen[0]):
+			return
+		var g := Graces.by(chosen[0])
+		# On the shade, not the column: a container would lay the burst out at its corner.
+		var her := cols[keys.find(chosen[0])]
+		Burst.at(shade, her.global_position - shade.global_position + her.size / 2.0, Forge.ELEM.get(g.elem, Forge.GOLD_LIGHT), 90, 12)
+		await get_tree().create_timer(0.45).timeout
+		shade.queue_free()
+		rebuild())
+	shade.modulate.a = 0.0
+	shade.create_tween().tween_property(shade, "modulate:a", 1.0, 0.25)
+
+
+## One Grace at the shrine: her figure over her name, title and blessing, dim until she is chosen.
+func _shrine_grace(key: String) -> Control:
+	var g := Graces.by(key)
+	var tint: Color = Forge.ELEM.get(g.elem, Forge.GOLD_LIGHT)
+	var p := PanelContainer.new()
+	p.size_flags_horizontal = SIZE_EXPAND_FILL
+	p.mouse_filter = Control.MOUSE_FILTER_STOP
+	p.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.PLAQUE, 0.55), Color(Forge.GOLD_DEEP, 0.35), 1, Vector4(12, 12, 12, 14)))
+	var col := Forge.vbox(4)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(col)
+	var fig := ShrineFigure.new()
+	fig.key = key
+	fig.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fig.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	fig.size_flags_vertical = SIZE_EXPAND_FILL
+	fig.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fig.material = ShaderMaterial.new()
+	(fig.material as ShaderMaterial).shader = GracesScreen.shine()
+	col.add_child(fig)
+	var head := Forge.hbox(8)
+	head.alignment = BoxContainer.ALIGNMENT_CENTER
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if g.elem != "":
+		var sig := Forge.glyph("elem_" + g.elem, 24, tint)
+		sig.size_flags_vertical = SIZE_SHRINK_CENTER
+		head.add_child(sig)
+	head.add_child(Forge.sc(g.name, 34 if Forge.wide() else 30, Forge.GOLD_LIGHT, true, 0.06))
+	col.add_child(head)
+	# Titles wrap rather than widen a column, so the three stand the same width.
+	var t := Forge.sc(g.title, 18, Forge.GOLD)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.custom_minimum_size.y = 26 if Forge.wide() else 50
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(t)
+	var b := Forge.label(g.blessing, 19 if Forge.wide() else 18, Forge.PARCHMENT)
+	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.custom_minimum_size = Vector2(0, 76 if Forge.wide() else 130)
+	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(b)
+	p.set_meta("tint", tint)
+	_shrine_light(p, false, true)
+	return p
+
+
+## Lights the chosen Grace's column and stands the others back. Before any choice they all stand in full.
+func _shrine_light(p: Control, on: bool, first := false) -> void:
+	var fig := p.get_child(0).get_child(0) as TextureRect
+	(fig.material as ShaderMaterial).set_shader_parameter("lit", 1.0 if on else 0.0)
+	var tw := p.create_tween()
+	tw.tween_property(p, "modulate", Color.WHITE if on or first else GracesScreen.DIMMED.lightened(0.3), GracesScreen.STEP)
+	for c in p.get_children():
+		if c is Rim:
+			c.queue_free()
+	if on:
+		var tint: Color = p.get_meta("tint")
+		Rim.on(p, "flow", [tint, Forge.GOLD_LIGHT, tint.darkened(0.3), Forge.GOLD], 2.0)
+	else:
+		Rim.on(p, "comet", [Forge.GOLD], 2.0)
+
+
+## A Grace's figure, which arrives with the sheets (see Clips) and appears once it has.
+class ShrineFigure extends TextureRect:
+	var key := ""
+
+	func _process(_delta: float) -> void:
+		if texture == null:
+			texture = Clips.sheet(Graces.art_path(key))
+		else:
+			set_process(false)
+
+
 # ---------- hero picks ----------
 
 ## After a won fight: one hero chooses an upgrade for the rest of the road, or rerolls, or skips for embers.

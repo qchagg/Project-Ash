@@ -43,6 +43,8 @@ var _sigil: TextureRect
 var _lore: Label
 var _blessing: Label
 var _crest: TextureRect
+## "she blesses this run", under the name of the Grace who does; hidden otherwise.
+var _blesses: Label
 
 
 func setup(a: App) -> GracesScreen:
@@ -50,10 +52,16 @@ func setup(a: App) -> GracesScreen:
 	return self
 
 
-func _ready() -> void:
+## The shine, shared with the shrine on the road.
+static func shine() -> Shader:
 	if _shader == null:
 		_shader = Shader.new()
 		_shader.code = SHINE
+	return _shader
+
+
+func _ready() -> void:
+	shine()
 	_pool = Forge.wash(Color(Forge.GOLD_DEEP, 0.16), Vector2(0.5, 0.55), Vector2(0.5, 0.0), true)
 	add_child(_pool)
 	var m := Forge.margins(MarginContainer.new(), 56, 30, 56, 20) if Forge.wide() else Forge.margins(MarginContainer.new(), 28, 30, 28, 24)
@@ -85,6 +93,10 @@ func _ready() -> void:
 		box.add_child(_header())
 		box.add_child(_stage)
 		box.add_child(words)
+	# The screen opens on the Grace who blesses the run, if one does.
+	for i in Graces.LIST.size():
+		if Graces.LIST[i].key == _run_grace():
+			at = i
 	_choose(at)
 
 
@@ -109,10 +121,12 @@ func _words() -> Control:
 	if Forge.wide():
 		v.add_child(_header())
 		var gap := Control.new()
-		gap.custom_minimum_size.y = 90
+		gap.custom_minimum_size.y = 60
 		v.add_child(gap)
 	_name = Forge.sc("", 64 if Forge.wide() else 54, Forge.GOLD_LIGHT, true, 0.06)
 	v.add_child(_name)
+	_blesses = Forge.sc("", 18, Forge.GOLD_LIGHT)
+	v.add_child(_blesses)
 	var t := Forge.hbox(10)
 	_sigil = TextureRect.new()
 	_sigil.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -134,9 +148,12 @@ func _words() -> Control:
 	_blessing = Forge.label("", 22, Forge.PARCHMENT)
 	_blessing.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_blessing)
-	var soon := Forge.label("Shrines on the road will offer it.", 17, Forge.LABEL, Forge.SANS_ITALIC)
-	v.add_child(soon)
 	return v
+
+
+## The Grace who blesses the run on the road now, or "".
+func _run_grace() -> String:
+	return app.run.grace if app.run and app.run.over == "" else ""
 
 
 ## One Grace in the row, and her name under it; touching either chooses her.
@@ -176,8 +193,11 @@ func _choose(i: int) -> void:
 		_sigil.modulate = Forge.ELEM[g.elem]
 	_lore.text = g.lore
 	_blessing.text = g.blessing
+	_blesses.text = "she blesses this run" if g.key == _run_grace() else ""
+	_blesses.visible = _blesses.text != ""
 	for j in _names.size():
-		_names[j].add_theme_color_override("font_color", Forge.GOLD_LIGHT if j == i else Forge.DIM)
+		var hers: bool = Graces.LIST[j].key == _run_grace()
+		_names[j].add_theme_color_override("font_color", Forge.GOLD_LIGHT if j == i else Forge.GOLD if hers else Forge.DIM)
 		(_figures[j].material as ShaderMaterial).set_shader_parameter("lit", 1.0 if j == i else 0.0)
 	if _hero:
 		_hero.texture = _figures[i].texture
