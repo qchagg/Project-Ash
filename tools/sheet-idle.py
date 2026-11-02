@@ -9,8 +9,9 @@ used to blend the join (see blend_join; 0 or absent for a sheet that loops as it
 the clip was keyed on magenta rather than green.
 
 Each frame loses any green the key left behind (specks in hair and gaps, and the green fringe on edges), gains a soft
-dark edge so the figure sits on any ground, and is shifted so the feet stay on the spot of the first frame. All frames
-share one crop with the feet on the bottom edge, FRAME_H tall and COLS across, which is what Figure's `anim` reads. The
+dark edge so the figure sits on any ground, and is shifted so the feet stay on the spot of the first frame. The shift
+follows the feet's slow drift only: read frame by frame the feet flicker by a pixel, and chasing that shakes the whole
+figure (see steady). All frames share one crop with the feet on the bottom edge, FRAME_H tall and COLS across, which is what Figure's `anim` reads. The
 sprite is the first frame, so swapping between it and the sheet never jumps.
 With `mirror` every frame is flipped, for a sheet that faces right (MIRROR in organize-art).
 Prints {"idle": anim, "foot_x": …, "drift": how far the feet moved before they were pinned, in cell pixels}.
@@ -37,6 +38,8 @@ SPILL_FROM = 12
 GREEN_FLECK = 60
 # How much of the figure's height, from the ground up, counts as its feet when placing it.
 STANCE_BAND = 0.14
+# How many frames the feet's position is averaged over before pinning, as a blur's sigma.
+PIN_SMOOTH = 6.0
 
 
 def cells(sheet, meta):
@@ -110,18 +113,21 @@ def stance(a):
     return (float(low.min()) + float(low.max()) + 1) / 2
 
 
+def steady(values):
+    """The slow path of a measurement round the loop, without its frame-to-frame flicker."""
+    return ndimage.gaussian_filter1d(np.array(values, float), PIN_SMOOTH, mode="wrap")
+
+
 def main(src, meta_src, sprite_dst, sheet_dst, mirror=""):
     meta = json.loads(Path(meta_src).read_text())
     seq = [degreen(c, meta.get("key", "green")) for c in cells(Image.open(src), meta)]
     seq = blend_join([clip.clean(c) for c in seq], meta.get("lead", 0))
     if mirror:
         seq = [c[:, ::-1].copy() for c in seq]
-    # Pin the feet: each frame shifts by whole pixels back to the first frame's feet.
-    fx0, fy0, _ = clip.feet(seq[0][..., 3])
-    shifts = []
-    for c in seq:
-        fx, fy, _ = clip.feet(c[..., 3])
-        shifts.append((round(fy0 - fy), round(fx0 - fx)))
+    # Pin the feet: each frame shifts by whole pixels, undoing their slow drift since the first frame.
+    feet = [clip.feet(c[..., 3]) for c in seq]
+    xs, ys = steady([f[0] for f in feet]), steady([f[1] for f in feet])
+    shifts = [(round(ys[0] - y), round(xs[0] - x)) for x, y in zip(xs, ys)]
     seq = [np.roll(c, s, (0, 1)) for c, s in zip(seq, shifts)]
     bx = clip.box([c[..., 3] for c in seq])
     crops = [Image.fromarray(clip.crop(c, bx)) for c in seq]
