@@ -5,7 +5,7 @@ extends RefCounted
 ## export leaves them out and they ship beside the page in clips/ (as .ogg, a type the host serves), fetched one at a time into user:// as the app
 ## starts (idles first) and kept there. Until a clip has arrived, `stream` returns null and a Bust shows its still.
 ## Battle sprites' idle frame sheets travel the same way (in sheets/, fetched before the clips): until one has arrived,
-## `sheet` returns null and the figure stands as its still sprite.
+## `sheet` returns null and the figure stands as its still sprite. Painted backgrounds come the same way (see Painted).
 
 const DIR := "res://art/clips/"
 const CACHE := "user://clips/"
@@ -47,19 +47,35 @@ static func sheet(src: String) -> Texture2D:
 	return tex
 
 
-## Every idle and attack sheet the game's sprites use.
+## Everything that travels in sheets/: the painted backgrounds first, then the grounds, heroes' stands, and every idle and attack sheet.
 static func wanted_sheets() -> Array[String]:
 	var out: Array[String] = []
+	for art in Backdrop.all_art() + Backdrop.SCREEN_ART:
+		out.append(Backdrop.art_path(art))
+	for road in Backdrop.GROUNDS:
+		out.append(Backdrop.ground_path(Backdrop.GROUNDS[road].art))
+	for h in Data.HEROES:
+		if h.portrait.has("stand"):
+			out.append(h.portrait.stand)
 	for key in Data.SPRITES:
 		var spr := Data.sprite_for({"key": key})
 		for src in [spr.get("anim", {}).get("src", ""), spr.get("attack", {}).get("src", "")]:
 			if src != "" and src not in out:
 				out.append(src)
+	out.append_array(Voice.files())
 	return out
 
 
 static func ready(clip: String) -> bool:
 	return ResourceLoader.exists(DIR + clip + ".ogv") or _ready_set.has(clip)
+
+
+## Moves what a screen is waiting for to the front of the queue, behind the one already on its way.
+static func hurry(src: String) -> void:
+	var at := _queue.find(src)
+	if at > 1:
+		_queue.remove_at(at)
+		_queue.insert(1, src)
 
 
 ## Every clip the game's heroes name, idles first, then talk, then skills.
@@ -78,6 +94,20 @@ static func wanted() -> Array[String]:
 	return out
 
 
+## Clears kept sheets when the art has changed: a sheet read with another's frame sizes slides about, so an old one must
+## never stand in for a new one. `stamp` is what the kept ones must have been saved under (Faces.SHEETS_STAMP).
+static func refresh_sheets(dir: String, stamp: String) -> void:
+	var mark := dir + "stamp"
+	if FileAccess.file_exists(mark) and FileAccess.get_file_as_string(mark) == stamp:
+		return
+	for f in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir + f)
+	var out := FileAccess.open(mark, FileAccess.WRITE)
+	if out:
+		out.store_string(stamp)
+		out.close()
+
+
 ## Starts fetching what the web build doesn't have yet. `host` keeps the request node alive.
 static func fetch_all(host: Node) -> void:
 	if not OS.has_feature("web"):
@@ -86,6 +116,7 @@ static func fetch_all(host: Node) -> void:
 	_base = _root + "clips/"
 	DirAccess.make_dir_recursive_absolute(CACHE)
 	DirAccess.make_dir_recursive_absolute(SHEETS)
+	refresh_sheets(SHEETS, Faces.SHEETS_STAMP)
 	for src in wanted_sheets():
 		if not ResourceLoader.exists(src) and not FileAccess.file_exists(SHEETS + src.get_file()):
 			_queue.append(src)

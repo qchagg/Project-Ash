@@ -1,16 +1,42 @@
 class_name ExpeditionScreen
 extends Screen
-## Expedition, the centre of the game. Between runs: pick a road (each a region, an element and a danger), check the
-## party, set out. On the road: the map of the run, read from the start at the foot to the warden at the top (left to
+## Expedition, the centre of the game. Between runs: one road fills the screen, with a strip of the others along the foot
+## and next and back to walk through them, or a grid to see them all; check the party, set out. On the road: the map of the run, read from the start at the foot to the warden at the top (left to
 ## right on a wide screen). The nodes you can step to next are ringed and turning; tap one to go there. Fights open the
 ## battle; camps, boons, caches and trials open over the map. When the run ends, its embers go home to the town.
 
 const NODE_R := 38.0
 const LAYER := 150.0
 const ROW := 120.0
+## How tall a road card stands, on a phone and on a wide screen.
+const CARD_H := 214.0
+const CARD_H_WIDE := 200.0
+## Road cards across a wide screen; the phone stacks them.
+const ROAD_COLS_WIDE := 4
+## A road's thumbnail in the strip at the foot of the big view.
+const THUMB := Vector2(190, 92)
+## The description's line spacing: tight, so the words stay low on the painting.
+const ABOUT_LINES := -7
 
 var _road := "basalt"
 var _map: Control
+## A choice's stage on a wide screen: where the offers stand, between the hero and the terms.
+const STAGE_LEFT := 400.0
+const STAGE_RIGHT := 300.0
+const STAGE_TOP := 112.0
+const STAGE_W := 800.0
+## Terms a choice may use beyond the statuses in the Archive's glossary.
+const STAGE_TERMS := [["Cooldown", "Rounds a skill waits before it can be used again."], ["Power", "How hard a skill lands, as a share of attack."]]
+
+## Between runs, the big view: its layers from the art up, the road's words, and the strip.
+var _land: Control
+var _art_layer: Control
+var _air_layer: Control
+var _info: VBoxContainer
+var _strip: HBoxContainer
+var _strip_scroll: ScrollContainer
+## Between runs, every road at once instead of the big view.
+var _grid := false
 
 
 func _init() -> void:
@@ -19,8 +45,16 @@ func _init() -> void:
 
 
 func _build() -> void:
+	app.music()
+	if _land:
+		_land.queue_free()
+		_land = null
+	frame.visible = app.run != null or _grid
 	if app.run == null:
-		_choose_road()
+		if _grid:
+			_choose_road()
+		else:
+			_landing()
 	elif app.run.over != "":
 		_summary()
 	else:
@@ -29,10 +63,184 @@ func _build() -> void:
 
 # ---------- between runs: choose a road ----------
 
+func _landing() -> void:
+	if app.road_pick != "":
+		_road = app.road_pick
+	var wide := Forge.wide()
+	_land = Control.new()
+	_land.clip_contents = true
+	add_child(_land)
+	_land.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_art_layer = Control.new()
+	_art_layer.mouse_filter = MOUSE_FILTER_IGNORE
+	_land.add_child(_art_layer)
+	_art_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_land.add_child(Forge.wash(Color(Forge.INK, 0.98), Vector2(0.5, 1.0), Vector2(0.5, 0.4)))
+	_air_layer = Control.new()
+	_air_layer.mouse_filter = MOUSE_FILTER_IGNORE
+	_land.add_child(_air_layer)
+	_air_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var m := Forge.margins(MarginContainer.new(), 40, 26 if wide else 56, 40, 18 if wide else 28)
+	m.mouse_filter = MOUSE_FILTER_IGNORE
+	_land.add_child(m)
+	m.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var col := Forge.vbox(14)
+	col.mouse_filter = MOUSE_FILTER_IGNORE
+	m.add_child(col)
+	var top := Forge.hbox(14)
+	col.add_child(top)
+	var heading := Forge.sc("choose a road", 26 if wide else 32, Forge.GOLD_LIGHT, true, 0.16)
+	heading.size_flags_horizontal = SIZE_EXPAND_FILL
+	heading.add_theme_color_override("font_shadow_color", Color.BLACK)
+	top.add_child(heading)
+	top.add_child(_chip("gold", str(app.town.embers), "Gold in the caravan"))
+	var all := Forge.link("all roads", "", 22)
+	all.pressed.connect(func():
+		_grid = true
+		rebuild())
+	top.add_child(all)
+	top.add_child(Forge.sound_toggle())
+	var gap := Control.new()
+	gap.size_flags_vertical = SIZE_EXPAND_FILL
+	gap.mouse_filter = MOUSE_FILTER_IGNORE
+	col.add_child(gap)
+	var row: BoxContainer = Forge.hbox(28) if wide else Forge.vbox(18)
+	col.add_child(row)
+	_info = Forge.vbox(2)
+	_info.size_flags_horizontal = SIZE_EXPAND_FILL
+	_info.size_flags_vertical = SIZE_SHRINK_END
+	_info.mouse_filter = MOUSE_FILTER_IGNORE
+	row.add_child(_info)
+	var party: BoxContainer = Forge.hbox(16)
+	party.alignment = BoxContainer.ALIGNMENT_END if wide else BoxContainer.ALIGNMENT_CENTER
+	party.size_flags_vertical = SIZE_SHRINK_END
+	row.add_child(party)
+	if wide:
+		party.add_child(_party_row(52))
+	var edit := Forge.link("party", "tab_squad", 22)
+	edit.pressed.connect(func(): app.show_tab("party"))
+	party.add_child(edit)
+	var go := Forge.studs("set out", true, 76)
+	go.custom_minimum_size.x = 200
+	go.size_flags_vertical = SIZE_SHRINK_CENTER
+	go.pressed.connect(func():
+		app.run = Expedition.new().begin(_road, randi() % 100000)
+		rebuild())
+	party.add_child(go)
+	var foot := Forge.hbox(12)
+	col.add_child(foot)
+	foot.add_child(_step_button("back", -1))
+	_strip_scroll = ScrollContainer.new()
+	_strip_scroll.size_flags_horizontal = SIZE_EXPAND_FILL
+	_strip_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_strip_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_strip_scroll.custom_minimum_size.y = THUMB.y + 6
+	foot.add_child(_strip_scroll)
+	_strip = Forge.hbox(10)
+	_strip_scroll.add_child(_strip)
+	foot.add_child(_step_button("next", 1))
+	_show_road()
+
+
+func _step_button(text: String, by: int) -> Button:
+	var b := Forge.ember(text, roundi(THUMB.y))
+	b.size_flags_vertical = SIZE_SHRINK_CENTER
+	b.pressed.connect(func(): _road = Expedition.road_step(_road, by); _show_road())
+	return b
+
+
+## Crossfades the big view to the chosen road: the new painting comes in over the last, which goes once it's covered.
+func _show_road() -> void:
+	var r: Dictionary = Expedition.ROADS[_road]
+	var region: Dictionary = Data.REGIONS[r.region]
+	for old in _art_layer.get_children():
+		get_tree().create_timer(Painted.FADE + 0.1).timeout.connect(old.queue_free)
+	var art := Painted.new().setup(r.art)
+	_art_layer.add_child(art)
+	art.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	for c in _air_layer.get_children():
+		c.queue_free()
+	var tint := Forge.wash(Color(region.dark, 0.9), Vector2.ZERO, Vector2(0.5, 0.5), true)
+	_air_layer.add_child(tint)
+	var air := Weather.over(r.art)
+	if air:
+		_air_layer.add_child(air)
+		air.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	for c in _info.get_children():
+		c.queue_free()
+	var head := Forge.hbox(16)
+	_info.add_child(head)
+	var badge := Forge.region_badge(r.region, 64)
+	badge.size_flags_vertical = SIZE_SHRINK_CENTER
+	head.add_child(badge)
+	var name := Forge.sc(r.name, 46 if Forge.wide() else 36, Forge.PARCHMENT, true, 0.08)
+	name.add_theme_color_override("font_shadow_color", Color.BLACK)
+	head.add_child(name)
+	var where := Forge.hbox(10)
+	_info.add_child(where)
+	where.add_child(_danger(r.danger))
+	where.add_child(Forge.glyph("elem_" + r.elem, 20, Forge.ELEM[r.elem]))
+	where.add_child(Forge.sc("%s · %d stops" % [region.name, r.depth], 18, Forge.LABEL))
+	var about := Forge.label(r.about, 20, Forge.MUTED, Forge.SANS_ITALIC)
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	about.custom_minimum_size.x = 440 if Forge.wide() else 600
+	about.add_theme_constant_override("line_spacing", ABOUT_LINES)
+	_info.add_child(about)
+	var at := _strip_scroll.scroll_horizontal
+	for c in _strip.get_children():
+		_strip.remove_child(c)
+		c.queue_free()
+	var active: Control
+	for key in Expedition.ROADS:
+		var t := _thumb(key)
+		_strip.add_child(t)
+		if key == _road:
+			active = t
+	_strip_scroll.scroll_horizontal = at
+	_strip_scroll.ensure_control_visible.call_deferred(active)
+
+
+## A road in the strip: its painting and name. The active one wears the moving rim.
+func _thumb(key: String) -> Control:
+	var r: Dictionary = Expedition.ROADS[key]
+	var t := Control.new()
+	t.custom_minimum_size = THUMB
+	t.clip_contents = true
+	t.mouse_default_cursor_shape = CURSOR_POINTING_HAND
+	t.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT and key != _road:
+			_road = key
+			_show_road.call_deferred())
+	var art := Painted.new().setup(r.art)
+	t.add_child(art)
+	art.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	if key == _road:
+		art.modulate = Color(1, 1, 1, 0)
+	t.add_child(Forge.wash(Color(Forge.INK, 0.95), Vector2(0.5, 1.0), Vector2(0.5, 0.3)))
+	var name := Forge.sc(r.name.trim_prefix("The "), 15, Forge.GOLD_LIGHT if key == _road else Forge.PARCHMENT)
+	name.mouse_filter = MOUSE_FILTER_IGNORE
+	t.add_child(name)
+	name.set_anchors_and_offsets_preset(PRESET_BOTTOM_LEFT)
+	name.position += Vector2(10, -6)
+	if key == _road:
+		Rim.on(t, "flow", Rim.elem(r.elem), 3.0)
+	Forge.press_weight(t, 0.97)
+	return t
+
+
 func _choose_road() -> void:
-	head_right.add_child(_chip("ember", str(app.town.embers), "Embers in the town"))
+	head_right.add_child(_chip("gold", str(app.town.embers), "Gold in the caravan"))
+	var big := Forge.link("big view", "", 22)
+	big.pressed.connect(func():
+		_grid = false
+		rebuild())
+	head_right.add_child(big)
 	body.add_child(_heading("choose a road"))
-	var roads: BoxContainer = Forge.hbox(18) if Forge.wide() else Forge.vbox(18)
+	var roads := GridContainer.new()
+	roads.columns = ROAD_COLS_WIDE if Forge.wide() else 1
+	roads.add_theme_constant_override("h_separation", 18)
+	roads.add_theme_constant_override("v_separation", 18)
+	roads.size_flags_horizontal = SIZE_EXPAND_FILL
 	body.add_child(roads)
 	for key in Expedition.ROADS:
 		roads.add_child(_road_card(key))
@@ -73,42 +281,53 @@ func _road_card(key: String) -> Control:
 	card.gui_input.connect(func(e: InputEvent):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			_road = key
+			_grid = false
 			rebuild())
 	Forge.press_weight(card, 0.97)
-	var h := Forge.hbox(0)
-	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(h)
-	# The region's colours down the left edge, its sigil on them.
-	var band := Forge.region_swatch(r.region, Vector2(110, 0))
-	band.size_flags_vertical = SIZE_EXPAND_FILL
-	h.add_child(band)
-	var badge := Forge.region_badge(r.region, 64)
-	badge.position = Vector2(23, 20)
-	band.add_child(badge)
-	var m := Forge.margins(MarginContainer.new(), 26, 20, 26, 22)
-	m.size_flags_horizontal = SIZE_EXPAND_FILL
+	# The road's painting is the card: the region's colour washes in from the badge's corner and under the words.
+	var scene := Control.new()
+	scene.custom_minimum_size.y = CARD_H_WIDE if Forge.wide() else CARD_H
+	scene.clip_contents = true
+	scene.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(scene)
+	var art := Painted.new().setup(r.art)
+	scene.add_child(art)
+	art.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	if on:
+		art.modulate = Color(1, 1, 1, 0)
+	scene.add_child(Forge.wash(Color(region.dark, 0.9), Vector2.ZERO, Vector2(0.62, 0.62), true))
+	scene.add_child(Forge.wash(Color(region.dark.darkened(0.7)), Vector2(0.5, 1.0), Vector2(0.5, 0.3)))
+	var badge := Forge.region_badge(r.region, 48 if Forge.wide() else 58)
+	badge.position = Vector2(16, 16)
+	scene.add_child(badge)
+	var m := Forge.margins(MarginContainer.new(), 18, 0, 18, 11)
 	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(m)
-	var v := Forge.vbox(8)
+	m.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	scene.add_child(m)
+	var v := Forge.vbox(1)
+	v.alignment = BoxContainer.ALIGNMENT_END
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(v)
 	var top := Forge.hbox(10)
 	v.add_child(top)
 	var name := Forge.sc(r.name, 22 if Forge.wide() else 26, Forge.GOLD_LIGHT if on else Forge.GOLD, true)
 	name.size_flags_horizontal = SIZE_EXPAND_FILL
-	name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name.custom_minimum_size.x = 120
 	top.add_child(name)
-	top.add_child(_danger(r.danger))
 	var where := Forge.hbox(8)
 	v.add_child(where)
-	where.add_child(Forge.glyph("elem_" + r.elem, 20, Forge.ELEM[r.elem]))
-	where.add_child(Forge.sc("%s · %d stops" % [region.name, r.depth], 18, Forge.LABEL))
-	var about := Forge.label(r.about, 18 if Forge.wide() else 20, Forge.MUTED, Forge.SANS_ITALIC)
-	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	about.custom_minimum_size.x = 200 if Forge.wide() else 360
-	v.add_child(about)
+	where.add_child(Forge.glyph("elem_" + r.elem, 18, Forge.ELEM[r.elem]))
+	var stops := Forge.sc("%s · %d stops" % [region.name, r.depth], 16, Forge.LABEL)
+	stops.size_flags_horizontal = SIZE_EXPAND_FILL
+	where.add_child(stops)
+	var d := _danger(r.danger)
+	d.size_flags_vertical = SIZE_SHRINK_CENTER
+	where.add_child(d)
 	if on:
+		var about := Forge.label(r.about, 16 if Forge.wide() else 18, Forge.MUTED, Forge.SANS_ITALIC)
+		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		about.custom_minimum_size.x = 200 if Forge.wide() else 360
+		about.add_theme_constant_override("line_spacing", ABOUT_LINES)
+		v.add_child(about)
 		Rim.on(card, "flow", Rim.elem(r.elem), 3.0)
 	return card
 
@@ -180,7 +399,7 @@ func _figure(uid: String, px: int) -> Control:
 
 func _on_the_road() -> void:
 	var run := app.run
-	head_right.add_child(_chip("ember", str(run.embers), "Embers gathered on this road. They go home to the town when the run ends."))
+	head_right.add_child(_chip("gold", str(run.embers), "Gold gathered on this road. It goes home to the caravan when the run ends."))
 	var top := Forge.hbox(14)
 	body.add_child(top)
 	var r := run.info()
@@ -338,22 +557,11 @@ func _go(p: Vector2i) -> void:
 				v.add_child(_party_row()))
 		"boon":
 			_boon_pick(p)
-		"cache":
-			var got := run.open_cache()
-			var aug := ""
-			if got.augment:
-				var keys := Data.AUGS.keys()
-				aug = keys[randi() % keys.size()]
-				app.col.loose.append(aug)
-			_event("node_cache", "cache", run.node(p).rarity, func(v: VBoxContainer):
-				v.add_child(_para("Something left on the road."))
-				v.add_child(_gain("ember", "+%d embers" % got.embers))
-				if aug != "":
-					v.add_child(_gain("augment", "+1 augment · %s" % Data.AUGS[aug].name)))
-		"trial":
-			_trial(p)
+		"wayside":
+			_wayside(p)
 	if not t in ["battle", "elite", "boss"]:
 		rebuild()
+		app.music(t)
 
 
 # ---------- what happens at a node ----------
@@ -380,31 +588,43 @@ func _camp_talk(v: VBoxContainer) -> void:
 	bust.say.call_deferred()
 
 
-func _event(icon_name: String, heading: String, rarity: int, fill: Callable, close_text := "go on") -> void:
+func _event(icon_name: String, heading: String, rarity: int, fill: Callable, close_text := "go on", hero_key := "", words := []) -> void:
 	var shade := Control.new()
 	shade.mouse_filter = Control.MOUSE_FILTER_STOP
 	app.add_child(shade)
 	shade.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	shade.draw.connect(func(): shade.draw_rect(Rect2(Vector2.ZERO, shade.size), Color(Forge.INK, 0.78)))
+	# A choice on a wide screen is a stage of its own: the hero beside it, the title across the top, terms to the right.
+	var stage := hero_key != "" and Forge.wide()
+	shade.draw.connect(func(): shade.draw_rect(Rect2(Vector2.ZERO, shade.size), Color(Forge.INK, 0.9 if stage else 0.78)))
+	var col: Color = Forge.RARITY[rarity] if rarity > 0 else Forge.GOLD
+	if stage:
+		_stage(shade, hero_key, heading, col, rarity, words)
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	shade.add_child(center)
+	if stage:
+		center.offset_left = STAGE_LEFT
+		center.offset_right = -STAGE_RIGHT
+		center.offset_top = STAGE_TOP
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", Forge.flat(Forge.PLAQUE, Color.TRANSPARENT, 0, Vector4(40, 36, 40, 36)))
-	panel.custom_minimum_size.x = 600
+	if stage:
+		panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	else:
+		panel.add_theme_stylebox_override("panel", Forge.flat(Forge.PLAQUE, Color.TRANSPARENT, 0, Vector4(40, 36, 40, 36)))
+		Rim.on(panel, "flow" if rarity >= 2 else "comet", [col, col.lightened(0.4), Forge.GOLD_LIGHT, col.darkened(0.3)] if rarity >= 2 else [col], 3.0).sparkles = rarity >= 3
+	panel.custom_minimum_size.x = STAGE_W if stage else 600.0
 	center.add_child(panel)
-	var col: Color = Forge.RARITY[rarity] if rarity > 0 else Forge.GOLD
-	Rim.on(panel, "flow" if rarity >= 2 else "comet", [col, col.lightened(0.4), Forge.GOLD_LIGHT, col.darkened(0.3)] if rarity >= 2 else [col], 3.0).sparkles = rarity >= 3
 	var v := Forge.vbox(20)
 	panel.add_child(v)
-	var head := Forge.hbox(14)
-	v.add_child(head)
-	head.add_child(Forge.glyph(icon_name, 44, col))
-	head.add_child(Forge.sc(heading, 34, col, true, 0.16))
-	if rarity > 0:
-		var tag := Forge.sc(Expedition.RARITIES[rarity], 18, col)
-		tag.size_flags_vertical = SIZE_SHRINK_CENTER
-		head.add_child(tag)
+	if not stage:
+		var head := Forge.hbox(14)
+		v.add_child(head)
+		head.add_child(Forge.glyph(icon_name, 44, col))
+		head.add_child(Forge.sc(heading, 34, col, true, 0.16))
+		if rarity > 0:
+			var tag := Forge.sc(Expedition.RARITIES[rarity], 18, col)
+			tag.size_flags_vertical = SIZE_SHRINK_CENTER
+			head.add_child(tag)
 	fill.call(v)
 	if close_text != "":
 		var done := Forge.studs(close_text, true, 76)
@@ -420,16 +640,78 @@ func _event(icon_name: String, heading: String, rarity: int, fill: Callable, clo
 	tw.tween_property(panel, "modulate:a", 1.0, 0.16)
 
 
+## The parts of a choice's stage: the hero standing at the left, the title across the top, and the terms the offers use.
+func _stage(shade: Control, hero_key: String, heading: String, col: Color, rarity: int, words: Array) -> void:
+	var s := Stand.new().setup(hero_key, app.col.by(app.copies(hero_key)[0].uid).stars)
+	s.tall = 0.96
+	s.size = Vector2(430, 640)
+	s.position = Vector2(-10, 76)
+	shade.add_child(s)
+	var band := ColorRect.new()
+	band.color = Color(Forge.PLAQUE, 0.92)
+	band.set_anchors_preset(PRESET_TOP_WIDE)
+	band.offset_bottom = STAGE_TOP - 16.0
+	shade.add_child(band)
+	band.draw.connect(func():
+		band.draw_line(Vector2(0, band.size.y - 1), Vector2(band.size.x, band.size.y - 1), Color(col, 0.8), 2.0))
+	var title := Forge.sc(heading, 34, col if rarity > 0 else Forge.PARCHMENT, false, 0.3)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.set_anchors_preset(PRESET_FULL_RECT)
+	band.add_child(title)
+	var side := Forge.vbox(12)
+	side.anchor_left = 1.0
+	side.anchor_right = 1.0
+	side.offset_left = -STAGE_RIGHT + 14.0
+	side.offset_right = -24.0
+	side.offset_top = STAGE_TOP + 20.0
+	shade.add_child(side)
+	for w in words:
+		var p := PanelContainer.new()
+		p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.INK, 0.85), Color(Forge.GOLD_DEEP, 0.6), 1, Vector4(16, 12, 16, 12)))
+		side.add_child(p)
+		var t := Forge.vbox(4)
+		p.add_child(t)
+		t.add_child(Forge.sc(w[0], 18, Forge.GOLD_LIGHT, true))
+		var d := Forge.label(w[1], 18, Forge.PARCHMENT)
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t.add_child(d)
+
+
+## The terms that the offers' words use, explained for the side of the stage.
+func _terms_in(texts: Array) -> Array:
+	var all := " ".join(texts).to_lower()
+	var out := []
+	for s in CodexScreen.STATUSES + STAGE_TERMS:
+		if s[0].to_lower() in all and out.size() < 3:
+			out.append([s[0], s[-1]])
+	return out
+
+
+## Who stands beside a choice for the whole squad: the first hero still on their feet.
+func _lead() -> String:
+	for uid in app.col.squad:
+		if app.run == null or app.run.health(uid) > 0.0:
+			return app.col.by(uid).hero
+	return app.col.by(app.col.squad[0]).hero
+
+
+## The picture on a boon's card, by what it raises.
+static func boon_glyph(key: String) -> String:
+	return {"atk": "atk", "def": "def", "spd": "spd", "max_hp": "hp", "atk_elem": "atk", "embers": "gold"}.get(Expedition.BOONS[key].stat, "node_boon")
+
+
 func _boon_pick(p: Vector2i) -> void:
 	var run := app.run
 	var offers := run.offers(p)
 	var rarity: int = run.node(p).rarity
 	var holder := [null]
+	var words := _terms_in(offers.map(func(b): return Expedition.boon_text(b)))
 	_event("node_boon", "choose a boon", rarity, func(v: VBoxContainer):
 		v.add_child(_para("A blessing for the rest of this road. Take one."))
 		for b in offers:
 			var col: Color = Forge.RARITY[b.rarity]
-			var card := _offer_card("node_boon", col, Expedition.BOONS[b.key].name, Expedition.boon_text(b), b.rarity)
+			var card := _offer_card(boon_glyph(b.key), col, Expedition.BOONS[b.key].name, Expedition.boon_text(b), b.rarity)
 			card.pressed.connect(func():
 				run.take(b)
 				Burst.on(card, col, 60, 10)
@@ -437,14 +719,14 @@ func _boon_pick(p: Vector2i) -> void:
 				_close_event(holder[0])
 				rebuild())
 			v.add_child(card)
-		holder[0] = v, "")
+		holder[0] = v, "", _lead(), words)
 
 
 ## One choice in an event: a glyph, a name and what it does. Rare ones turn a comet round the edge.
 func _offer_card(glyph_name: String, col: Color, heading: String, text: String, rarity: int) -> Button:
 	var card := Button.new()
 	card.focus_mode = Control.FOCUS_NONE
-	card.custom_minimum_size = Vector2(0, 104)
+	card.custom_minimum_size = Vector2(0, 124 if Forge.wide() else 104)
 	card.add_theme_stylebox_override("normal", Forge.flat(Color(Forge.INK, 0.8), Color(col, 0.55), 2))
 	card.add_theme_stylebox_override("hover", Forge.flat(Color(Forge.INK, 0.9), col, 2))
 	card.add_theme_stylebox_override("pressed", Forge.flat(Color(Forge.INK, 0.9), col, 2))
@@ -457,7 +739,7 @@ func _offer_card(glyph_name: String, col: Color, heading: String, text: String, 
 	var h := Forge.hbox(16)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(h)
-	h.add_child(Forge.glyph(glyph_name, 40, col))
+	h.add_child(_offer_badge(glyph_name, col))
 	var tv := Forge.vbox(2)
 	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tv.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -470,6 +752,21 @@ func _offer_card(glyph_name: String, col: Color, heading: String, text: String, 
 	if rarity >= 2:
 		Rim.on(card, "comet", [col], 2.0)
 	return card
+
+
+## An offer's picture in a diamond of its rarity's colour.
+func _offer_badge(glyph_name: String, col: Color) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(84, 84)
+	c.size_flags_vertical = SIZE_SHRINK_CENTER
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var m := c.size / 2.0
+		var d := PackedVector2Array([m + Vector2(0, -40), m + Vector2(40, 0), m + Vector2(0, 40), m + Vector2(-40, 0)])
+		c.draw_colored_polygon(d, Color(col, 0.16))
+		c.draw_polyline(d + PackedVector2Array([d[0]]), col, 2.0, true)
+		c.draw_texture_rect(Forge.icon(glyph_name), Rect2(m - Vector2(21, 21), Vector2(42, 42)), false, col))
+	return c
 
 
 ## Closes the event whose content box is `v`.
@@ -485,6 +782,7 @@ func _hero_pick() -> void:
 	var uid: String = run.pick_now.uid
 	var hero := Data.hero(app.col.by(uid).hero)
 	var holder := [null]
+	var words := _terms_in(run.pick_now.options.map(func(o): return _pick_text(o)))
 	_event("character", "%s grows" % hero.name, 0, func(v: VBoxContainer):
 		holder[0] = v
 		var top := Forge.hbox(16)
@@ -497,7 +795,7 @@ func _hero_pick() -> void:
 		top.add_child(line)
 		for o in run.pick_now.options:
 			var col: Color = Forge.RARITY[o.rarity]
-			var card := _offer_card("character", col, run.pick_preview(o).name, _pick_text(o), o.rarity)
+			var card := _offer_card("elem_" + Data.AUGS[o.aug].fam, col, run.pick_preview(o).name, _pick_text(o), o.rarity)
 			card.pressed.connect(func():
 				if run.picks_full(uid):
 					_close_event(v)
@@ -513,7 +811,7 @@ func _hero_pick() -> void:
 		var foot := Forge.hbox(14)
 		v.add_child(foot)
 		var price := run.reroll_price()
-		var again := Forge.ember("reroll · %s" % ("free (%d)" % run.rerolls if price == 0 else "%d embers" % price), 64)
+		var again := Forge.ember("reroll · %s" % ("free (%d)" % run.rerolls if price == 0 else "%d gold" % price), 64)
 		again.add_theme_font_size_override("font_size", 20)
 		again.size_flags_horizontal = SIZE_EXPAND_FILL
 		again.disabled = not run.can_reroll()
@@ -523,12 +821,12 @@ func _hero_pick() -> void:
 			_close_event(v)
 			_hero_pick())
 		foot.add_child(again)
-		var skip := Forge.link("skip · +%d embers" % run.skip_share(), "chevron", 20)
+		var skip := Forge.link("skip · +%d gold" % run.skip_share(), "chevron", 20)
 		skip.pressed.connect(func():
 			run.skip_pick()
 			_close_event(v)
 			rebuild())
-		foot.add_child(skip), "")
+		foot.add_child(skip), "", hero.key, words)
 
 
 ## What a pick does, and the numbers it moves on that skill.
@@ -566,39 +864,130 @@ func _replace_pick(o: Dictionary) -> void:
 		back.pressed.connect(func():
 			_close_event(v)
 			_hero_pick())
-		v.add_child(back), "")
+		v.add_child(back), "", c.hero)
 
 
-func _trial(p: Vector2i) -> void:
+# ---------- the wayside ----------
+
+## A wayside stop: the event's scene and its choices, in the panel every stop uses. See design/events.md.
+func _wayside(p: Vector2i) -> void:
 	var run := app.run
-	var apt := run.trial_aptitude(p)
-	_event("node_trial", "trial", run.node(p).rarity, func(v: VBoxContainer):
-		v.add_child(_para("A test of %s: %s. Choose who tries. Roll d20 and reach %d; a hero who favors %s adds +%d." % [
-			apt, Data.APTITUDES[apt].to_lower(), Expedition.TRIAL_DC, apt, Data.FAVORED_BONUS]))
-		var row := GridContainer.new()
-		row.columns = 2
-		row.add_theme_constant_override("h_separation", 12)
-		row.add_theme_constant_override("v_separation", 12)
-		v.add_child(row)
-		var result := Forge.vbox(8)
-		v.add_child(result)
+	var key := run.draw_event(p)
+	var ev: Dictionary = Events.LIST[key]
+	_event("node_wayside", ev.title, run.node(p).rarity, func(v: VBoxContainer):
+		# A wide screen is short, so the panel widens to keep the longest scene with four choices on it.
+		v.custom_minimum_size.x = 900.0 if Forge.wide() else 0.0
+		v.add_child(_para(ev.scene))
+		var list := Forge.vbox(10)
+		v.add_child(list)
+		var squad := {}
 		for uid in app.col.squad:
-			if run.fallen(uid):
-				continue
-			var hero := Data.hero(app.col.by(uid).hero)
-			var fav: bool = apt in hero.get("favored", [])
-			var b := Forge.ember(hero.name + (" +%d" % Data.FAVORED_BONUS if fav else ""), 64)
-			b.add_theme_font_size_override("font_size", 20)
-			b.size_flags_horizontal = SIZE_EXPAND_FILL
-			b.pressed.connect(func():
-				for x in row.get_children():
-					x.disabled = true
-				var roll := randi() % 20 + 1
-				var ok := run.trial(roll, fav)
-				var total := roll + (Data.FAVORED_BONUS if fav else 0)
-				result.add_child(Forge.sc("d20 · %d%s = %d vs %d" % [roll, " + %d" % Data.FAVORED_BONUS if fav else "", total, Expedition.TRIAL_DC], 26, Forge.GOLD_LIGHT, true))
-				result.add_child(_gain("ember", "Success · +%d embers" % run.purse("trial")) if ok else _note("%s falls short. Nothing gained, nothing lost." % hero.name)))
-			row.add_child(b))
+			squad[uid] = app.col.by(uid).hero
+		for c in run.event_choices(key, squad):
+			var b := Forge.ember(c.text, 60)
+			b.add_theme_font_size_override("font_size", 22)
+			b.disabled = not run.can_pay(c)
+			b.pressed.connect(_choose_wayside.bind(c, v, list))
+			list.add_child(b)
+			var terms := run.event_terms(c)
+			if terms != "":
+				var t := Forge.sc(terms, 18, Forge.MUTED, true)
+				t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				list.add_child(t), "")
+
+
+## A choice is made: pay, then roll if it asks for a hero, flip if it's luck, or simply happen.
+func _choose_wayside(c: Dictionary, v: VBoxContainer, list: Control) -> void:
+	var run := app.run
+	run.event_pay(c)
+	list.queue_free()
+	if c.has("roll"):
+		_wayside_roll(c, v)
+	elif c.has("luck"):
+		_wayside_outcome(c.win if randi() % 2 == 0 else c.lose, "", v)
+	else:
+		_wayside_outcome(c.do, c.get("uid", ""), v)
+
+
+## Who tries a roll: the standing squad, as a trial always was. The odds are on the buttons.
+func _wayside_roll(c: Dictionary, v: VBoxContainer) -> void:
+	var run := app.run
+	var apt: String = c.roll
+	var test := _note("A test of %s: %s. Choose who tries. Roll d20 and reach %d; a hero who favors %s adds +%d." % [
+		apt, Data.APTITUDES[apt].to_lower(), Expedition.ROLL_DC, apt, Data.FAVORED_BONUS])
+	v.add_child(test)
+	var row := GridContainer.new()
+	row.columns = 2
+	row.add_theme_constant_override("h_separation", 12)
+	row.add_theme_constant_override("v_separation", 12)
+	v.add_child(row)
+	for uid in app.col.squad:
+		if run.fallen(uid):
+			continue
+		var hero := Data.hero(app.col.by(uid).hero)
+		var fav: bool = apt in hero.get("favored", [])
+		var b := Forge.ember(hero.name + (" +%d" % Data.FAVORED_BONUS if fav else ""), 64)
+		b.add_theme_font_size_override("font_size", 20)
+		b.size_flags_horizontal = SIZE_EXPAND_FILL
+		b.pressed.connect(func():
+			row.queue_free()
+			test.queue_free()
+			var roll := randi() % 20 + 1
+			var total := roll + (Data.FAVORED_BONUS if fav else 0)
+			v.add_child(Forge.sc("d20 · %d%s = %d vs %d" % [roll, " + %d" % Data.FAVORED_BONUS if fav else "", total, Expedition.ROLL_DC], 26, Forge.GOLD_LIGHT, true))
+			_wayside_outcome(c.win if Expedition.roll_wins(roll, fav) else c.lose, uid, v))
+		row.add_child(b)
+
+
+## What came of it, in place of the scene so the panel stays on a wide screen, then the one way on: back to the road,
+## or into the fight it started.
+func _wayside_outcome(o: Dictionary, uid: String, v: VBoxContainer) -> void:
+	var run := app.run
+	var got := run.event_apply(o, uid)
+	v.get_child(1).queue_free()
+	var key: String = app.col.by(uid).hero if uid != "" else ""
+	if key != "" and Bust.has_faces(key) and not got.has("hurt"):
+		var row := Forge.hbox(10)
+		v.add_child(row)
+		var bust := Bust.new().setup(key)
+		bust.melt = 0.3
+		bust.custom_minimum_size = Vector2(160, 160)
+		row.add_child(bust)
+		var words := _para(got.say)
+		words.custom_minimum_size.x = 340
+		words.size_flags_vertical = SIZE_SHRINK_CENTER
+		row.add_child(words)
+	else:
+		v.add_child(_para(got.say))
+	if got.get("gold", 0) > 0:
+		v.add_child(_gain("gold", "+%d gold" % got.gold))
+	if got.get("gold", 0) < 0:
+		v.add_child(_note("%d gold gone." % -got.gold))
+	if got.has("debt"):
+		v.add_child(_note("%d gold owed when you bank." % got.debt))
+	if got.has("heal"):
+		v.add_child(_gain("role_healer", "the squad heals %d%%" % roundi(got.heal * 100)))
+	if got.has("hurt"):
+		v.add_child(_note("%s loses %d%% health." % [Data.hero(key).name, roundi(got.hurt * 100)]))
+	if got.has("hurt_all"):
+		v.add_child(_note("Everyone loses %d%% health." % roundi(got.hurt_all * 100)))
+	if got.has("boon"):
+		v.add_child(_gain("node_boon", "%s · %s" % [Expedition.BOONS[got.boon.key].name, Expedition.boon_text(got.boon)]))
+	if got.has("augment"):
+		app.col.loose.append(got.augment)
+		v.add_child(_gain("augment", "+1 augment · %s" % Data.AUGS[got.augment].name))
+	if got.has("rerolls"):
+		v.add_child(_gain("node_boon", "+%d free rerolls" % got.rerolls))
+	if got.has("raise"):
+		v.add_child(_gain("role_healer", "%s stands at %d%% health" % [Data.hero(key).name, roundi(got.raise * 100)]))
+	var done := Forge.studs("to arms" if got.has("fight") else "go on", true, 76)
+	done.pressed.connect(func():
+		_close_event(v)
+		if got.has("fight"):
+			app.show_fight()
+		else:
+			rebuild())
+	v.add_child(done)
 
 
 # ---------- the end of the road ----------
@@ -614,7 +1003,7 @@ func _summary() -> void:
 	var text: String = {"win": "The warden is down. Everything gathered goes home.", "home": "You turned for home with what you had.",
 		"lose": "The squad was carried home. Half of what they gathered made it back."}[run.over]
 	v.add_child(_para(text))
-	v.add_child(_gain("ember", "%d embers to the town" % run.banked()))
+	v.add_child(_gain("gold", "%d gold to the caravan" % run.banked()))
 	if not run.boons.is_empty() or not run.picks.is_empty():
 		v.add_child(_note("Boons and hero picks fade when the road ends:"))
 		v.add_child(_boon_row())
@@ -622,6 +1011,8 @@ func _summary() -> void:
 	go.size_flags_horizontal = SIZE_SHRINK_CENTER
 	go.pressed.connect(func():
 		app.town.earn(run.banked())
+		if win:
+			app.town.felled += 1
 		app.run = null
 		app.show_tab("town"))
 	v.add_child(go)
@@ -677,7 +1068,7 @@ func _gain(glyph_name: String, text: String) -> Control:
 
 
 ## A stop on the map: a disc with the node's icon. Open nodes wear a turning ring; where you stand is gold; the road
-## behind you dims; boons and caches show their rarity in the ring.
+## behind you dims; boons show their rarity in the ring.
 class MapNode extends Control:
 	var at := Vector2i.ZERO
 	var kind := "battle"
@@ -702,7 +1093,7 @@ class MapNode extends Control:
 		var big := kind == "boss"
 		if big:
 			r *= 1.3
-		var tint: Color = Forge.RARITY[rarity] if kind in ["boon", "cache"] and rarity > 0 else (Forge.HARM if kind in ["elite", "boss"] else Forge.GOLD)
+		var tint: Color = Forge.RARITY[rarity] if kind == "boon" and rarity > 0 else (Forge.HARM if kind in ["elite", "boss"] else Forge.GOLD)
 		var dim := past and not here
 		if open:
 			var k := 0.5 + 0.5 * sin(_t * TAU * 0.7)

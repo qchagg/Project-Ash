@@ -18,6 +18,8 @@ var c := 0
 var enter := 1.0
 ## The fighter standing here on the landscape board (null on the card board).
 var figure: BattleFigure
+## The tile's corners on the landscape floor, in its own space (empty on the card board).
+var quad := PackedVector2Array()
 ## Clock for the selected hero's comet rim.
 var _t := 0.0
 var _from := Vector2.ZERO
@@ -33,6 +35,27 @@ func _ready() -> void:
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
 			screen.on_tile(side, r, c))
 	mouse_entered.connect(func(): screen.on_hover(side, r, c))
+
+
+## Takes its place on the perspective floor: the box around its corners, with the corners inside it.
+func lay(corners: PackedVector2Array) -> void:
+	var box := Rect2(corners[0], Vector2.ZERO)
+	for p in corners:
+		box = box.expand(p)
+	position = box.position
+	size = box.size
+	quad = PackedVector2Array()
+	for p in corners:
+		quad.append(p - box.position)
+
+
+## Where a fighter stands on the floor tile, in the tile's space.
+func middle() -> Vector2:
+	return (quad[0] + quad[1] + quad[2] + quad[3]) / 4.0
+
+
+func _has_point(p: Vector2) -> bool:
+	return Geometry2D.is_point_in_polygon(p, quad) if not quad.is_empty() else Rect2(Vector2.ZERO, size).has_point(p)
 
 
 ## The unit here marches in from `from` (an offset), bobbing in step, and sparks as it lands.
@@ -69,7 +92,7 @@ func _draw() -> void:
 	var tint: Color = Forge.HARM if area == "harm" else Forge.MEND
 	var threat := screen.threat_at(side, r, c)
 	if figure:
-		_floor(rect, u, lit, area, tint, threat)
+		_floor(u, lit, area, tint, threat)
 		return
 	if u.is_empty():
 		draw_style_box(Forge.flat(Color(Forge.PLAQUE, 0.55), Color(Forge.BRONZE, 0.3), 1), rect)
@@ -172,54 +195,62 @@ func _draw() -> void:
 		draw_string(Forge.tracked(Forge.SC_HEAVY, 4), Vector2(0, size.y / 2 + 8 + 14 * (1.0 - _ko)), word, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, Color(Forge.PARCHMENT, 0.7 * _ko))
 
 
-## The landscape board's floor: a dark slab, a pool of light under whoever stands here (gold under the hero you're
-## moving, with a comet running round it), and the same move, attack and danger lights as the card board.
-func _floor(rect: Rect2, u: Dictionary, lit: bool, area: String, tint: Color, threat: int) -> void:
-	# The floor shows through: a tile is only a faint slab, scored at its edges.
-	draw_rect(rect, Color(Forge.PLAQUE, 0.22))
-	draw_line(rect.position + Vector2(3, 1), Vector2(rect.end.x - 3, 1), Color(Forge.GOLD_LIGHT, 0.05), 1.0)
-	draw_rect(rect, Color(Forge.BRONZE, 0.13), false, 1.0)
-	var foot := Vector2(size.x / 2, size.y * BattleFigure.FOOT)
+## The landscape board's floor: thin gold lines on the painted ground, a shadow under whoever stands here (a pool of
+## gold under the hero you're moving, with a comet running round it), and the same move, attack and danger lights as
+## the card board, each filling the tile's own shape.
+func _floor(u: Dictionary, lit: bool, area: String, tint: Color, threat: int) -> void:
+	_edge(Color(Forge.GOLD_LIGHT, 0.5), 1.0)
+	var foot := middle()
+	var rx := size.x * 0.34
 	if not u.is_empty() and u.view.alive:
 		var sel := screen.is_selected(u)
-		var col: Color = Forge.GOLD if sel else Forge.ELEM[u.elem]
-		draw_set_transform(foot, 0, Vector2(1, 0.34))
+		var col: Color = Forge.GOLD if sel else Color.BLACK
+		draw_set_transform(foot, 0, Vector2(1, 0.3))
 		for i in 7:
 			var k := 1.0 - i / 7.0
-			draw_circle(Vector2.ZERO, size.x * 0.5 * k, Color(col, (0.07 if sel else 0.045)))
-		draw_arc(Vector2.ZERO, size.x * 0.44, 0, TAU, 48, Color(col, 0.6 if sel else 0.3), 3.0, true)
+			draw_circle(Vector2.ZERO, rx * k, Color(col, 0.07 if sel else 0.09))
 		if sel:
+			draw_arc(Vector2.ZERO, rx, 0, TAU, 48, Color(col, 0.6), 2.5, true)
 			var head := fposmod(_t * 0.45, 1.0) * TAU
 			for i in 14:
 				var k := i / 13.0
-				draw_arc(Vector2.ZERO, size.x * 0.44, head - 1.0 * (1 - k) - 0.08, head - 1.0 * (1 - k), 4, Color("#fff1c4", k), 3.0, true)
+				draw_arc(Vector2.ZERO, rx, head - 1.0 * (1 - k) - 0.08, head - 1.0 * (1 - k), 4, Color("#fff1c4", k), 2.5, true)
 		draw_set_transform(Vector2.ZERO)
 	var ghost := screen.ghost_at(side, r, c)
 	if u.is_empty() and not ghost.is_empty():
-		_dashed(rect.grow(-3), Color(Forge.MOVE, 0.8))
+		for i in 4:
+			draw_dashed_line(quad[i], quad[(i + 1) % 4], Color(Forge.MOVE, 0.8), 2.0, 8.0)
 	elif u.is_empty() and screen.is_step(side, r, c):
-		_glow(rect, Forge.MOVE, 0.16)
+		_glow(Forge.MOVE, 0.2)
 	elif area != "":
-		_glow(rect, tint, 0.2)
+		_glow(tint, 0.26)
 	elif lit:
 		# Setting the formation lights where a hero may stand in gold; otherwise lit means aimable.
-		var lc: Color = Forge.GOLD_DEEP if screen.b.phase == "form" else (tint if screen._armed_act().get("kind", "dmg") != "dmg" else Forge.HARM)
-		draw_rect(rect.grow(-1), Color(lc, 0.5), false, 1.5)
+		var lc: Color = Forge.GOLD if screen.b.phase == "form" else (tint if screen._armed_act().get("kind", "dmg") != "dmg" else Forge.HARM)
+		_edge(Color(lc, 0.75), 1.5)
 	if u.is_empty():
 		var fx := screen.b.effects_at(side, r, c)
 		if fx.size():
-			_tag(Vector2(8, 8), fx[0].label.to_lower(), Color("#ff7a3d"))
+			_tag(foot - Vector2(30, 10), fx[0].label.to_lower(), Color("#ff7a3d"))
 	if screen.aim_center(side, r, c):
-		_crosshair(tint)
+		_edge(tint.lightened(0.25), 3.0)
 	if threat > 0:
-		_threat(rect, threat)
+		_glow(Forge.HARM, 0.2)
+		if threat > 1:
+			_tag(Vector2(size.x - 12, size.y - 26), "×%d" % threat, Forge.HARM, true)
 
 
-## Light cast on the floor: brightest at the tile's edge, fading toward its middle.
-func _glow(rect: Rect2, col: Color, a: float) -> void:
-	draw_rect(rect.grow(-1), Color(col, a))
-	draw_rect(rect.grow(-4), Color(col, a * 0.6), false, 6.0)
-	draw_rect(rect.grow(-1), Color(col, 0.8), false, 1.5)
+## The tile's outline on the floor.
+func _edge(col: Color, width: float) -> void:
+	var pts := quad.duplicate()
+	pts.append(quad[0])
+	draw_polyline(pts, col, width, true)
+
+
+## Light cast on the floor, filling the tile.
+func _glow(col: Color, a: float) -> void:
+	draw_colored_polygon(quad, Color(col, a))
+	_edge(Color(col, 0.85), 1.5)
 
 
 ## The forecast number over a unit: red for damage, green for healing or shield; the one in the bar gets a frame.

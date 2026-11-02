@@ -170,15 +170,14 @@ func _glossary() -> void:
 			t.add_child(_para(p[1], 21, Forge.PARCHMENT, 480))
 			h.add_child(t)
 			v.add_child(h)))
-	body.add_child(_group("cards", func(v: VBoxContainer):
-		v.add_child(_term("stars", "Merge two copies of the same star level to rise one star, up to 3★. Every star adds 10% to each stat.", ""))
-		v.add_child(_term("ashcrown", "Raises a 3★ card to 4★, the top tier.", ""))
-		v.add_child(_term("augments", "Bound elemental spirits slotted into a skill. They rename it and give the card an aura.", ""))
+	body.add_child(_group("heroes", func(v: VBoxContainer):
+		v.add_child(_term("stars", "Every hero has four stars and arrives at 1★. Each new copy lights the next star, adding 10% to each stat and one augment slot. Copies past 4★ turn into gold.", ""))
+		v.add_child(_term("augments", "Bound elemental spirits slotted into a skill. They rename it and give the hero an aura.", ""))
 		for k in Data.AUGS:
 			var g: Dictionary = Data.AUGS[k]
 			v.add_child(_term(g.name, g.desc, g.fam))))
 	body.add_child(_group("aptitudes", func(v: VBoxContainer):
-		v.add_child(_para("Rolled on a d20 for trials. A hero's two favoured aptitudes add +%d and spark on 19–20." % Data.FAVORED_BONUS, 22, Forge.PARCHMENT, 632))
+		v.add_child(_para("Rolled on a d20 on the road. A hero's two favoured aptitudes add +%d and spark on 19–20." % Data.FAVORED_BONUS, 22, Forge.PARCHMENT, 632))
 		for k in Data.APTITUDES:
 			v.add_child(_term(k, Data.APTITUDES[k], ""))))
 	body.add_child(_group("roles", func(v: VBoxContainer):
@@ -192,12 +191,15 @@ func _settings() -> void:
 			["language", "English · Français later", "not wired yet"]]:
 		body.add_child(_term(row[0], "%s (%s)" % [row[1], row[2]], ""))
 	body.add_child(Forge.rule())
-	body.add_child(_para("Start the playtest collection over: the seeded cards, one Ashcrown, every augment loose.", 22, Forge.MUTED, 632))
+	body.add_child(_para("Start the playtest heroes over: the starting stars, every augment loose.", 22, Forge.MUTED, 632))
 	var reset := Forge.studs("reset collection")
 	reset.pressed.connect(func():
 		app.col = Collection.new()
+		app.showcase()
 		app.show_tab("heroes"))
 	body.add_child(reset)
+	body.add_child(Forge.rule())
+	body.add_child(_para("Hero voices are from the Super Dialogue Audio Pack by Dillon Becker (dillonbecker.com), licensed under CC BY 4.0: creativecommons.org/licenses/by/4.0. They have been shortened, resampled and pitched.", 20, Forge.MUTED, 620.0))
 
 
 func _group(heading: String, fill: Callable) -> Control:

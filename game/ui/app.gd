@@ -16,6 +16,8 @@ var town := Town.new()
 var run: Expedition
 ## The roster's element filter, kept while you visit a hero.
 var filter := ""
+## The road home last sent you to, for the road choice to open on ("" for none).
+var road_pick := ""
 ## Each hero's zoom on the character view (0 full body, 1 face), kept between visits.
 var zoom := {}
 var nav: Control
@@ -27,8 +29,10 @@ var _screen: Control
 func _ready() -> void:
 	Forge.setup()
 	Sfx.warm()
+	Music.warm()
 	Clips.fetch_all(self)
-	_showcase()
+	Music.fetch_all(self)
+	showcase()
 	var bg := ColorRect.new()
 	bg.color = Forge.INK
 	bg.set_anchors_preset(PRESET_FULL_RECT)
@@ -41,21 +45,26 @@ func _ready() -> void:
 	_content.size_flags_horizontal = SIZE_EXPAND_FILL
 	_content.size_flags_vertical = SIZE_EXPAND_FILL
 	_frame.add_child(_content)
-	show_tab("expedition")
+	show_tab("menu" if _link() == "" else "expedition")
+	if _link() == "":
+		add_child(TitleScreen.new())
 	_deep_link.call_deferred()
 
 
-## Playtest shortcut: a link ending #event-boon (or camp, cache, trial, fight, warden) starts a run and steps straight
+## What the page's link ends with after the #, if anything.
+func _link() -> String:
+	return str(JavaScriptBridge.eval("location.hash", true)).trim_prefix("#") if OS.has_feature("web") else ""
+
+
+## Playtest shortcut: a link ending #event-boon (or camp, wayside, fight, warden) starts a run and steps straight
 ## onto that kind of stop, so a reviewer can see each one without walking the road. #town and #heroes open those tabs.
 func _deep_link() -> void:
-	if not OS.has_feature("web"):
-		return
-	var hash := str(JavaScriptBridge.eval("location.hash", true)).trim_prefix("#")
+	var hash := _link()
 	if hash in ["town", "heroes"]:
 		show_tab(hash)
 		return
 	if hash == "event-pick":
-		run = Expedition.new().begin("ghats", 7)
+		run = Expedition.new().begin("lotus", 7)
 		run.step(Vector2i(0, 0))
 		run.finish_fight(true, {})
 		run.offer_pick(squad_kit())
@@ -65,7 +74,7 @@ func _deep_link() -> void:
 		return
 	var want: String = {"camp": "rest", "fight": "battle", "warden": "boss"}.get(hash.trim_prefix("event-"), hash.trim_prefix("event-"))
 	for sd in 200:
-		var x := Expedition.new().begin("ghats", sd)
+		var x := Expedition.new().begin("lotus", sd)
 		for i in x.layers.size():
 			for j in x.layers[i].size():
 				if x.layers[i][j].type != want:
@@ -84,6 +93,12 @@ func _deep_link() -> void:
 				return
 
 
+## The music for a slot ("map" or a kind of stop): the road's while a run is on, the shared default otherwise.
+func music(slot := "map") -> void:
+	var on_road := run != null and run.over == ""
+	Music.play(Expedition.music_for(run.road if on_road else "", "menu" if slot == "map" and not on_road else slot))
+
+
 ## The squad as hero picks read it: {uid: {skills, augs}}, in squad order.
 func squad_kit() -> Dictionary:
 	var kit := {}
@@ -93,12 +108,22 @@ func squad_kit() -> Dictionary:
 	return kit
 
 
-## Playtest only: Varuni's starter card is a 4★ so the top tier can be seen without grinding.
+## Playtest only: nothing hands out copies yet, so a few heroes start with stars lit, Varuni at the top tier.
 ## The rules and checks build their own collections, so they are unaffected.
-func _showcase() -> void:
-	var c := col.by("ilse")
-	if not c.is_empty():
-		c.stars = 4
+func showcase() -> void:
+	for copy in ["ilse", "ilse", "ilse", "kaede", "kaede", "brann", "sorrel"]:
+		col.add_copy(copy)
+
+
+## Takes a Travel Log milestone. A star goes to the lead hero, or the next hero on the field if they are already full.
+func claim_log(i: int) -> void:
+	if not town.claim_log(i).get("star", false):
+		return
+	for uid in col.squad:
+		if col.by(uid).stars < Collection.MAX_STARS:
+			col.add_copy(col.by(uid).hero)
+			return
+	town.earn(Collection.SPARE_EMBERS)
 
 
 func show_roster() -> void:
@@ -108,6 +133,8 @@ func show_roster() -> void:
 ## The nav's destinations, and the places inside them (the party, the archive) that other screens link to.
 func show_tab(tab: String) -> void:
 	match tab:
+		"menu": _open(MainMenu.new().setup(self))
+		"log": _open(TravelLog.new().setup(self))
 		"heroes", "roster": show_roster()
 		"expedition": _open(ExpeditionScreen.new().setup(self))
 		"party", "squad": _open(SquadScreen.new().setup(self))
@@ -117,12 +144,22 @@ func show_tab(tab: String) -> void:
 
 ## A hero opens on the character view; the sheet and evolve pages are below, other heroes a swipe away.
 func show_hero(hero_key: String, uid := "", page := 0) -> void:
-	_open(HeroPager.new().setup(self, hero_key, uid, page))
+	# A wide screen lays a hero out side by side; a phone stacks their pages.
+	_open(HeroWide.new().setup(self, hero_key, uid, page) if Forge.wide() else HeroPager.new().setup(self, hero_key, uid, page))
 
 
 ## Into a fight at the expedition's current node.
 func show_fight() -> void:
 	_open(BattleScreen.new().setup(self))
+
+
+## The music slot of a screen outside the road. A slot with no track falls back like any other.
+func _menu_slot(screen: Control) -> String:
+	if screen is TownScreen:
+		return "town"
+	if screen is Roster or screen is HeroPager or screen is HeroWide or screen is SquadScreen:
+		return "heroes"
+	return "map"
 
 
 ## Swaps in a screen. The old one stops (no input, no clocks) and fades while the new one rises in over it, so moving
@@ -146,11 +183,13 @@ func _open(screen: Control) -> void:
 		var settle := screen.position
 		screen.position.y += RISE
 		rise.tween_property(screen, "position:y", settle.y, FADE * 1.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var fight := screen is BattleScreen and run != null and run.over == ""
+	music(run.stop_kind() if fight else _menu_slot(screen))
 	if nav:
 		nav.queue_free()
 		nav = null
 	var tab: String = screen.get("tab") if screen.get("tab") != null else ""
-	if tab == "" and Forge.wide():
+	if tab == "" and Forge.wide() and not screen is HeroWide:
 		# A hero's pages are built for a phone: on a wide screen they stand as a column in the middle.
 		var side := maxf(0.0, (size.x - 720.0) / 2.0)
 		screen.offset_left = side
@@ -168,11 +207,6 @@ func show_nav(on: bool) -> void:
 		nav.visible = on
 
 
-## The copies of a hero, best first: most stars, then the one on the field.
+## A hero's card, in a list so a hero not owned yet comes back empty.
 func copies(hero_key: String) -> Array:
-	var out := col.cards.filter(func(c): return c.hero == hero_key)
-	out.sort_custom(func(a, b):
-		if a.stars != b.stars:
-			return a.stars > b.stars
-		return (a.uid in col.squad) and not (b.uid in col.squad))
-	return out
+	return col.cards.filter(func(c): return c.hero == hero_key)

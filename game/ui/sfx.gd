@@ -1,6 +1,6 @@
 class_name Sfx
 extends RefCounted
-## The game's sounds: `Sfx.play("hit")` plays audio/sfx/hit.ogg, or one of its variations (hit-2.ogg, hit-3.ogg…)
+## The game's sounds: `Sfx.play("hit")` plays audio/sfx/hit.ogg (or .wav), or one of its variations (hit-2.ogg, hit-3.ogg…)
 ## at a slightly different pitch each time, so a flurry of blows never sounds like one sample on repeat. The files
 ## are placeholders from tools/make-sfx.py until a pack replaces them under the same names. A cue with no file is
 ## silent, never an error. Sound can be turned off; the choice is kept on the device.
@@ -8,6 +8,8 @@ extends RefCounted
 const DIR := "res://audio/sfx/"
 const VOICES := 10
 const SETTINGS := "user://sound.cfg"
+## Cues kept silent: the placeholder button click and page turn grated on every menu move.
+const MUTED := ["tap", "page"]
 
 static var _streams := {}
 static var _players: Array[AudioStreamPlayer] = []
@@ -19,7 +21,7 @@ static var _last := {}
 
 ## Plays a cue. `pitch` is how far the pitch may wander either way; `db` raises or lowers it.
 static func play(cue: String, pitch := 0.06, db := 0.0) -> void:
-	if not on():
+	if not on() or cue in MUTED:
 		return
 	var now := Time.get_ticks_msec()
 	if now - int(_last.get(cue, -1000)) < 45:
@@ -36,12 +38,25 @@ static func play(cue: String, pitch := 0.06, db := 0.0) -> void:
 	p.play()
 
 
+## Plays a clip that isn't a cue, such as a hero's voice, at a set pitch.
+static func play_stream(stream: AudioStream, pitch := 1.0, db := 0.0) -> void:
+	if not on() or not _ensure():
+		return
+	var p := _players[_next]
+	_next = (_next + 1) % _players.size()
+	p.stream = stream
+	p.pitch_scale = pitch
+	p.volume_db = db
+	p.play()
+
+
 ## The streams a cue can play: its file and any numbered variations.
 static func variants(cue: String) -> Array:
 	if not _streams.has(cue):
 		var pool := []
 		for i in 6:
-			var path := DIR + (cue if i == 0 else "%s-%d" % [cue, i + 1]) + ".ogg"
+			var path := DIR + (cue if i == 0 else "%s-%d" % [cue, i + 1])
+			path += ".ogg" if ResourceLoader.exists(path + ".ogg") else ".wav"
 			if not ResourceLoader.exists(path):
 				break
 			pool.append(load(path))
@@ -61,6 +76,7 @@ static func set_on(v: bool) -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("sound", "on", v)
 	cfg.save(SETTINGS)
+	Music.sync()
 	if v:
 		play("tap")
 

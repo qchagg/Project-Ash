@@ -155,10 +155,6 @@ func _open_modal(m: String, sheet: HeroSheet) -> void:
 	_modal.add_child(scroll)
 	var page := EvolvePage.new().setup(app, key, sheet.uid, m)
 	page.changed.connect(func(): sheet.refresh())
-	page.viewing.connect(func(u: String):
-		uid = u
-		sheet.uid = u
-		sheet.refresh())
 	page.closed.connect(_close_modal)
 	scroll.add_child(page)
 	create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT).tween_property(_modal, "position:y", 0.0, 0.32)

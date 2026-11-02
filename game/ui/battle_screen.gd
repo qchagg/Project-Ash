@@ -24,10 +24,22 @@ const LAG_RATE := 0.9
 ## The strip's middle: the queue chips, the forecast bar or the round's log, whichever is showing.
 const MID_H := 104.0
 const HEAD := 100.0
-## A floor tile on the wide (landscape) board, where the grids stand side by side and fighters stand on the tiles.
-const WIDE_TILE := Vector2(134, 92)
-## Room above the far lane for the fighters standing in it.
-const HEADROOM := 150.0
+## The forecast face: as tall as HEAD, shaped like a battle tile, so it shows the tile's own close crop.
+const HEAD_SIZE := Vector2(HEAD * 152.0 / 112.0, HEAD)
+## The wide (landscape) board is a painted scene seen from low down: the whole screen, the two grids side by side on a
+## floor drawn in perspective, and the controls kept small at its edges.
+const FIELD := Vector2(1560, 720)
+## The floor's far and near edges, left and right, and where they sit on the screen.
+const FLOOR_FAR := Vector2(205, 1355)
+const FLOOR_NEAR := Vector2(70, 1490)
+const FLOOR_TOP := 372.0
+const FLOOR_BOTTOM := 590.0
+## The open ground between the two grids, in tiles.
+const FLOOR_GAP := 0.6
+## How bright a painting stands behind the wide board: the fight is the scene, so it is lit, not dimmed.
+const SCENE := Color(0.82, 0.82, 0.82)
+## A round skill button on the wide board.
+const ORB := 64
 
 var b: Battle
 ## The board as currently shown (unit id -> snapshot); it trails the engine during playback.
@@ -71,6 +83,9 @@ var _forecast: Control
 var _go: Button
 var _panel: VBoxContainer
 var _log: Label
+## The wide board's painting, and the line that names a skill under the pointer.
+var _scene := ""
+var _orb_note: Label
 
 
 func _init() -> void:
@@ -82,40 +97,37 @@ func setup(a: App) -> Screen:
 	super.setup(a)
 	# On an expedition the fight is named for its node: a skirmish, an elite, the warden.
 	if a.run and a.run.at.x >= 0:
-		title = Expedition.NODES[a.run.node(a.run.at).type].name
+		title = Expedition.NODES[a.run.stop_kind()].name
+		ground = a.run.road
+	if Forge.wide():
+		# The road's own painting stands behind the board, so the tiled ground stays with the phone.
+		_scene = Expedition.ROADS[a.run.road].art if a.run and a.run.road != "" else Backdrop.all_art().pick_random()
+		ground = ""
 	return self
 
 
 func _build() -> void:
 	body.add_theme_constant_override("separation", 14)
 	_new_fight()
-	_round = Forge.sc("", 22, Forge.LABEL)
-	head_right.add_child(_round)
+	_round = Forge.sc("", 22, Forge.GOLD if Forge.wide() else Forge.LABEL)
 	_retreat = Forge.link("retreat", "back", 20)
 	_retreat.custom_minimum_size.y = 44
 	_retreat.tooltip_text = "Leave this fight and start over from the formation"
 	_retreat.pressed.connect(func():
 		if _playing:
 			return
+		if b.phase == "form":
+			app.show_tab("expedition")
+			return
 		_new_fight()
 		_log.text = ""
 		refresh()
 		_intro())
-	head_right.add_child(_retreat)
 	if Forge.wide():
-		# Side on: your squad on the left facing right, the foes on the right facing left, the round and the actions
-		# in a column beside them.
-		var row := Forge.hbox(28)
-		body.add_child(row)
-		row.add_child(_grid("P"))
-		row.add_child(_grid("E"))
-		row.draw.connect(func(): _stage(row))
-		var side := Forge.vbox(12)
-		side.size_flags_horizontal = SIZE_EXPAND_FILL
-		row.add_child(side)
-		side.add_child(_strip())
-		side.add_child(_dock())
+		_wide_scene()
 	else:
+		head_right.add_child(_round)
+		head_right.add_child(_retreat)
 		body.add_child(_grid("E"))
 		body.add_child(_strip())
 		body.add_child(_grid("P"))
@@ -180,36 +192,116 @@ func _new_fight() -> void:
 # ---------- layout ----------
 
 ## A side's grid. The foes' front row sits at the bottom of theirs and yours at the top, so the fronts face across the strip.
-## The ground both sides stand on: a lit floor under the lanes, darker at its edges, and a seam of gold light where
-## the two front rows face each other.
-func _stage(row: Control) -> void:
-	var p: Control = row.get_child(0)
-	var e: Control = row.get_child(1)
-	var top := p.position.y + HEADROOM - 26
-	var bottom := p.position.y + p.size.y + 22
-	var left := p.position.x - 24
-	var right := e.position.x + e.size.x + 24
-	var floor_r := Rect2(left, top, right - left, bottom - top)
-	# Warm in the middle, falling to ink at the edges.
-	for i in 10:
-		var k := i / 10.0
-		row.draw_rect(floor_r.grow(-k * 40), Color(Forge.PLAQUE.lerp(Color("#2a1d12"), k), 0.16))
-	var mid := (p.position.x + p.size.x + e.position.x) / 2
-	for i in 4:
-		row.draw_line(Vector2(mid, top + 6), Vector2(mid, bottom - 6), Color(Forge.GOLD, 0.03 * (4 - i)), 3.0 + i * 6.0)
-	row.draw_line(Vector2(mid, top + 6), Vector2(mid, bottom - 6), Color(Forge.GOLD_LIGHT, 0.4), 1.0)
-	Forge.diamond(row, Vector2(mid, top), 6, Forge.GOLD)
-	Forge.diamond(row, Vector2(mid, bottom), 6, Forge.GOLD)
+## The wide board: the road's painting and its air, the floor with both squads on it, and the controls at the edges,
+## over the sky and under the feet, so the fighters have the middle to themselves.
+func _wide_scene() -> void:
+	frame.visible = false
+	var art := Painted.new().setup(_scene, SCENE)
+	add_child(art)
+	art.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	var air := Weather.over(_scene)
+	if air:
+		add_child(air)
+		air.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	# The field keeps its size and sits on the foot of the screen; the nav, while it shows, only covers sky.
+	var field := Control.new()
+	field.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(field)
+	field.set_anchors_preset(PRESET_BOTTOM_WIDE)
+	field.offset_top = -FIELD.y
+	field.draw.connect(func(): _wide_floor(field))
+	field.add_child(_grid("P"))
+	field.add_child(_grid("E"))
+	_controls()
+	var tl := Forge.vbox(0)
+	add_child(tl)
+	tl.position = Vector2(28, 18)
+	tl.add_child(_round)
+	tl.add_child(_phase)
+	_readable(_round)
+	_readable(_phase)
+	var tr := Forge.hbox(14)
+	add_child(tr)
+	tr.set_anchors_preset(PRESET_TOP_RIGHT)
+	tr.grow_horizontal = GROW_DIRECTION_BEGIN
+	tr.offset_left = -28
+	tr.offset_right = -28
+	tr.offset_top = 14
+	tr.add_child(_danger_btn)
+	tr.add_child(_retreat)
+	tr.add_child(Forge.sound_toggle())
+	_mid.custom_minimum_size = Vector2(660, MID_H)
+	add_child(_mid)
+	_mid.set_anchors_preset(PRESET_CENTER_TOP)
+	_mid.grow_horizontal = GROW_DIRECTION_BOTH
+	_mid.offset_top = 14
+	_mid.offset_bottom = 14 + MID_H
+	_log.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_readable(_log)
+	var dock := PanelContainer.new()
+	dock.custom_minimum_size.x = 900
+	dock.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	add_child(dock)
+	dock.set_anchors_preset(PRESET_CENTER_BOTTOM)
+	dock.grow_horizontal = GROW_DIRECTION_BOTH
+	dock.grow_vertical = GROW_DIRECTION_BEGIN
+	dock.offset_bottom = -12
+	_panel = Forge.vbox(4)
+	dock.add_child(_panel)
+	_go.custom_minimum_size = Vector2(176, 52)
+	add_child(_go)
+	_go.set_anchors_preset(PRESET_BOTTOM_RIGHT)
+	_go.grow_horizontal = GROW_DIRECTION_BEGIN
+	_go.grow_vertical = GROW_DIRECTION_BEGIN
+	_go.offset_left = -28
+	_go.offset_right = -28
+	_go.offset_top = -22
+	_go.offset_bottom = -22
 
 
-## On a wide screen the grids turn on their side: lanes run down, and the two front rows meet in the middle.
+## Words over a painting: a dark edge keeps them readable on sky and grass alike.
+func _readable(l: Label) -> void:
+	l.add_theme_color_override("font_outline_color", Forge.INK)
+	l.add_theme_constant_override("outline_size", 6)
+
+
+## A soft shade under the grid, so it lies on any painting, and a fall to dark at the foot for the skills.
+func _wide_floor(c: Control) -> void:
+	var top := FLOOR_TOP - 34
+	c.draw_polygon(PackedVector2Array([Vector2(0, top), Vector2(FIELD.x, top), Vector2(FIELD.x, FIELD.y), Vector2(0, FIELD.y)]),
+		PackedColorArray([Color(Forge.INK, 0), Color(Forge.INK, 0), Color(Forge.INK, 0.5), Color(Forge.INK, 0.5)]))
+	var foot := FLOOR_BOTTOM + 6
+	c.draw_polygon(PackedVector2Array([Vector2(0, foot), Vector2(FIELD.x, foot), Vector2(FIELD.x, FIELD.y), Vector2(0, FIELD.y)]),
+		PackedColorArray([Color(Forge.INK, 0), Color(Forge.INK, 0), Color(Forge.INK, 0.72), Color(Forge.INK, 0.72)]))
+
+
+## A point on the wide floor: `u` across it and `v` from its far edge to its near one, both 0..1. The far edge is
+## narrower and lanes close up toward it, which is all the perspective a low camera needs.
+static func floor_point(u: float, v: float) -> Vector2:
+	var left := lerpf(FLOOR_FAR.x, FLOOR_NEAR.x, v)
+	var right := lerpf(FLOOR_FAR.y, FLOOR_NEAR.y, v)
+	return Vector2(lerpf(left, right, u), lerpf(FLOOR_TOP, FLOOR_BOTTOM, pow(v, 1.3)))
+
+
+## The four corners of a tile on the wide floor. Lanes run far to near; each side's front row faces the gap.
+static func floor_quad(side: String, r: int, c: int, rows: int, cols: int) -> PackedVector2Array:
+	var across := rows * 2 + FLOOR_GAP
+	var col: float = rows - 1 - r if side == "P" else rows + FLOOR_GAP + r
+	var pts := PackedVector2Array()
+	for k in [[0, 0], [1, 0], [1, 1], [0, 1]]:
+		pts.append(floor_point((col + k[0]) / across, float(c + k[1]) / cols))
+	return pts
+
+
+## On a wide screen the grids lie side by side on the floor, and the fighters stand on them.
 func _grid(side: String) -> Control:
 	var g := Control.new()
 	var wide := Forge.wide()
-	var tw := WIDE_TILE.x if wide else (632.0 - GAP * (b.cols - 1)) / b.cols
-	var th: float = WIDE_TILE.y if wide else TILE_H.get(b.rows, 88.0)
+	var tw := (632.0 - GAP * (b.cols - 1)) / b.cols
+	var th: float = TILE_H.get(b.rows, 88.0)
 	if wide:
-		g.custom_minimum_size = Vector2(b.rows * tw + (b.rows - 1) * GAP, HEADROOM + b.cols * th + (b.cols - 1) * GAP)
+		g.size = FIELD
+		g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
 		g.custom_minimum_size = Vector2(632, b.rows * th + (b.rows - 1) * GAP)
 	for r in b.rows:
@@ -221,15 +313,14 @@ func _grid(side: String) -> Control:
 			t.c = c
 			var row := b.rows - 1 - r if side == "E" else r
 			if wide:
-				var depth := r if side == "E" else b.rows - 1 - r
-				t.position = Vector2(depth * (tw + GAP), HEADROOM + c * (th + GAP))
+				t.lay(floor_quad(side, r, c, b.rows, b.cols))
 			else:
 				t.position = Vector2(c * (tw + GAP), row * (th + GAP))
-			t.size = Vector2(tw, th)
+				t.size = Vector2(tw, th)
 			g.add_child(t)
 			_tiles["%s%d%d" % [side, r, c]] = t
 	if wide:
-		# The fighters stand over the floor, the far lane first so nearer fighters overlap the ones behind them.
+		# The far lane first, so nearer fighters overlap the ones behind them.
 		for c in b.cols:
 			for r in b.rows:
 				var fig := BattleFigure.new()
@@ -237,15 +328,14 @@ func _grid(side: String) -> Control:
 				fig.tile = t
 				t.figure = fig
 				g.add_child(fig)
-				fig.place()
+				fig.place(float(c) / maxi(1, b.cols - 1))
 	return g
 
 
 ## The docked action panel: a handle (the hero's name and a chevron) over the actions. Tap the handle to fold it.
 func _dock() -> Control:
 	var p := PanelContainer.new()
-	var pad := 24 if Forge.wide() else 44
-	var st := Forge.flat(Color(Forge.PLAQUE_DEEP, 0.97), Color(Forge.GOLD_DEEP, 0.8), 0, Vector4(pad, 18, pad, 28))
+	var st := Forge.flat(Color(Forge.PLAQUE_DEEP, 0.97), Color(Forge.GOLD_DEEP, 0.8), 0, Vector4(44, 18, 44, 28))
 	st.border_width_top = 2
 	st.shadow_color = Color(0, 0, 0, 0.5)
 	st.shadow_size = 16
@@ -260,6 +350,7 @@ func _dock() -> Control:
 ## The front line between the grids: round and phase, the danger toggle and the one commit button; under them either
 ## the queue or, while aiming, the forecast. That middle keeps one height so the board never moves.
 func _strip() -> Control:
+	_controls()
 	var v := Forge.vbox(8)
 	v.add_child(Forge.rule())
 	var row := Forge.hbox(16)
@@ -268,23 +359,30 @@ func _strip() -> Control:
 	words.size_flags_horizontal = SIZE_EXPAND_FILL
 	words.size_flags_vertical = SIZE_SHRINK_CENTER
 	row.add_child(words)
-	_phase = Forge.label("", 22, Forge.MUTED, Forge.SANS_ITALIC)
-	_phase.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	words.add_child(_phase)
+	row.add_child(_danger_btn)
+	_go.custom_minimum_size.x = 200
+	row.add_child(_go)
+	v.add_child(_mid)
+	v.add_child(Forge.rule())
+	return v
+
+
+## The controls both layouts share, before either places them.
+func _controls() -> void:
+	var wide := Forge.wide()
+	_phase = Forge.label("", 18 if wide else 22, Forge.PARCHMENT if wide else Forge.MUTED, Forge.SANS_ITALIC)
+	_phase.autowrap_mode = TextServer.AUTOWRAP_OFF if wide else TextServer.AUTOWRAP_WORD_SMART
 	_danger_btn = Forge.link("danger", "", 20)
-	_danger_btn.custom_minimum_size.y = 56
+	_danger_btn.custom_minimum_size.y = 44 if wide else 56
 	_danger_btn.tooltip_text = "Show what each foe means to do this round"
 	_danger_btn.pressed.connect(func():
 		_danger = not _danger
 		refresh())
-	row.add_child(_danger_btn)
-	_go = Forge.studs("fight", true, 64)
-	_go.custom_minimum_size.x = 200
+	_go = Forge.studs("fight", true, 52 if wide else 64, 22 if wide else 26)
 	_go.pressed.connect(_commit)
-	row.add_child(_go)
 	_mid = Control.new()
-	_mid.custom_minimum_size = Vector2(0 if Forge.wide() else 632, MID_H)
-	v.add_child(_mid)
+	_mid.custom_minimum_size = Vector2(632, MID_H)
 	_chips = HFlowContainer.new()
 	_chips.add_theme_constant_override("h_separation", 8)
 	_chips.add_theme_constant_override("v_separation", 8)
@@ -298,8 +396,6 @@ func _strip() -> Control:
 	_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_log.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	_mid.add_child(_log)
-	v.add_child(Forge.rule())
-	return v
 
 
 func refresh() -> void:
@@ -318,15 +414,25 @@ func refresh() -> void:
 	_danger_btn.visible = b.phase == "plan" and not _playing
 	_danger_btn.add_theme_color_override("font_color", Forge.HARM if _danger else Forge.DIM)
 	_fill_forecast()
-	_chips.visible = not _log.visible and _fc.is_empty()
+	# On the wide board the queue is the numbers beside the fighters.
+	_chips.visible = not Forge.wide() and not _log.visible and _fc.is_empty()
 	_forecast.visible = not _log.visible and not _fc.is_empty()
 	_fill_chips()
 	_fill_panel()
 	var fighting: bool = _playing or b.phase in ["plan", "run"]
-	app.show_nav(not fighting)
+	# The wide board is the whole screen, so the formation's way out is a link rather than the nav.
+	app.show_nav.call_deferred(not fighting and not Forge.wide())
 	# The panel keeps one height only while fighting, when its buttons are in use.
-	_panel.custom_minimum_size.y = PANEL_H if b.phase == "plan" else 0.0
-	_retreat.visible = b.phase == "plan" and not _playing
+	if not Forge.wide():
+		_panel.custom_minimum_size.y = PANEL_H if b.phase == "plan" else 0.0
+	else:
+		# The bare row of skills needs no plate; the result of a fight does.
+		var over: bool = b.phase == "over" and not _playing
+		_panel.get_parent().add_theme_stylebox_override("panel", Forge.flat(Color(Forge.INK, 0.86), Color(Forge.GOLD_DEEP, 0.7), 1, Vector4(28, 16, 28, 18)) if over else StyleBoxEmpty.new())
+		# It grows up from the foot, and would otherwise stay at its tallest.
+		_panel.get_parent().set_deferred("offset_top", -12.0)
+	_retreat.visible = (b.phase == "plan" or (Forge.wide() and b.phase == "form")) and not _playing
+	_retreat.text = "back" if b.phase == "form" else "retreat"
 
 
 ## The board while planning: heroes stand where their planned step takes them.
@@ -381,7 +487,7 @@ func _fill_forecast() -> void:
 	var mine := _headshot(me, Forge.GOLD_LIGHT)
 	Rim.on(mine, "comet", [Color("#fff1c4")], 3.0)
 	var icon := Forge.skill_icon(a, me.elem, 40)
-	icon.position = Vector2(HEAD - 30, -8)
+	icon.position = Vector2(HEAD_SIZE.x - 30, -8)
 	mine.add_child(icon)
 	row.add_child(mine)
 	var mid := Forge.vbox(2)
@@ -432,24 +538,24 @@ func _fill_forecast() -> void:
 ## art show their element. A knocked-out forecast greys the face and marks it with a skull; `badge` is a corner count.
 func _headshot(u: Dictionary, edge: Color, ko := false, badge := "") -> Control:
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(HEAD, HEAD)
+	c.custom_minimum_size = HEAD_SIZE
 	c.size_flags_vertical = SIZE_SHRINK_CENTER
 	c.draw.connect(func():
 		var r := Rect2(Vector2.ZERO, c.size)
 		c.draw_rect(r, Color(Forge.ELEM[u.elem], 0.25))
 		if u.has("portrait"):
-			Forge.portrait(c, tex(u.portrait.src), r.grow(-2), u.portrait, 0.85, "face")
+			Forge.portrait(c, tex(u.portrait.src), r.grow(-2), u.portrait, 0.85, "tile")
 		else:
 			c.draw_texture_rect(Forge.sigil(u.elem), Rect2(r.get_center() - Vector2(26, 34), Vector2(52, 52)), false, Forge.GOLD)
-		c.draw_polygon(PackedVector2Array([Vector2(0, HEAD * 0.55), Vector2(HEAD, HEAD * 0.55), Vector2(HEAD, HEAD), Vector2(0, HEAD)]),
+		c.draw_polygon(PackedVector2Array([Vector2(0, HEAD * 0.55), Vector2(HEAD_SIZE.x, HEAD * 0.55), HEAD_SIZE, Vector2(0, HEAD)]),
 			PackedColorArray([Color(Forge.INK, 0), Color(Forge.INK, 0), Color(Forge.INK, 0.92), Color(Forge.INK, 0.92)]))
 		if ko:
 			c.draw_rect(r, Color(Forge.INK, 0.5))
 			BattleTile.skull(c, r.get_center() + Vector2(0, -8), 1.6)
-		c.draw_string(Forge.tracked(Forge.SC, 1), Vector2(0, HEAD - 8), Battle.name_of(u).to_lower(), HORIZONTAL_ALIGNMENT_CENTER, HEAD, 16, Forge.PARCHMENT)
+		c.draw_string(Forge.tracked(Forge.SC, 1), Vector2(0, HEAD - 8), Battle.name_of(u).to_lower(), HORIZONTAL_ALIGNMENT_CENTER, HEAD_SIZE.x, 16, Forge.PARCHMENT)
 		if badge != "":
-			c.draw_rect(Rect2(HEAD - 40, 0, 40, 22), Color(Forge.INK, 0.9))
-			c.draw_string(Forge.SC, Vector2(HEAD - 40, 17), badge, HORIZONTAL_ALIGNMENT_CENTER, 40, 16, Forge.PARCHMENT)
+			c.draw_rect(Rect2(HEAD_SIZE.x - 40, 0, 40, 22), Color(Forge.INK, 0.9))
+			c.draw_string(Forge.SC, Vector2(HEAD_SIZE.x - 40, 17), badge, HORIZONTAL_ALIGNMENT_CENTER, 40, 16, Forge.PARCHMENT)
 		c.draw_rect(r, edge, false, 3.0))
 	return c
 
@@ -559,6 +665,8 @@ func _fill_chips() -> void:
 ## The selected hero: name, where they stand, their actions, and what to do next. Or the result, once it's over.
 func _fill_panel() -> void:
 	for ch in _panel.get_children():
+		# Out at once, so the old row doesn't count toward the panel's height while the new one comes in.
+		_panel.remove_child(ch)
 		ch.queue_free()
 	if b.phase == "over":
 		var win := b.result == "win"
@@ -568,12 +676,12 @@ func _fill_panel() -> void:
 		if app.run:
 			_settle_run(win)
 			if win:
-				_panel.add_child(Forge.sc("+%d embers gathered · %d on the road" % [_paid, app.run.embers], 22, Forge.GAIN))
+				_panel.add_child(Forge.sc("+%d gold gathered · %d on the road" % [_paid, app.run.embers], 22, Forge.GAIN))
 		elif win:
 			if _paid == 0:
 				_paid = app.town.battle_reward()
 				app.town.earn(_paid)
-			_panel.add_child(Forge.sc("+%d embers to the town" % _paid, 22, Forge.GAIN))
+			_panel.add_child(Forge.sc("+%d gold to the caravan" % _paid, 22, Forge.GAIN))
 		if win:
 			if _spoils == "":
 				var keys := Data.AUGS.keys()
@@ -585,6 +693,12 @@ func _fill_panel() -> void:
 			row.add_child(Forge.sc("+1 augment · %s" % aug.name, 22, Forge.GAIN))
 			row.tooltip_text = aug.desc
 			_panel.add_child(row)
+		if Forge.wide():
+			for ch in _panel.get_children():
+				if ch is Label:
+					ch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				elif ch is BoxContainer:
+					ch.alignment = BoxContainer.ALIGNMENT_CENTER
 		return
 	var u := b.unit(sel_id)
 	if u.is_empty() or not u.alive:
@@ -593,27 +707,43 @@ func _fill_panel() -> void:
 			return
 		u = alive[0]
 		sel_id = u.id
-	var head := Forge.hbox(14)
+	var wide := Forge.wide()
+	var head := Forge.hbox(10 if wide else 14)
+	if wide:
+		head.alignment = BoxContainer.ALIGNMENT_CENTER
 	_panel.add_child(head)
-	var g := Forge.glyph("elem_" + u.elem, 28, Forge.ELEM[u.elem])
+	var g := Forge.glyph("elem_" + u.elem, 20 if wide else 28, Forge.ELEM[u.elem])
 	head.add_child(g)
-	head.add_child(Forge.sc(Battle.name_of(u), 30, Forge.GOLD, true, 0.12))
-	var where := Forge.sc("%s · %s · %s" % [Data.ELEMS[u.elem].label, u.range, b.lane(u.r, u.c)], 18, Forge.LABEL)
+	var who := Forge.sc(Battle.name_of(u), 20 if wide else 30, Forge.GOLD, true, 0.12)
+	head.add_child(who)
+	var where := Forge.sc("%s · %s · %s" % [Data.ELEMS[u.elem].label, u.range, b.lane(u.r, u.c)], 15 if wide else 18, Forge.PARCHMENT if wide else Forge.LABEL)
 	where.size_flags_vertical = SIZE_SHRINK_CENTER
 	head.add_child(where)
+	if wide:
+		_readable(who)
+		_readable(where)
 	if Forge.has_role(u.skills, "healer"):
 		head.add_child(Forge.role_tag("healer", true, 18))
 	if b.phase == "form":
 		_note("Front-row heroes shield their lane from melee. Deeper rows take less from ranged attacks. Reach is on: single-target melee only hits across its own lane, from the front row.")
 		return
-	var skills := Forge.hbox(10)
-	_panel.add_child(skills)
-	for i in u.skills.size():
-		skills.add_child(_act_button(u, "s%d" % i, 64))
-	var basics := Forge.hbox(10)
-	_panel.add_child(basics)
-	for k in ["basic", "guard"]:
-		basics.add_child(_act_button(u, k, 56))
+	if wide:
+		var orbs := Forge.hbox(12)
+		orbs.alignment = BoxContainer.ALIGNMENT_CENTER
+		_panel.add_child(orbs)
+		for i in u.skills.size():
+			orbs.add_child(_orb(u, "s%d" % i))
+		for k in ["basic", "guard"]:
+			orbs.add_child(_orb(u, k))
+	else:
+		var skills := Forge.hbox(10)
+		_panel.add_child(skills)
+		for i in u.skills.size():
+			skills.add_child(_act_button(u, "s%d" % i, 64))
+		var basics := Forge.hbox(10)
+		_panel.add_child(basics)
+		for k in ["basic", "guard"]:
+			basics.add_child(_act_button(u, k, 56))
 	var hint := _hint
 	if hint == "":
 		if u.st.stun > 0:
@@ -686,26 +816,70 @@ func _act_button(u: Dictionary, key: String, h: int) -> Button:
 	bt.button_pressed = sel_act == key or is_queued
 	bt.disabled = _playing or b.phase != "plan" or u.st.stun > 0 or (a.is_skill and u.cd[a.idx] > 0) or b.blocked_reason(b.as_planned(u), a) != ""
 	bt.tooltip_text = "Queued. Tap to take it back." if is_queued else a.get("desc", "")
-	bt.pressed.connect(func():
-		if is_queued:
-			# Already queued: tapping it again takes it back out of the queue.
-			b.dequeue(u.id)
-			_disarm()
-			refresh()
-			return
-		Burst.on(bt, Forge.ELEM[u.elem] if a.is_skill else Forge.GOLD, 54 if a.is_skill else 34, 10 if a.is_skill else 6)
-		if sel_act == key and _aim_at.x >= 0:
-			# Armed already: a second tap casts where it is aimed.
-			_cast(u, _aim_side, _aim_at)
-			return
-		_on_action(key))
+	bt.pressed.connect(_act_pressed.bind(bt, u, key, is_queued))
 	return bt
 
 
+## An action as a small round button on the wide board: the icon alone, its cooldown or queue number on it, and its
+## name and what it does on the line above while the pointer rests on it.
+func _orb(u: Dictionary, key: String) -> Button:
+	var a := b.act(u, key)
+	var bt := Forge.orb(ORB, Forge.ELEM[u.elem] if a.is_skill else Forge.BRONZE)
+	var pic: Control = Forge.skill_icon(a, u.elem, ORB - 16) if a.is_skill else Forge.glyph("type_" + Forge.skill_type(a), 30, Forge.PARCHMENT)
+	bt.add_child(pic)
+	pic.position = (Vector2(ORB, ORB) - pic.custom_minimum_size) / 2
+	var is_queued: bool = b.queued(u.id).get("key", "") == key
+	var mark := ""
+	if is_queued:
+		mark = "#%d" % (queue_index(u) + 1)
+	elif a.is_skill and u.cd[a.idx] == INF:
+		mark = "x"
+	elif a.is_skill and u.cd[a.idx] > 0:
+		mark = str(roundi(u.cd[a.idx]))
+	if mark != "":
+		var l := Forge.sc(mark, 22, Forge.GOLD_LIGHT, true, 0.04)
+		l.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_readable(l)
+		bt.add_child(l)
+	bt.toggle_mode = true
+	bt.button_pressed = sel_act == key or is_queued
+	bt.disabled = _playing or b.phase != "plan" or u.st.stun > 0 or (a.is_skill and u.cd[a.idx] > 0) or b.blocked_reason(b.as_planned(u), a) != ""
+	bt.modulate.a = 0.5 if bt.disabled else 1.0
+	bt.mouse_entered.connect(func():
+		if is_instance_valid(_orb_note):
+			_orb_note.text = "%s: %s" % [a.name, a.desc] if a.get("desc", "") != "" else a.name)
+	bt.pressed.connect(_act_pressed.bind(bt, u, key, is_queued))
+	return bt
+
+
+func _act_pressed(bt: Button, u: Dictionary, key: String, is_queued: bool) -> void:
+	var a := b.act(u, key)
+	if is_queued:
+		# Already queued: tapping it again takes it back out of the queue.
+		b.dequeue(u.id)
+		_disarm()
+		refresh()
+		return
+	Burst.on(bt, Forge.ELEM[u.elem] if a.is_skill else Forge.GOLD, 54 if a.is_skill else 34, 10 if a.is_skill else 6)
+	if sel_act == key and _aim_at.x >= 0:
+		# Armed already: a second tap casts where it is aimed.
+		_cast(u, _aim_side, _aim_at)
+		return
+	_on_action(key)
+
+
 func _note(text: String) -> void:
-	var l := Forge.label(text, 21, Forge.MUTED, Forge.SANS_ITALIC)
+	var wide := Forge.wide()
+	var l := Forge.label(text, 16 if wide else 21, Forge.PARCHMENT if wide else Forge.MUTED, Forge.SANS_ITALIC)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = 0 if Forge.wide() else 632
+	l.custom_minimum_size.x = 860 if wide else 632
+	if wide:
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_readable(l)
+		_orb_note = l
 	_panel.add_child(l)
 
 
@@ -837,7 +1011,7 @@ func on_hover(side: String, r: int, c: int) -> void:
 	_aim_side = side
 	_update_forecast()
 	_fill_forecast()
-	_chips.visible = _fc.is_empty()
+	_chips.visible = not Forge.wide() and _fc.is_empty()
 	_forecast.visible = not _fc.is_empty()
 	_redraw_tiles()
 
@@ -1032,6 +1206,8 @@ func _play() -> void:
 				var tile: BattleTile = _tiles.get("%s%d%d" % [e.id.left(1), was.get("r", -1), was.get("c", -1)])
 				_actor_elem = b.unit(e.id).get("elem", "")
 				Sfx.play("cast" if e.kind in ["heal", "shield", "buff", "guard"] else "swing")
+				if not e.kind in ["heal", "shield", "buff", "guard"]:
+					Voice.play(_voice_key(b.unit(e.id)), "attack")
 				if tile and tile.figure:
 					await get_tree().create_timer(tile.figure.act(e.kind, e.range)).timeout
 					if not is_inside_tree():
@@ -1099,6 +1275,8 @@ func _play() -> void:
 					else:
 						tile.float_text(p.txt, p.cls)
 						heard[p.cls] = true
+						if p.cls in ["hurt", "crit"]:
+							Voice.play(_voice_key(_unit_at(b, view, p.side, p.r, p.c)), "hurt")
 				for cls in heard:
 					var cue: String = {"crit": "crit", "hurt": "hit", "resist": "hit", "blocked": "shield", "mend": "mend",
 						"shield": "shield", "burn": "burn", "stun": "stun"}.get(cls, "")
@@ -1111,6 +1289,7 @@ func _play() -> void:
 						tile.fall()
 				if fallen.size():
 					Sfx.play("ko", 0.04)
+					Voice.play(_voice_key(fallen[0]), "fall")
 				if heavy:
 					_hit_stop()
 					await get_tree().create_timer(HIT_STOP, true, false, true).timeout
@@ -1134,3 +1313,16 @@ func _play() -> void:
 	if first.size():
 		sel_id = first[0].id
 	refresh()
+
+
+## Which voice a unit speaks with: their hero's, or their own key for a foe.
+func _voice_key(u: Dictionary) -> String:
+	return u.get("hero", u.get("key", ""))
+
+
+## The unit standing on a tile of the board as it is being played back.
+func _unit_at(b: Battle, view: Dictionary, side: String, r: int, c: int) -> Dictionary:
+	for id in view:
+		if id.left(1) == side and view[id].get("r", -1) == r and view[id].get("c", -1) == c:
+			return b.unit(id)
+	return {}

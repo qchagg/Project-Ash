@@ -1,4 +1,4 @@
-<title>Ashgrid Playtest</title>
+<title>A Thousand Roads</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@800&family=Alegreya+Sans:ital,wght@1,500&display=swap">
 <style>
@@ -8,15 +8,15 @@ html,body{height:100%;margin:0;background:var(--ink);overflow:hidden;touch-actio
 #canvas{display:block}
 #canvas:focus{outline:none}
 #status{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--ink);color:var(--parch);text-align:center;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-#status b{font-family:var(--display);font-weight:800;font-size:clamp(34px,9vw,52px);color:var(--gold);letter-spacing:.16em;text-transform:lowercase}
+#status b{font-family:var(--display);font-weight:800;font-size:clamp(28px,6.5vw,44px);color:var(--gold);letter-spacing:.12em;text-transform:lowercase}
 #msg{font-family:var(--italic);font-style:italic;font-weight:500;font-size:20px;max-width:30ch;margin:0}
 #bar{width:min(320px,70vw);height:4px;background:rgba(227,194,120,.18);box-shadow:0 0 0 1px var(--gold-deep),0 0 0 5px var(--ink),0 0 0 6px rgba(201,162,79,.5)}
 #bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .2s}
 @media (prefers-reduced-motion:reduce){#bar i{transition:none}}
 </style>
 <canvas id="canvas">Your browser does not support the canvas tag.</canvas>
-<noscript>Ashgrid needs JavaScript to run.</noscript>
-<div id="status" role="status"><b>Ashgrid</b><span id="bar" aria-hidden="true"><i></i></span><p id="msg">Kindling the forge…</p></div>
+<noscript>A Thousand Roads needs JavaScript to run.</noscript>
+<div id="status" role="status"><b>A Thousand Roads</b><span id="bar" aria-hidden="true"><i></i></span><p id="msg">Packing for the road…</p></div>
 <script>
 // Artifacts serve files up to 15 MB and only web types, so the engine (index.wasm, ~40 MB) and the game pack (index.pck)
 // ship as gzipped base64 text (tools/godot-export-web.sh). Unpack them on the way in.
@@ -28,6 +28,13 @@ const unpack = url => _fetch(url + '.gz.b64.txt').then(r => r.text()).then(b64 =
     {headers: {'Content-Type': url.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream'}});
 });
 window.fetch = (url, opts) => /\.(wasm|pck)$/.test(String(url)) ? unpack(String(url)) : _fetch(url, opts);
+// Sound only while the game is in front: a hidden tab stops the game's own loop, so the page suspends its audio directly.
+// Suspending holds the music's place, and it picks up there when the player comes back.
+const Audio_ = window.AudioContext, contexts = [];
+window.AudioContext = class extends Audio_ { constructor(...a) { super(...a); contexts.push(this); hush(); } };
+const inFront = () => document.hasFocus() && !document.hidden;
+function hush() { for (const c of contexts) inFront() ? c.resume() : c.suspend(); }
+for (const [host, event] of [[window, 'blur'], [window, 'focus'], [window, 'pointerdown'], [document, 'visibilitychange']]) host.addEventListener(event, () => setTimeout(hush));
 </script>
 <script src="$GODOT_URL"></script>
 <script>

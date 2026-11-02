@@ -1,12 +1,16 @@
 class_name NavBar
 extends RefCounted
-## Heroes · Expedition · Town: three places, one job each. Expedition, the thing you do most, sits raised in the middle
+## Heroes · Expedition · Caravan: three places, one job each. Expedition, the thing you do most, sits raised in the middle
 ## on a medallion whose ring is always turning; Heroes is who you have, Town is what you build (the Archive, the
-## Infirmary and the rest are inside it). On a wide screen the bar stands up as a rail down the left edge.
+## Infirmary and the rest are inside it). On a wide screen the bar stands up as a slim rail down the left edge: icons
+## alone, so the screens get the width, with each name on hover.
 
-const TABS := [["heroes", "tab_roster"], ["expedition", "tab_expedition"], ["town", "tab_town"]]
+const TABS := [["heroes", "tab_roster"], ["expedition", "tab_expedition"], ["town", "tab_town"], ["menu", "crown"]]
 const BAR_H := 136.0
-const RAIL_W := 176.0
+const RAIL_W := 84.0
+## How far the medallion reaches from its centre, on the rail and on the bar.
+const DISC_RAIL := 34.0
+const DISC_BAR := 58.0
 
 
 static func make(app: App, active: String) -> Control:
@@ -36,9 +40,10 @@ static func _tab(app: App, key: String, glyph_name: String, on: bool, wide: bool
 	b.flat = true
 	b.focus_mode = Control.FOCUS_NONE
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	b.tooltip_text = key.capitalize()
+	var label := "caravan" if key == "town" else key
+	b.tooltip_text = label.capitalize()
 	if wide:
-		b.custom_minimum_size = Vector2(NavBar.RAIL_W, 220 if key == "expedition" else 170)
+		b.custom_minimum_size = Vector2(NavBar.RAIL_W, 110)
 	else:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.pressed.connect(func(): app.show_tab(key))
@@ -52,29 +57,34 @@ static func _tab(app: App, key: String, glyph_name: String, on: bool, wide: bool
 	if key == "expedition":
 		# The medallion: a disc that rises out of the bar, its ring turning, brighter when you are on the road.
 		var m := Control.new()
-		m.custom_minimum_size = Vector2(112, 112) if wide else Vector2(112, 72)
+		var disc := DISC_RAIL if wide else DISC_BAR
+		m.custom_minimum_size = Vector2(disc, disc) * 2.0 if wide else Vector2(112, 72)
 		m.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		m.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var lift := 0.0 if wide else -26.0
 		m.draw.connect(func():
 			var c := Vector2(m.size.x / 2, m.size.y / 2 + lift)
-			m.draw_circle(c, 58, Forge.INK)
-			m.draw_circle(c, 54, Forge.PLAQUE_DEEP)
-			m.draw_texture_rect(Forge.icon("tab_expedition"), Rect2(c - Vector2(30, 30), Vector2(60, 60)), false, Forge.GOLD_LIGHT if on else Forge.GOLD))
+			var k := disc / DISC_BAR
+			m.draw_circle(c, disc, Forge.INK)
+			m.draw_circle(c, 54 * k, Forge.PLAQUE_DEEP)
+			var half := Vector2(30, 30) * k
+			m.draw_texture_rect(Forge.icon("tab_expedition"), Rect2(c - half, half * 2), false, Forge.GOLD_LIGHT if on else Forge.GOLD))
 		v.add_child(m)
 		var ring := Ring.new()
 		ring.on = on
 		ring.lift = lift
+		ring.scale_by = disc / DISC_BAR
 		ring.set_anchors_preset(Control.PRESET_FULL_RECT)
 		m.add_child(ring)
 	else:
 		var g := Forge.glyph(glyph_name, 42, col)
 		g.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		v.add_child(g)
-	var l := Forge.sc(key, 20, Forge.GOLD if key == "expedition" else col, key == "expedition" or on)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(l)
+	if not wide:
+		var l := Forge.sc(label, 20, Forge.GOLD if key == "expedition" else col, key == "expedition" or on)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(l)
 	if on and key != "expedition":
 		# The current tab: a gold bar along the edge the bar meets the screen on.
 		b.draw.connect(func():
@@ -89,6 +99,7 @@ static func _tab(app: App, key: String, glyph_name: String, on: bool, wide: bool
 class Ring extends Control:
 	var on := false
 	var lift := 0.0
+	var scale_by := 1.0
 	var _t := 0.0
 
 	func _ready() -> void:
@@ -100,10 +111,11 @@ class Ring extends Control:
 
 	func _draw() -> void:
 		var c := Vector2(size.x / 2, size.y / 2 + lift)
-		draw_arc(c, 55, 0, TAU, 64, Color(Forge.GOLD_DEEP, 0.9 if on else 0.55), 2.5, true)
+		var rad := 55.0 * scale_by
+		draw_arc(c, rad, 0, TAU, 64, Color(Forge.GOLD_DEEP, 0.9 if on else 0.55), 2.5, true)
 		var head := fposmod(_t * (0.45 if on else 0.2), 1.0) * TAU
 		for i in 18:
 			var k := i / 17.0
-			draw_arc(c, 55, head - 1.1 * (1.0 - k) - 0.07, head - 1.1 * (1.0 - k), 4, Color(Forge.GOLD_LIGHT, k * (0.95 if on else 0.6)), 3.5, true)
-		draw_circle(c + Vector2(cos(head), sin(head)) * 55, 3.5, Forge.GOLD_LIGHT)
-		draw_arc(c, 47, 0, TAU, 48, Color(Forge.GOLD, 0.3), 1.5, true)
+			draw_arc(c, rad, head - 1.1 * (1.0 - k) - 0.07, head - 1.1 * (1.0 - k), 4, Color(Forge.GOLD_LIGHT, k * (0.95 if on else 0.6)), 3.5, true)
+		draw_circle(c + Vector2(cos(head), sin(head)) * rad, 3.5, Forge.GOLD_LIGHT)
+		draw_arc(c, 47.0 * scale_by, 0, TAU, 48, Color(Forge.GOLD, 0.3), 1.5, true)

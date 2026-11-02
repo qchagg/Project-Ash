@@ -1,4 +1,4 @@
-# Project Ash (working title: Ashgrid)
+# A Thousand Roads (repo: Project Ash, formerly Ashgrid)
 
 A turn-based squad battler with a roguelite run structure. You queue your heroes' actions in order (from Seven Knights) on a grid where position, lanes and range shapes matter (from Enchanted Arms). Heroes are cards that merge up in stars and take elemental augments. No monetization of any kind.
 
@@ -24,7 +24,7 @@ A turn-based squad battler with a roguelite run structure. You queue your heroes
 ## Core systems (as of 2026-10-20)
 
 - **Elements:** Water douses Fire → Fire consumes Wind → Wind erodes Earth → Earth dams Water. Opposites are neutral.
-- **Cards:** every copy of a hero rolls its own stats. Two cards of the same star level merge one star up (to 3★); an Ashcrown boss drop makes a 4★. Merged stats keep the best of each, +10% per star.
+- **Stars:** every hero has four stars and arrives at 1★. Each new copy lights the next star (+10% stats, one more augment slot); copies past 4★ turn into embers.
 - **Augments:** one slot per star. Augments are elemental spirits (Salamander, Undine, Gnome, Sylph) that boost a skill, rename it and give the card an aura. They swap freely until a merge locks them.
 
 ## Working on the Godot game

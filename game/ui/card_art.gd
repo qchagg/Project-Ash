@@ -24,7 +24,8 @@ func setup(hero_key: String, star_count: int) -> CardArt:
 	hero = hero_key
 	stars = star_count
 	var h := Data.hero(hero)
-	_card = Faces.CARDS.get(hero, {})
+	# A portrait with its own card crop takes over from older keyed card art.
+	_card = {} if h.portrait.get("crop_card", false) else Faces.CARDS.get(hero, {})
 	# A cut-out portrait (no painted ground) is shown like card art, in the element's glow.
 	if _card.is_empty() and h.portrait.get("keyed", false):
 		_card = {"src": h.portrait.src, "cx": h.portrait.get("cx", 0.5)}

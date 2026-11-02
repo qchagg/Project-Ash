@@ -29,7 +29,7 @@ const ELEM_COLORS := {
 const HEROES := [
 	{"key": "kaede", "favored": ["charm", "finesse"], "bio": "A desert fox who talks his way into palaces and burns his way out.", "name": "Surya", "title": "Desert Fox", "elem": "fire", "range": "ranged",
 		"max_hp": 820, "atk": 150, "def": 40, "spd": 92, "r": 1, "c": 1,
-		"portrait": {"src": "res://art/portraits/kaede.webp", "eyes": [60, 43.5], "chin": 68.5, "crops": {"face": [26, 10, 63.5], "squad": [21.5, 7.5, 66.5], "tile": [7, 6, 68.5]}}, "full": {"src": "res://art/full/kaede.webp", "x": 65, "w": 1.5, "face": [69, 26]},
+		"portrait": {"src": "res://art/portraits/kaede.webp", "eyes": [53, 46], "chin": 66.5, "crops": {"tile": [34, 39, 27.5]}}, "full": {"src": "res://art/full/kaede.webp", "x": 65, "w": 1.5, "face": [69, 26]},
 		"home": "marusthal",
 		"lore": "Surya came to the court of Marusthal as a hostage, a fox-eared boy from a burned oasis, kept as a pledge for his family's good behaviour. He learned the palace the way other children learn prayers: which minister drinks, which queen is lonely, which door the guards forget. By twenty he was the most invited man in the city, and no one could say who had invited him first. He has seduced two treasuries, ended three betrothals and started a war of letters between rival rajas without drawing a blade. When charm runs out, there is foxfire. He says he is looking for the men who burned his oasis. He has been saying it for a long time, and he has never said what he will do when he finds them.", "lines": {
 			"greet": ["Every palace has a back door. I just like to be invited through the front first.",
@@ -43,7 +43,7 @@ const HEROES := [
 		{"name": "Ninefold Blaze", "flavor": "He lets the fire off its leash, and it finds everyone.", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.7, "cd": 4, "fx": {"burn": 1}, "desc": "Nine tails of fire hit every enemy tile."}]},
 	{"key": "brann", "favored": ["resolve", "might"], "bio": "The last rider of a broken host, still holding a border no one else remembers.", "name": "Brann", "title": "Eternal Rider", "elem": "earth", "legacy_elem": "water", "range": "melee",
 		"max_hp": 1400, "atk": 100, "def": 95, "spd": 70, "r": 0, "c": 1,
-		"portrait": {"src": "res://art/portraits/brann.webp", "eyes": [56, 43.5], "chin": 74.5, "crops": {"face": [18, 5.5, 72], "squad": [18, 1, 74.5]}}, "full": {"src": "res://art/full/brann.webp", "x": 50, "w": 1.85, "face": [55, 25]},
+		"portrait": {"src": "res://art/portraits/brann.webp", "eyes": [51, 30], "chin": 43, "crops": {"tile": [36, 21.5, 20], "profile": [26, 3, 36]}, "crop_card": true, "stand": "res://art/stands/brann-stand.webp"}, "full": {"src": "res://art/full/brann.webp", "x": 50, "w": 1.85, "face": [55, 25]},
 		"home": "khorvan",
 		"lore": "Brann rode with the Ninth Host of the Khorvan Steppe, three thousand riders sworn to hold the Ashgate pass. When the pass fell, he was found under his horse with his face laid open from brow to cheek, the only one still breathing. The khans who gave the order are dead, the border has been redrawn twice, and a council he did not attend released the oath. He rides it anyway. Every spring he carves the names of the Ninth into the waystones along the pass, and every spring there is one more stone. Handsome, people say, until they see the scar; then they say it again, more quietly.", "lines": {
 			"greet": ["The host is gone. The border isn't. Someone has to remember where it is.",
@@ -57,7 +57,7 @@ const HEROES := [
 		{"name": "Breakwater", "flavor": "He plants his feet, and the line holds.", "kind": "shield", "pattern": "all", "power": 1.9, "cd": 4, "desc": "Shields every ally. Shields hold until broken."}]},
 	{"key": "sorrel", "favored": ["finesse", "wits"], "bio": "A centaur archer who reads the wind like scripture and rarely needs a second arrow.", "name": "Sorrel", "title": "Gale Archer", "elem": "wind", "range": "ranged",
 		"max_hp": 900, "atk": 135, "def": 45, "spd": 105, "r": 1, "c": 0,
-		"portrait": {"src": "res://art/portraits/sorrel.webp", "eyes": [48.5, 40.5], "chin": 67, "crops": {"squad": [12, 7.5, 65.5], "tile": [0, 0.5, 73.5]}}, "full": {"src": "res://art/full/sorrel.webp", "x": 50, "w": 1.4, "face": [51, 35]},
+		"portrait": {"src": "res://art/portraits/sorrel.webp", "eyes": [46.5, 41], "chin": 61, "crops": {"tile": [27.5, 32, 28], "profile": [22, 4.5, 44.5]}, "stand": "res://art/stands/sorrel-stand.webp"}, "full": {"src": "res://art/full/sorrel.webp", "x": 50, "w": 1.4, "face": [51, 35]},
 		"home": "gwyntmoor",
 		"lore": "The herds of Gwyntmoor teach their foals to read the wind before they read anything else, and Sorrel was the best reader the ridges had seen in a generation. He was also the vainest, which the herd forgave for exactly as long as he kept winning the autumn shoot. He left the year the elders ordered a raid on a rival herd's winter grazing; he would not loose an arrow at foals, and said so in front of everyone. Now he hires out his bow to anyone with a fair cause and a good table. He braids silver into his hair before every fight. If the wind is going to carry his name, he says, it may as well carry it looking well.", "lines": {
 			"greet": ["The wind says you're about to ask me something. Go on.",
@@ -71,7 +71,7 @@ const HEROES := [
 		{"name": "Pinning Shot", "flavor": "One arrow, and the target forgets how to move.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.7, "cd": 3, "fx": {"stun": 1}, "desc": "Precise shot that pins one target in place."}]},
 	{"key": "ilse", "favored": ["lore", "charm"], "bio": "Tide chantress of Jaladesh, once cursed as a sea-witch.", "name": "Varuni", "title": "Tide Chantress", "elem": "water", "range": "ranged",
 		"max_hp": 850, "atk": 95, "def": 50, "spd": 88, "r": 2, "c": 2,
-		"portrait": {"src": "res://art/portraits/ilse-v2.webp", "eyes": [51, 45], "chin": 56, "crops": {"face": [35.5, 30.5, 29.5], "squad": [36, 30.5, 29.5], "tile": [29.5, 30.5, 30]}}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
+		"portrait": {"src": "res://art/portraits/ilse.webp", "eyes": [51, 44], "chin": 60, "crops": {"tile": [33, 34.5, 21]}, "crop_card": true}, "full": {"src": "res://art/full/ilse.webp", "x": 60, "w": 1.6, "origin": [29, 309], "face": [55, 22]},
 		"lines": {
 			"greet": ["The ports used to hang lamps for me. I liked it better when they cursed me; it was quieter.",
 				"You called. The tide always answers, eventually. I am usually faster.",
@@ -86,23 +86,23 @@ const HEROES := [
 	# Playable versions of the Basalt Golem and Galeblade foes: same stats and kits, their own keys and art.
 	{"key": "rock", "favored": ["might", "resolve"], "bio": "A mountain that woke up, and has not yet decided whether it likes people.", "name": "Basalt", "title": "Living Mountain", "elem": "earth", "range": "melee",
 		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 2,
-		"portrait": {"src": "res://art/portraits/rock.webp", "eyes": [45, 39], "chin": 52}, "full": {"src": "res://art/full/rock.webp", "x": 49, "w": 1.5, "face": [44, 16]},
+		"portrait": {"src": "res://art/portraits/rock.webp", "eyes": [48.5, 45.5], "chin": 67.5, "crops": {"tile": [29.5, 27, 23.5]}}, "full": {"src": "res://art/full/rock.webp", "x": 49, "w": 1.5, "face": [44, 16]},
 		"home": "hraunvald",
 		"lore": "The kings of Hraunvald carved their guardians from cooling lava and sang them awake, one for each gate of the fire-city. The kings are gone and the city lies under ash, but Basalt kept his gate for four hundred years after there was nothing left to guard. Travellers who sheltered in his doorway found a fire already lit and fish laid out to dry, and no one to thank. He walked away the morning a child asked him what he was waiting for, and he could not answer. He is slow to speak and slower to anger, and he still lights a fire for anyone who sleeps near him.", "skills": [
 		{"name": "Magma Fist", "flavor": "Stone, heated until it remembers being lava.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.5, "cd": 3, "fx": {"burn": 2}, "desc": "A molten blow to one exposed enemy. Burns for 2 rounds."},
 		{"name": "Quake", "flavor": "He stamps once, and the whole row loses its footing.", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 0.8, "cd": 3, "desc": "Shakes a full row."}]},
 	{"key": "leaf", "favored": ["finesse", "wits"], "bio": "A duelist sworn to guard the forest, and slowly becoming it.", "name": "Galeblade", "title": "Thicket Duelist", "elem": "wind", "range": "melee",
 		"max_hp": 950, "atk": 145, "def": 40, "spd": 110, "r": 0, "c": 0,
-		"portrait": {"src": "res://art/portraits/leaf.webp", "eyes": [53, 44.5], "chin": 54}, "full": {"src": "res://art/full/leaf.webp", "x": 50, "w": 1.35, "face": [56, 35]},
+		"portrait": {"src": "res://art/portraits/leaf.webp", "eyes": [56.5, 47], "chin": 64, "crops": {"tile": [41, 35.5, 20.5]}}, "full": {"src": "res://art/full/leaf.webp", "x": 50, "w": 1.35, "face": [56, 35]},
 		"home": "vetroles",
 		"lore": "Galeblade swore to guard Vetrolés for as long as the forest needed him, and the forest took him at his word. Each year the leaves grow further over him: first a cloak, then a mantle, now a thicket that rustles when there is no wind and no longer comes off. He has forgotten his face, and some mornings his name. He still challenges every trespasser to one duel, first blood, and still keeps his word to those who win. The woodcutters who knew him as a man leave bread at the old shrine. Lately it is not always gone by morning, and the paths have started to wander. They say the oath will be done when there is nothing left of him but forest. He has never said otherwise.", "skills": [
 		{"name": "Gust Step", "flavor": "A rustle of leaves, and he is already behind you.", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.6, "cd": 4, "fx": {"stun": 1}, "desc": "Steps through the wind to strike one enemy. Stuns it for its next action."},
 		{"name": "Cyclone Cut", "flavor": "The thicket spins, and everything in it is cut.", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 1.0, "cd": 2, "desc": "A spinning cut across a full row."}]},
 	{"key": "snake", "favored": ["lore", "wits"], "bio": "A serpent scholar of the island archives who reads the wind's grammar and corrects it.", "name": "Snake", "title": "Archive Serpent", "elem": "wind", "range": "ranged",
 		"max_hp": 900, "atk": 105, "def": 55, "spd": 92, "r": 2, "c": 1,
-		"portrait": {"src": "res://art/faces/snake.webp", "eyes": [43, 29], "chin": 42, "keyed": true, "cx": 0.48}, "full": {"src": "res://art/sprites/snake.webp", "x": 30, "w": 1.25, "face": [42, 9]},
-		"home": "lautlangit",
-		"lore": "[Working bio: the name and story are placeholders until his real ones are settled.] The island scribes of Lautlangit say the serpents were the first to write, coiling their letters into the sand. This one never stopped. He travels with a braid of brass rings, one for every library he has read to the last page, and he is running out of braid.",
+		"portrait": {"src": "res://art/portraits/snake.webp", "eyes": [48.5, 33.5], "chin": 54.5, "crops": {"tile": [23, 19.5, 30], "profile": [26.5, 0.5, 39.5]}, "stand": "res://art/stands/snake-stand.webp"}, "full": {"src": "res://art/sprites/snake.webp", "x": 30, "w": 1.25, "face": [42, 9]},
+		"home": "yuling",
+		"lore": "[Working bio: the name and story are placeholders until his real ones are settled.] The cliff scribes of Yuling say the serpents were the first to write, coiling their letters into the sand. This one never stopped. He travels with a braid of brass rings, one for every library he has read to the last page, and he is running out of braid.",
 		"lines": {
 			"greet": ["You stand as if you expect me to bite. I only bite arguments.",
 				"Patience. The wind has a sentence to finish.",
@@ -115,9 +115,9 @@ const HEROES := [
 		{"name": "Molt", "flavor": "He sheds the blow, and so does everyone near him.", "kind": "shield", "pattern": "all", "power": 1.6, "cd": 4, "desc": "Shields every ally. Shields hold until broken."}]},
 	{"key": "smoke", "favored": ["might", "finesse"], "bio": "A masked brawler who fights like a fire that has learned to wait.", "name": "Smoke", "title": "Masked Ember", "elem": "fire", "range": "melee",
 		"max_hp": 1250, "atk": 120, "def": 70, "spd": 98, "r": 0, "c": 2,
-		"portrait": {"src": "res://art/faces/smoke.webp", "eyes": [53, 44], "chin": 57, "keyed": true, "cx": 0.5}, "full": {"src": "res://art/sprites/smoke.webp", "x": 41, "w": 1.0, "face": [41, 6]},
-		"home": "xochitlan",
-		"lore": "[Working bio: a placeholder until his real story is settled.] Nobody in the smoking hills of Xochitlan has seen his face. The mask is red so that the blood never shows, he says, though no one has ever seen him bleed. He fights barehanded because, he claims, weapons make people careless.",
+		"portrait": {"src": "res://art/portraits/smoke.webp", "eyes": [49.5, 45.5], "chin": 65.5, "crops": {"tile": [31, 35.5, 28]}}, "full": {"src": "res://art/sprites/smoke.webp", "x": 41, "w": 1.0, "face": [41, 6]},
+		"home": "velata",
+		"lore": "[Working bio: a placeholder until his real story is settled.] Nobody in the silk quarters of Velata has seen his face. The mask is red so that the blood never shows, he says, though no one has ever seen him bleed. He fights barehanded because, he claims, weapons make people careless.",
 		"lines": {
 			"greet": ["Talk if you must. I listen better than I speak.",
 				"The mask stays on. Ask me something else.",
@@ -130,8 +130,8 @@ const HEROES := [
 		{"name": "Ash Veil", "flavor": "He disappears into his own smoke, and the whole row pays for it.", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 0.9, "cd": 3, "desc": "Sweeps a full row."}]},
 	{"key": "seer", "favored": ["lore", "resolve"], "bio": "A blindfolded seer who sees the fire coming because she has already watched it burn.", "name": "Seer", "title": "Ashen Seer", "elem": "fire", "range": "ranged",
 		"max_hp": 820, "atk": 125, "def": 40, "spd": 94, "r": 2, "c": 2,
-		"portrait": {"src": "res://art/faces/seer.webp", "eyes": [47, 32], "chin": 45, "keyed": true, "cx": 0.5}, "full": {"src": "res://art/sprites/seer.webp", "x": 46, "w": 1.0, "face": [48, 6]},
-		"home": "djeliba",
+		"portrait": {"src": "res://art/portraits/seer.webp", "eyes": [50, 45.5], "chin": 66.5, "crops": {"tile": [31.5, 33.5, 26]}}, "full": {"src": "res://art/sprites/seer.webp", "x": 46, "w": 1.0, "face": [48, 6]},
+		"home": "mehfil",
 		"lore": "[Working bio: a placeholder until the Seer's real story is settled.] The Seer tied the blindfold on the night her visions began and has not taken it off. The red ribbons are prophecies she has given that came true; there are more of them every year, and fewer people willing to ask.",
 		"lines": {
 			"greet": ["I knew you'd come. Not why; just that you would.",
@@ -143,11 +143,11 @@ const HEROES := [
 		"skills": [
 		{"name": "Ember Rain", "flavor": "She opens her hand, and the sky remembers how to burn.", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.55, "cd": 4, "fx": {"burn": 1}, "desc": "Embers fall on every enemy tile. Burns for 1 round."},
 		{"name": "Flare", "flavor": "One spark, aimed where the enemy will be.", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.6, "cd": 2, "desc": "A searing shot at one target."}]},
-	{"key": "caller", "favored": ["charm", "lore"], "bio": "A horned tide-singer from the coral coast who calls the sea in and asks it to stay.", "name": "Tidecaller", "title": "Coral Cantor", "elem": "water", "range": "ranged",
+	{"key": "caller", "favored": ["charm", "lore"], "bio": "A horned tide-singer from the frozen coast who calls the sea in under the ice and asks it to stay.", "name": "Tidecaller", "title": "Coral Cantor", "elem": "water", "range": "ranged",
 		"max_hp": 880, "atk": 110, "def": 48, "spd": 86, "r": 1, "c": 2,
-		"portrait": {"src": "res://art/faces/tidecaller.webp", "eyes": [50, 35], "chin": 47, "keyed": true, "cx": 0.5}, "full": {"src": "res://art/sprites/tidecaller.webp", "x": 42, "w": 1.0, "face": [28, 4]},
-		"home": "mwambao",
-		"lore": "[Working bio: a placeholder until the Tidecaller's real story is settled.] On the Mwambao coast the tide comes when it is called, and for a generation it has been this one calling. The white braids are salt-bleached; the gold is from wrecks the sea gave back as thanks.",
+		"portrait": {"src": "res://art/portraits/caller.webp", "eyes": [52.5, 41], "chin": 57.5, "crops": {"tile": [35.5, 31.5, 21]}}, "full": {"src": "res://art/sprites/tidecaller.webp", "x": 42, "w": 1.0, "face": [28, 4]},
+		"home": "sikuvik",
+		"lore": "[Working bio: a placeholder until the Tidecaller's real story is settled.] On the Sikuvik coast the tide comes when it is called, and for a generation it has been this one calling. The white braids are frost-bleached; the gold is from wrecks the sea gave back as thanks.",
 		"lines": {
 			"greet": ["Listen. Under everything, there's surf.",
 				"The tide doesn't hurry, and neither do I.",
@@ -167,7 +167,7 @@ const HEROES := [
 ## its panels, the light carries its sigil (art/icons/ui/region_<key>.svg) and accents.
 const REGIONS := {
 	"jaladesh": {"name": "Jaladesh", "dark": Color("#0d2629"), "light": Color("#e895b4"),
-		"desc": "A delta of a thousand channels, stilt villages and lotus lamps on the water.",
+		"desc": "A delta of a thousand channels under the domes of the Lotus Palace, with boats and lotus lamps on the water.",
 		"inspired": "The Bengal delta and the Sundarbans; Bangla and Sanskrit (jala, water)."},
 	"marusthal": {"name": "Marusthal", "dark": Color("#2b1310"), "light": Color("#e6b47c"),
 		"desc": "Salt-white dunes, red sandstone palace cities and caravans that travel by moonlight.",
@@ -176,10 +176,10 @@ const REGIONS := {
 		"desc": "An ocean of grass under an enormous sky, where the horse herds outnumber the people a hundred to one.",
 		"inspired": "The Kazakh and Mongolian steppe."},
 	"gwyntmoor": {"name": "Gwyntmoor", "dark": Color("#1b1722"), "light": Color("#b8a0d0"),
-		"desc": "High moors where the wind never stops: stone circles, and centaur herds running the ridgelines.",
+		"desc": "Golden grasslands running up from the forest edge to high moors, where the wind never stops and the stone circles stand.",
 		"inspired": "Welsh uplands; Welsh (gwynt, wind)."},
 	"hraunvald": {"name": "Hraunvald", "dark": Color("#121414"), "light": Color("#7ccbc1"),
-		"desc": "Black lava fields that still steam, hot springs, and a fallen kingdom carved into the side of a volcano.",
+		"desc": "Black lava fields that still steam, and a city carved into the side of a volcano, lit green by its hot springs.",
 		"inspired": "Iceland; Icelandic (hraun, lava field)."},
 	"vetroles": {"name": "Vetrolés", "dark": Color("#0f1d14"), "light": Color("#93c96b"),
 		"desc": "A windswept forest where the trees whisper and the paths rearrange themselves overnight.",
@@ -199,6 +199,21 @@ const REGIONS := {
 	"lautlangit": {"name": "Lautlangit", "dark": Color("#2a1a12"), "light": Color("#e8e2d0"),
 		"desc": "A thousand volcanic islands where the sea and the sky meet, sailed by people who were born on boats.",
 		"inspired": "The Malay archipelago; Malay and Indonesian (laut, sea; langit, sky)."},
+	"sikuvik": {"name": "Sikuvik", "dark": Color("#0e1a2e"), "light": Color("#a9dcf5"),
+		"desc": "A frozen coral coast of ice cathedrals and lantern-lit harbours, where the sea still rises when it is sung to.",
+		"inspired": "The Arctic coast of the Inuit; Inuktitut (siku, sea ice; -vik, place of)."},
+	"aurelia": {"name": "Aurelia", "dark": Color("#1a1626"), "light": Color("#c9a6e8"),
+		"desc": "A marble capital climbing tier on tier above a broad river, under purple banners and a thousand lit windows.",
+		"inspired": "Imperial Rome and Constantinople; Latin (aurum, gold)."},
+	"mehfil": {"name": "Mehfil", "dark": Color("#2a1020"), "light": Color("#ff8fb0"),
+		"desc": "A travelling village of red lanterns and silk pavilions, pitched under giant trees and gone again by morning.",
+		"inspired": "Mughal and Persian evening gatherings; Urdu (mehfil, a gathering of song and pleasure)."},
+	"velata": {"name": "Velata", "dark": Color("#24100c"), "light": Color("#ff7a45"),
+		"desc": "A baroque city of black domes and silk under an ember sky. Everyone wears a veil, and every street has a door you were not shown.",
+		"inspired": "Masked Venice and the silk cities of Lyon and Lucca; Italian (velata, veiled)."},
+	"yuling": {"name": "Yuling", "dark": Color("#0f2420"), "light": Color("#9fd8c0"),
+		"desc": "Jade peaks rising out of the mist, with monasteries clinging to the cliffs and a great river winding far below.",
+		"inspired": "The karst peaks of Zhangjiajie and the Wudang monasteries; Chinese (yu, jade; ling, ridge)."},
 }
 
 const APTITUDES := {
@@ -251,15 +266,15 @@ const STATS := ["max_hp", "atk", "def", "spd"]
 ## height against the others, set in the Battle Sprites viewer. `anim` is a sheet of idle frames (`cols` across).
 ## The golem has no full-body art yet, so it stands in with its waist-up cutout (`bust`).
 const SPRITES := {
-	"kaede": {"src": "res://art/sprites/surya.webp", "size": 1.05},
-	"brann": {"src": "res://art/sprites/brann.webp", "size": 1.08},
-	"sorrel": {"src": "res://art/sprites/sorrel.webp", "size": 1.08},
-	"ilse": {"src": "res://art/sprites/varuni.webp", "size": 1.04,
+	"kaede": {"src": "res://art/sprites/surya.webp", "size": 1.0},
+	"brann": {"src": "res://art/sprites/brann.webp", "size": 1.1},
+	"sorrel": {"src": "res://art/sprites/sorrel.webp", "size": 1.16},
+	"ilse": {"src": "res://art/sprites/varuni.webp", "size": 1.0,
 		"anim": {"src": "res://art/sprites/varuni-idle.webp", "w": 436, "h": 560, "cols": 9, "n": 61, "fps": 12}},
 	"leaf": {"src": "res://art/sprites/galeblade.webp", "size": 1.14},
-	"blade": {"src": "res://art/sprites/galeblade.webp", "size": 1.14},
+	"blade": {"as": "leaf", "size": 1.14},
 	"caller": {"src": "res://art/sprites/tidecaller.webp", "size": 1.10},
-	"seer": {"src": "res://art/sprites/seer.webp", "size": 1.01, "faces": "right"},
+	"seer": {"src": "res://art/sprites/seer.webp", "size": 1.01},
 	# The golem foe stands in as Smoke for now (see Battle.FOES).
 	"golem": {"as": "smoke", "size": 1.05},
 	"snake": {"size": 1.06},

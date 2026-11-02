@@ -96,8 +96,7 @@ func refresh() -> void:
 	names.add_child(tl)
 	tl.add_child(_hairline(52))
 	tl.add_child(Forge.sc(h.title, 24, Forge.GOLD))
-	for i in c.stars:
-		tl.add_child(Forge.glyph("star", 20, Data.TIER_COLORS[c.stars].lightened(0.15)))
+	tl.add_child(Forge.stars(c.stars, 20))
 	tl.add_child(_hairline(52))
 	var kind := Forge.sc("%s · %s" % [Data.ELEMS[h.elem].label, h.range], 20, Forge.LABEL)
 	kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -111,7 +110,7 @@ func refresh() -> void:
 	col.add_child(_stats(c))
 	var acts := Forge.hbox(20)
 	col.add_child(acts)
-	for m in [["evolve", "Copies, feeding and the Ashcrown"], ["equip", "Augment slots"]]:
+	for m in [["evolve", "Stars and copies"], ["equip", "Augment slots"]]:
 		var b := Forge.ember(m[0], 72)
 		b.size_flags_horizontal = SIZE_EXPAND_FILL
 		b.tooltip_text = m[1]
@@ -204,7 +203,7 @@ func _stat_pop(c: Dictionary) -> void:
 	var x := chip.get_global_rect().get_center().x
 	_float(_row, x, func(lines: VBoxContainer):
 		lines.add_child(Forge.sc(Forge.STAT_NAME[open_stat], 22, Forge.GOLD))
-		lines.add_child(_kv("This copy", str(s[open_stat]), Forge.PARCHMENT))
+		lines.add_child(_kv("At %d★" % c.stars, str(s[open_stat]), Forge.PARCHMENT))
 		lines.add_child(_kv("%s’s average" % Data.hero(hero).name, str(Data.hero(hero)[open_stat]), Forge.PARCHMENT))
 		if c.stars > 1:
 			lines.add_child(_kv("Star bonus (%d★)" % c.stars, "+%d%%" % roundi(Collection.STAR_BONUS * (c.stars - 1) * 100), Forge.GAIN)))

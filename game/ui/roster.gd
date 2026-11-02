@@ -1,15 +1,27 @@
 class_name Roster
 extends Control
-## The roster: one tile per hero with its copies stacked (×3), name below the art.
-## Tap a hero to open their sheet; merging happens there, not here.
+## The roster: one tile per hero with its copies stacked (×3), name below the art. Tap a hero to open their sheet;
+## merging happens there, not here. A wide screen lines the cast up as tall strips with the filters down the left, and
+## a small switch shows them standing as fighters instead.
 
 const TILE_W := 299
 ## Cards stand 2:3, taller than the 3:4 they started at, so the art has room above the face.
 const ART_H := 448
+## Cards across a wide screen and their size, still 2:3.
+const WIDE_COLS := 6
+const WIDE_W := 192
+const WIDE_H := 288
+## The wide strips: tall, narrow, and running off the edge when the whole cast is showing.
+const STRIP := Vector2(200, 548)
+const SIDE_W := 200.0
+
+## Wide only: show the cast as standing fighters rather than cards; kept while you move between screens.
+static var models := false
 
 var app: App
 var tab := "heroes"
 var _grid: GridContainer
+var _strips: ScrollContainer
 
 
 func setup(a: App) -> Roster:
@@ -18,11 +30,17 @@ func setup(a: App) -> Roster:
 
 
 func _ready() -> void:
+	var glow := Painted.new().setup("dream")
+	add_child(glow)
+	glow.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	if Forge.wide():
+		_wide()
+		return
 	var root := Forge.vbox(0)
 	root.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(root)
 
-	var head := Forge.margins(MarginContainer.new(), 40, 26, 40, 0) if Forge.wide() else Forge.margins(MarginContainer.new(), 44, 56, 44, 0)
+	var head := Forge.margins(MarginContainer.new(), 56, 34, 56, 0) if Forge.wide() else Forge.margins(MarginContainer.new(), 44, 56, 44, 0)
 	root.add_child(head)
 	var hv := Forge.vbox(30)
 	head.add_child(hv)
@@ -32,12 +50,13 @@ func _ready() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	top.add_child(spacer)
-	top.add_child(_chip("crown", Forge.GOLD, app.col.crowns, "Ashcrowns", "Raise a 3★ card to 4★ on its Evolve page."))
-	top.add_child(_chip("augment", Forge.GOLD_LIGHT, app.col.loose.size(), "Loose augments", "Augments not slotted on any card. Fit them to a skill on a card's Equip page."))
+	top.add_child(_chip("augment", Forge.GOLD_LIGHT, app.col.loose.size(), "Loose augments", "Augments not fitted to any hero. Fit them to a skill on a hero's Equip page."))
 	top.add_child(Forge.sound_toggle())
 
-	var filters := Forge.hbox(8)
+	var filters := Forge.hbox(16 if Forge.wide() else 8)
 	hv.add_child(filters)
+	if Forge.wide():
+		hv.add_theme_constant_override("separation", 22)
 	filters.add_child(_filter("", "star", Forge.GOLD))
 	for e in ["fire", "water", "earth", "wind"]:
 		filters.add_child(_filter(e, e, Forge.ELEM[e]))
@@ -47,22 +66,138 @@ func _ready() -> void:
 	var count := Forge.sc("%d heroes" % Data.HEROES.size(), 18, Forge.DIM)
 	count.size_flags_vertical = SIZE_SHRINK_CENTER
 	filters.add_child(count)
+	if Forge.wide():
+		var sep := Control.new()
+		sep.custom_minimum_size.x = 40
+		filters.add_child(sep)
+		filters.add_child(_view_switch())
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	root.add_child(scroll)
-	var pad := Forge.margins(MarginContainer.new(), 40, 8, 40, 24) if Forge.wide() else Forge.margins(MarginContainer.new(), 44, 48, 44, 48)
+	var pad := Forge.margins(MarginContainer.new(), 56, 24, 56, 40) if Forge.wide() else Forge.margins(MarginContainer.new(), 44, 48, 44, 48)
 	pad.size_flags_horizontal = SIZE_EXPAND_FILL
 	scroll.add_child(pad)
 	_grid = GridContainer.new()
-	# Wide: the whole cast standing in one row, as fighters. Phone: cards, two across.
-	_grid.columns = 6 if Forge.wide() else 2
-	_grid.add_theme_constant_override("h_separation", 12 if Forge.wide() else 34)
-	_grid.add_theme_constant_override("v_separation", 56)
+	# Wide: cards across the screen, or the cast standing as fighters. Phone: cards, two across.
+	_grid.columns = WIDE_COLS if Forge.wide() else 2
+	_grid.add_theme_constant_override("h_separation", 24 if Forge.wide() else 34)
+	_grid.add_theme_constant_override("v_separation", 36 if Forge.wide() else 56)
 	pad.add_child(_grid)
 	_fill()
+
+
+## Filters down the left, the title along the top, and the cast filling the rest.
+func _wide() -> void:
+	var row := Forge.hbox(0)
+	row.set_anchors_preset(PRESET_FULL_RECT)
+	add_child(row)
+	var side := Forge.margins(MarginContainer.new(), 40, 118, 10, 30)
+	side.custom_minimum_size.x = SIDE_W
+	row.add_child(side)
+	var list := Forge.vbox(14)
+	side.add_child(list)
+	list.add_child(_side_filter("", "star", Forge.GOLD, "all"))
+	for e in ["fire", "water", "earth", "wind"]:
+		list.add_child(_side_filter(e, e, Forge.ELEM[e], Data.ELEMS[e].label))
+	var main := Forge.vbox(24)
+	main.size_flags_horizontal = SIZE_EXPAND_FILL
+	row.add_child(main)
+	var head := Forge.margins(MarginContainer.new(), 10, 34, 40, 0)
+	main.add_child(head)
+	var top := Forge.hbox(26)
+	head.add_child(top)
+	top.add_child(Forge.sc("Heroes", 40, Forge.GOLD, true, 0.16))
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
+	top.add_child(spacer)
+	var count := Forge.sc("%d heroes" % Data.HEROES.size(), 18, Forge.DIM)
+	count.size_flags_vertical = SIZE_SHRINK_CENTER
+	top.add_child(count)
+	top.add_child(_view_switch())
+	top.add_child(_chip("augment", Forge.GOLD_LIGHT, app.col.loose.size(), "Loose augments", "Augments not fitted to any hero. Fit them to a skill on a hero's Equip page."))
+	top.add_child(Forge.sound_toggle())
+	if models:
+		var scroll := ScrollContainer.new()
+		scroll.size_flags_vertical = SIZE_EXPAND_FILL
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		main.add_child(scroll)
+		_grid = GridContainer.new()
+		_grid.columns = WIDE_COLS
+		_grid.add_theme_constant_override("h_separation", 24)
+		_grid.add_theme_constant_override("v_separation", 36)
+		scroll.add_child(_grid)
+		_fill()
+		return
+	_strips = ScrollContainer.new()
+	_strips.size_flags_vertical = SIZE_EXPAND_FILL
+	_strips.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_strips.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	main.add_child(_strips)
+	var line := Forge.hbox(12)
+	_strips.add_child(line)
+	for h in Data.HEROES:
+		if app.filter != "" and h.elem != app.filter:
+			continue
+		var copies := app.copies(h.key)
+		if not copies.is_empty():
+			line.add_child(_strip(h, copies[0]))
+	var tail := Control.new()
+	tail.custom_minimum_size.x = 28
+	line.add_child(tail)
+
+
+## A filter with its name beside it, for the side column.
+func _side_filter(elem: String, glyph: String, tint: Color, label: String) -> Control:
+	var row := Forge.hbox(14)
+	var b := _filter(elem, glyph, tint)
+	row.add_child(b)
+	var l := Forge.sc(label, 18, Forge.GOLD_LIGHT if app.filter == elem else Forge.DIM)
+	l.size_flags_vertical = SIZE_SHRINK_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(l)
+	l.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	l.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			b.pressed.emit())
+	return row
+
+
+func _strip(h: Dictionary, card: Dictionary) -> Control:
+	var s := Strip.new()
+	s.hero = h
+	s.stars = card.stars
+	s.fielded = card.uid in app.col.squad
+	s.custom_minimum_size = STRIP
+	s.gui_input.connect(func(e: InputEvent):
+		if not e is InputEventMouseButton or not e.pressed:
+			return
+		if e.button_index == MOUSE_BUTTON_LEFT:
+			app.show_hero(h.key)
+		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_strips.scroll_horizontal += 80
+		elif e.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_strips.scroll_horizontal -= 80)
+	var v := Forge.vbox(6)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.alignment = BoxContainer.ALIGNMENT_END
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.offset_bottom = -20
+	s.add_child(v)
+	var name := Forge.sc(h.name, 20, Forge.PARCHMENT, true, 0.1)
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(name)
+	var title := Forge.sc(h.title, 13, Forge.LABEL, false, 0.08)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	var stars := Forge.stars(card.stars, 14)
+	v.add_child(stars)
+	for c in [name, title, stars]:
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return s
 
 
 func _fill() -> void:
@@ -88,10 +223,13 @@ func _tile(h: Dictionary, copies: Array) -> Control:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			app.show_hero(h.key))
 
-	if Forge.wide():
+	if Forge.wide() and models:
 		return _figure_tile(h, copies, best, fielded)
+	if Forge.wide():
+		tile.custom_minimum_size.x = WIDE_W
+		tile.add_theme_constant_override("separation", 14)
 	var art := CardArt.new().setup(h.key, best.stars)
-	art.custom_minimum_size = Vector2(TILE_W, ART_H)
+	art.custom_minimum_size = Vector2(WIDE_W, WIDE_H) if Forge.wide() else Vector2(TILE_W, ART_H)
 	tile.add_child(art)
 	art.overlay = func(ci: Control):
 		if fielded:
@@ -112,16 +250,13 @@ func _tile(h: Dictionary, copies: Array) -> Control:
 
 	var plate := Forge.vbox(6)
 	tile.add_child(plate)
-	var name := Forge.sc(h.name, 35, Forge.PARCHMENT, true, 0.12)
+	var name := Forge.sc(h.name, 24 if Forge.wide() else 35, Forge.PARCHMENT, true, 0.12)
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plate.add_child(name)
-	var title := Forge.sc(h.title, 20, Forge.LABEL)
+	var title := Forge.sc(h.title, 15 if Forge.wide() else 20, Forge.LABEL)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	plate.add_child(title)
-	var stars := Forge.hbox(4)
-	stars.alignment = BoxContainer.ALIGNMENT_CENTER
-	for i in best.stars:
-		stars.add_child(Forge.glyph("star", 18, Data.TIER_COLORS[best.stars].lightened(0.15)))
+	var stars := Forge.stars(best.stars, 18)
 	plate.add_child(stars)
 	for c in [art, plate, name, title, stars]:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -154,14 +289,22 @@ func _figure_tile(h: Dictionary, copies: Array, best: Dictionary, fielded: bool)
 	var title := Forge.sc(h.title, 16, Forge.LABEL)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tile.add_child(title)
-	var stars := Forge.hbox(4)
-	stars.alignment = BoxContainer.ALIGNMENT_CENTER
-	for i in best.stars:
-		stars.add_child(Forge.glyph("star", 16, Data.TIER_COLORS[best.stars].lightened(0.15)))
+	var stars := Forge.stars(best.stars, 16)
 	tile.add_child(stars)
 	for c in [name, title, stars]:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return tile
+
+
+## The small cards / models switch beside the filters.
+func _view_switch() -> Control:
+	var row := Forge.hbox(44)
+	row.size_flags_vertical = SIZE_SHRINK_CENTER
+	for on in [false, true]:
+		row.add_child(Forge.seg("models" if on else "cards", models == on, func():
+			models = on
+			app.show_roster()))
+	return row
 
 
 ## A resource count; tapping it floats what the resource is for.
@@ -194,7 +337,7 @@ func _chip(glyph: String, tint: Color, n: int, title: String, about: String) -> 
 
 func _filter(elem: String, glyph: String, tint: Color) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(80, 80)
+	b.custom_minimum_size = Vector2(56, 56) if Forge.wide() else Vector2(80, 80)
 	b.focus_mode = Control.FOCUS_NONE
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	b.tooltip_text = "All" if elem == "" else Data.ELEMS[elem].label
@@ -213,3 +356,40 @@ func _filter(elem: String, glyph: String, tint: Color) -> Button:
 		app.filter = elem
 		app.show_roster())
 	return b
+
+
+## One hero as a tall strip: their face in their element's light, fading into the name at the foot, a bar in their tier's
+## colour under it. Lifts to gold under the cursor.
+class Strip extends Control:
+	var hero := {}
+	var stars := 1
+	var fielded := false
+	var _tex: Texture2D
+	var _over := false
+
+	func _ready() -> void:
+		_tex = load(hero.portrait.src)
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		mouse_entered.connect(func():
+			_over = true
+			queue_redraw())
+		mouse_exited.connect(func():
+			_over = false
+			queue_redraw())
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		var c: Color = Forge.ELEM[hero.elem]
+		draw_rect(r, Forge.PLAQUE_DEEP)
+		draw_polygon(PackedVector2Array([r.position, Vector2(size.x, 0), size, Vector2(0, size.y)]),
+			PackedColorArray([Color(c, 0.3), Color(c, 0.3), Color(c, 0.0), Color(c, 0.0)]))
+		Forge.portrait(self, _tex, r, hero.portrait, 0.5, "strip")
+		var from := size.y * 0.66
+		draw_polygon(PackedVector2Array([Vector2(0, from), Vector2(size.x, from), size, Vector2(0, size.y)]),
+			PackedColorArray([Color(Forge.INK, 0), Color(Forge.INK, 0), Color(Forge.INK, 0.98), Color(Forge.INK, 0.98)]))
+		draw_rect(Rect2(0, size.y - 5, size.x, 5), Data.TIER_COLORS[stars])
+		if fielded:
+			var x := size.x - 40
+			draw_colored_polygon(PackedVector2Array([Vector2(x, 0), Vector2(x + 26, 0), Vector2(x + 26, 34), Vector2(x + 13, 26), Vector2(x, 34)]), Forge.GOLD)
+		if _over:
+			draw_rect(r.grow(-1), Forge.GOLD_LIGHT, false, 2.0)

@@ -118,6 +118,36 @@ static func region_swatch(key: String, size: Vector2) -> Control:
 	return c
 
 
+## A soft wash of colour fading to nothing, between two points in the 0-1 box, or outward from `from` if radial. It fills
+## its parent, so art can sit under it and text over it.
+static func wash(col: Color, from: Vector2, to: Vector2, radial := false) -> TextureRect:
+	var g := Gradient.new()
+	g.colors = PackedColorArray([col, Color(col, 0.0)])
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL if radial else GradientTexture2D.FILL_LINEAR
+	tex.fill_from = from
+	tex.fill_to = to
+	var t := TextureRect.new()
+	t.texture = tex
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return t
+
+
+## A hero's four stars: the ones they have lit in their tier's colour, the rest blank.
+static func stars(lit: int, px: int) -> HBoxContainer:
+	var row := hbox(maxi(2, px / 5))
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for i in Collection.MAX_STARS:
+		var star := glyph("star", px, Data.TIER_COLORS[lit].lightened(0.15) if i < lit else Color(DIM, 0.6))
+		star.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(star)
+	return row
+
+
 ## An icon tinted to a colour, sized in a fixed box.
 static func glyph(name: String, px: int, color: Color) -> TextureRect:
 	var t := TextureRect.new()
@@ -255,7 +285,7 @@ static func role_tag(role: String, on: bool, px := 20) -> Control:
 
 
 ## Commit: a hairline gold frame with a diamond stud at each end. Filled gold studs mark the primary commit.
-static func studs(text: String, primary := true, height := 80) -> Button:
+static func studs(text: String, primary := true, height := 80, px := 26) -> Button:
 	var edge := GOLD if primary else GOLD_DEEP
 	var bg := Color("#3e2810") if primary else Color("#201811")
 	var styles := {
@@ -264,7 +294,7 @@ static func studs(text: String, primary := true, height := 80) -> Button:
 		"pressed": flat(bg.darkened(0.2), edge, 2, Vector4(40, 0, 40, 0)),
 		"disabled": flat(Color("#1a130d"), Color(GOLD_DEEP, 0.35), 2, Vector4(40, 0, 40, 0)),
 	}
-	var b := _button(text, 26, styles, {"font_color": GOLD_LIGHT if primary else PARCHMENT, "font_hover_color": GOLD_LIGHT,
+	var b := _button(text, px, styles, {"font_color": GOLD_LIGHT if primary else PARCHMENT, "font_hover_color": GOLD_LIGHT,
 		"font_pressed_color": GOLD_LIGHT, "font_disabled_color": Color(PARCHMENT, 0.35)})
 	b.custom_minimum_size.y = height
 	b.pressed.connect(Sfx.play.bind("confirm", 0.0))
@@ -305,6 +335,23 @@ static func ember(text: String, height := 80) -> Button:
 
 
 ## Move: gold small caps and a glyph, no frame.
+## A small round button: a dark disc in a thin ring of `tint`, bright gold while it is on. Its icon goes inside.
+static func orb(px: int, tint: Color) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(px, px)
+	b.focus_mode = Control.FOCUS_NONE
+	for state in ["normal", "hover", "pressed", "disabled", "hover_pressed", "focus"]:
+		b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	b.draw.connect(func():
+		var m := b.size / 2
+		var on := b.button_pressed
+		b.draw_circle(m, m.x - 1, Color(INK, 0.88))
+		b.draw_arc(m, m.x - 2, 0, TAU, 48, GOLD_LIGHT if on else (GOLD if b.is_hovered() else tint), 3.0 if on else 2.0, true)
+		b.draw_arc(m, m.x - 6, 0, TAU, 48, Color(GOLD_DEEP, 0.45), 1.0, true))
+	press_weight(b)
+	return b
+
+
 static func link(text: String, glyph_name := "back", px := 24) -> Button:
 	var empty := StyleBoxEmpty.new()
 	var b := _button(text, px, {"normal": empty}, {"font_color": GOLD, "font_hover_color": GOLD_LIGHT,
@@ -399,7 +446,8 @@ const LOOK := 0.53
 
 
 ## Draws the portrait cropped to the eye-line rule; `zoom` above the card's 0.62 pulls in closer (bond thumbnails).
-## `view` names where it shows ("card", "tile", "squad", "face"), so a crop set for that view alone wins.
+## `view` names where it shows ("card", "tile", "squad"), so a crop set for that view alone wins. The forecast face
+## shares the tile's view.
 ## Returns the part of the image it drew.
 static func portrait(ci: CanvasItem, tex: Texture2D, r: Rect2, p: Dictionary, zoom := 0.62, view := "") -> Rect2:
 	var src := crop(tex.get_size(), r.size, p, zoom, view)

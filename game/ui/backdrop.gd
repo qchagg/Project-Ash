@@ -2,13 +2,37 @@ class_name Backdrop
 extends Control
 ## The looping element backdrop behind a hero: a slow breathing glow and drifting motes.
 ## Fire rises as embers, water as bubbles, earth hangs as dust, wind streaks sideways.
-## A painted regional background can sit under this later; the motes stay code-driven.
+## A home's painted background (`painted`) sits over the glow; the motes stay code-driven.
 
 const LOOKS := {
 	"fire": {"glow": Color("#c44616"), "mote": Color("#ffc58a"), "vel": Vector2(10, -110), "size": 5.0, "count": 16},
 	"water": {"glow": Color("#1d6c8c"), "mote": Color("#c9f4ff"), "vel": Vector2(0, -60), "size": 6.0, "count": 12},
 	"earth": {"glow": Color("#7a5129"), "mote": Color("#ffe08a"), "vel": Vector2(12, -18), "size": 3.5, "count": 22},
 	"wind": {"glow": Color("#3d7a28"), "mote": Color("#effff2"), "vel": Vector2(260, -10), "size": 3.0, "count": 14},
+}
+
+## The painted backgrounds of each home: a hero's page picks one of them each time it opens.
+const ART := {
+	"marusthal": ["city", "saltglass-1", "saltglass-2"],
+	"jaladesh": ["lotus-1", "lotus-2"],
+	"khorvan": ["steppe"],
+	"aurelia": ["imperial", "avenue"],
+	"gwyntmoor": ["plains-1", "plains-2", "standing-stones"],
+	"vetroles": ["plains-2", "plains-1", "walking-wood"],
+	"hraunvald": ["basalt-city", "basalt-steps"],
+	"mehfil": ["lantern-village", "empty-pavilions-1", "empty-pavilions-2"],
+	"velata": ["silk-highlands", "silk-street", "undercroft"],
+	"yuling": ["jade", "serpent-archive"],
+	"sikuvik": ["ice", "whale-cathedral"],
+	"mwambao": ["coast"],
+}
+
+## The ground a road's fights stand on: a seamless texture in art/grounds/, and how far it is dimmed so the fighters
+## read on it. A road without one fights over the plain ink.
+const GROUNDS := {
+	"basalt": {"art": "basalt", "shade": 1.0},
+	"lotus": {"art": "aqueduct", "shade": 0.5},
+	"saltglass": {"art": "saltglass", "shade": 0.27},
 }
 
 var elem := "fire"
@@ -23,6 +47,55 @@ var _motes := []
 var _t := 0.0
 var _rng := RandomNumberGenerator.new()
 var _glow: GradientTexture2D
+
+
+## One of a home's painted backgrounds, or null when that home has none yet.
+static func painted(home: String) -> Painted:
+	var arts: Array = ART.get(home, [])
+	return Painted.new().setup(arts.pick_random()) if not arts.is_empty() else null
+
+
+## The tiled ground of a road's fights, or null when that road has none yet.
+static func ground(road: String) -> Painted:
+	var g: Dictionary = GROUNDS.get(road, {})
+	if g.is_empty():
+		return null
+	return Painted.new().setup("", Color(g.shade, g.shade, g.shade)).tiled(ground_path(g.art))
+
+
+static func ground_path(art: String) -> String:
+	return "res://art/grounds/ground-%s.webp" % art
+
+
+## The music of a painting: the road it shows, else the road of the home it hangs in, else "" when its home has no road.
+static func music_of(art: String) -> String:
+	for key in Expedition.ROADS:
+		if Expedition.ROADS[key].art == art:
+			return Expedition.ROADS[key].music.map
+	for home in ART:
+		if art in ART[home]:
+			for key in Expedition.ROADS:
+				if Expedition.ROADS[key].region == home:
+					return Expedition.ROADS[key].music.map
+	return ""
+
+
+static func art_path(art: String) -> String:
+	return "res://art/backgrounds/%s.webp" % art
+
+
+## The paintings behind whole screens, which belong to no home and have no weather.
+const SCREEN_ART := ["caravan", "dream"]
+
+
+## Every painted background, once each.
+static func all_art() -> Array[String]:
+	var out: Array[String] = []
+	for arts in ART.values():
+		for art in arts:
+			if art not in out:
+				out.append(art)
+	return out
 
 
 func _ready() -> void:

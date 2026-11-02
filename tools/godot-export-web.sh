@@ -22,8 +22,12 @@ for key, body in re.findall(r"^\t\"(\w+)\": (\{.*\}),$", open("game/core/faces.g
     if key in heroes:
         print(" ".join(set(re.findall(r"\"(\w+-\w+)\"", body))))
 ' | tr -d '\r'); do cp "game/art/clips/$b.ogv" "$out/clips/$b.ogg"; done
-# Idle frame sheets stay out of the pack too, and load the same way.
-mkdir -p "$out/sheets" && cp game/art/sprites/*-idle.webp game/art/sprites/*-attack.webp "$out/sheets/"
+# Idle frame sheets and painted backgrounds stay out of the pack too, and load the same way.
+mkdir -p "$out/sheets" && cp game/art/sprites/*-idle.webp game/art/sprites/*-attack.webp game/art/backgrounds/*.webp game/art/grounds/*.webp game/art/stands/*.webp game/audio/voice/*.wav "$out/sheets/"
+# Music stays out of the pack and out of git (see game/ui/music.gd): the chosen tracks in game/audio/music/ ship beside
+# the page, and the export fails if one is missing.
+mkdir -p "$out/music"
+for t in $(grep -oE '"(jrpg|fairytale|desert|pirate)-[a-z0-9-]+"' game/core/expedition.gd | tr -d '"\r' | sort -u); do cp "game/audio/music/$t.ogg" "$out/music/"; done
 rm -f "$out/index.png" "$out/index.icon.png" "$out/index.apple-touch-icon.png"
-if [ "$preset" = "Web Landscape" ]; then sed -i 's|<title>Ashgrid Playtest|<title>Ashgrid Landscape|' "$out/index.html"; fi
+if [ "$preset" = "Web Landscape" ]; then sed -i 's|<title>A Thousand Roads|<title>A Thousand Roads Landscape|' "$out/index.html"; fi
 ls -la "$out"

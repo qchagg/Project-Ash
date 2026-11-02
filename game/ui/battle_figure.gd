@@ -6,14 +6,16 @@ extends Control
 ## fallen fighter greys and sinks. Taps on its body go to its tile, so a tall figure never steals a tap meant for the
 ## tile behind it except where its body actually is.
 
-## How tall a standard fighter stands, in tiles.
-const TALL := 1.85
-## Where on its tile a fighter's feet are, from the top; the rest of the tile holds its plate.
-const FOOT := 0.56
+## How tall a standard fighter stands on the near lane, in pixels.
+const TALL := 262.0
+## The far lane's share of that, so the board has depth.
+const FAR := 0.8
+## Room under the feet for the health bar.
+const UNDER := 34.0
 
 var tile: BattleTile
-## Fighters in the far lanes stand a little smaller, so the board has depth.
-var depth := 1.0
+## This fighter's full height: smaller in the far lanes.
+var tall := TALL
 var _t := 0.0
 var _flash := 0.0
 ## How far the fighter is out of place while it acts (a lunge, a cast), and the light of a cast at its feet.
@@ -44,16 +46,15 @@ func _ready() -> void:
 	mouse_entered.connect(func(): tile.screen.on_hover(tile.side, tile.r, tile.c))
 
 
-## The figure sits over its tile: as wide as two tiles, reaching up well above it.
-func place() -> void:
-	var ts := tile.size
-	depth = 0.88 + 0.04 * tile.c
-	size = Vector2(ts.x * 1.8, ts.y * (TALL + 1.3))
-	position = tile.position + Vector2(ts.x / 2 - size.x / 2, ts.y * FOOT - size.y + ts.y * 0.42)
+## The figure stands on its tile, `near` (0..1) from the far lane to the near one, its box reaching up well above it.
+func place(near: float) -> void:
+	tall = TALL * lerpf(FAR, 1.0, near)
+	size = Vector2(tall * 1.3, tall * 1.45 + UNDER)
+	position = tile.position + tile.middle() - _foot()
 
 
 func _foot() -> Vector2:
-	return Vector2(size.x / 2, size.y - tile.size.y * 0.42)
+	return Vector2(size.x / 2, size.y - UNDER)
 
 
 func _unit() -> Dictionary:
@@ -76,9 +77,9 @@ func _has_point(p: Vector2) -> bool:
 	var u := _unit()
 	if u.is_empty() or u.get("sprite", {}).is_empty():
 		return false
-	var h := Figure.height(u.sprite, tile.size.y * TALL * depth)
+	var h := Figure.height(u.sprite, tall)
 	var f := _foot()
-	return absf(p.x - f.x) < tile.size.x * 0.36 and p.y > f.y - h and p.y < f.y
+	return absf(p.x - f.x) < tall * 0.2 and p.y > f.y - h and p.y < f.y
 
 
 func _draw() -> void:
@@ -88,7 +89,7 @@ func _draw() -> void:
 	var spr: Dictionary = u.get("sprite", {})
 	var alive: bool = u.view.alive
 	var foot := _foot()
-	var h := Figure.height(spr, tile.size.y * TALL * depth) if not spr.is_empty() else tile.size.y * TALL * depth
+	var h := Figure.height(spr, tall) if not spr.is_empty() else tall
 	# Marching in: the fighter strides from off the field, a bob for each step.
 	var enter := tile.enter
 	if enter < 1.0:
@@ -126,7 +127,7 @@ func _draw_over() -> void:
 	var spr: Dictionary = u.get("sprite", {})
 	var alive: bool = u.view.alive
 	var foot := _foot()
-	var h := Figure.height(spr, tile.size.y * TALL * depth) if not spr.is_empty() else tile.size.y * TALL * depth
+	var h := Figure.height(spr, tall) if not spr.is_empty() else tall
 	if tile.enter < 1.0:
 		return
 	var head := foot.y - h
@@ -137,9 +138,10 @@ func _draw_over() -> void:
 		_over.draw_string_outline(f, Vector2(0, foot.y - h * 0.4), word, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, 6, Forge.INK)
 		_over.draw_string(f, Vector2(0, foot.y - h * 0.4), word, HORIZONTAL_ALIGNMENT_CENTER, size.x, 24, Color(Forge.PARCHMENT, 0.8))
 		return
+	var st: Dictionary = u.view.st
+	StatusFx.draw(_over, st, foot + _lunge, h, _t)
 	# Over the head: statuses, then the intent, then the forecast on top.
 	var y := head - 4.0
-	var st: Dictionary = u.view.st
 	var tags := []
 	if st.get("stun", 0): tags.append(["stun", Forge.GOLD_LIGHT])
 	if st.get("burn", 0): tags.append(["burn %d" % st.burn, Color("#ff7a3d")])
@@ -171,17 +173,14 @@ func _draw_over() -> void:
 		_over.draw_string(Forge.SC_HEAVY, q + Vector2(-14, 10), str(qi + 1), HORIZONTAL_ALIGNMENT_CENTER, 28, 28, Forge.GOLD_LIGHT)
 
 
-## The name and health on a small plate at the fighter's feet.
+## A slim health bar at the fighter's feet, capped in gold; its name lives in the skills' line and the forecast.
 func _plate(u: Dictionary, foot: Vector2, alive: bool) -> void:
-	var w := tile.size.x * 0.92
-	var r := Rect2(foot.x - w / 2, foot.y + 6, w, 30)
-	_over.draw_rect(r, Color(Forge.INK, 0.82))
-	_over.draw_rect(r, Color(Forge.ELEM[u.elem], 0.55) if alive else Color(Forge.DIM, 0.4), false, 1.0)
-	_over.draw_string(Forge.tracked(Forge.SC, 1), Vector2(r.position.x + 6, r.position.y + 14), Battle.name_of(u).to_lower(),
-		HORIZONTAL_ALIGNMENT_LEFT, w - 44, 14, Forge.PARCHMENT if alive else Forge.DIM)
-	var hp: int = u.view.hp
-	_over.draw_string(Forge.SANS_BOLD, Vector2(r.end.x - 44, r.position.y + 14), str(hp), HORIZONTAL_ALIGNMENT_RIGHT, 38, 13, Forge.MUTED)
-	BattleTile.hp_bar(_over, Rect2(r.position.x + 6, r.position.y + 19, w - 12, 5), tile.screen.hp_fx(u.id, hp, u.max_hp), Color(0, 0, 0, 0.9))
+	var w := tall * 0.42
+	var r := Rect2(foot.x - w / 2, foot.y + 10, w, 6)
+	_over.draw_rect(r.grow(1.0), Color(Forge.INK, 0.9))
+	BattleTile.hp_bar(_over, r, tile.screen.hp_fx(u.id, u.view.hp, u.max_hp), Color(0, 0, 0, 0.9))
+	for x in [r.position.x - 2, r.end.x + 2]:
+		Forge.diamond(_over, Vector2(x, r.get_center().y), 5, Forge.GOLD if alive else Forge.DIM)
 
 
 ## The forecast over the head: red for damage, green for healing or shield, framed when it's the one in the bar.
@@ -227,7 +226,7 @@ func recoil(heavy := false) -> void:
 func fall() -> void:
 	_ko = 0.0
 	create_tween().tween_property(self, "_ko", 1.0, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	var h := Figure.height(_unit().get("sprite", {}), tile.size.y * TALL * depth)
+	var h := Figure.height(_unit().get("sprite", {}), tall)
 	Burst.at(self, _foot() - Vector2(0, h * 0.45), Color("#8a8178"), h * 0.35, 14)
 
 
@@ -267,5 +266,5 @@ func act(kind: String, reach: String) -> float:
 ## A number or word rising off the fighter's head and fading.
 func float_text(text: String, cls: String) -> void:
 	var u := _unit()
-	var h := Figure.height(u.get("sprite", {}), tile.size.y * TALL * depth) if not u.is_empty() else tile.size.y
+	var h := Figure.height(u.get("sprite", {}), tall) if not u.is_empty() else tile.size.y
 	BattleTile.pop_text(_over, text, cls, Vector2(0, _foot().y - h * 0.75), size.x, 32, 56)

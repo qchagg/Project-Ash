@@ -15,6 +15,8 @@ Upload anywhere under art/ (the root is fine) and run:
    battle sprite game/art/sprites/<character>.webp and its frame sheet <character>-idle.webp (tools/body-clip.py);
    `<character>-body-attack.mp4` adds the swing, <character>-attack.webp. A still with no loop is sprite enough: the
    game breathes it.
+   `<character>-sheet-idle.webp` (already keyed, with `<character>-sheet-idle.json` holding cols, rows, n and fps) takes
+   their place: tools/sheet-idle.py makes the sprite and frame sheet from it alone.
 4. Cards: `<character>-card.png` (the hero on green, for the phone build's cards) is keyed into game/art/cards/.
 5. Writes game/core/faces.gd, the table the game reads (see Faces).
 """
@@ -36,12 +38,15 @@ KEYS = {"surya": "kaede", "varuni": "ilse", "brann": "brann", "sorrel": "sorrel"
 # "chant" is the clip a hero sings when they evolve; by default their last spell beyond the skills, else their first.
 SKILL_CLIPS = {"varuni": {"skills": ["spell3", "spell2"], "chant": "spell1"}}
 KEEP = {"README.md"}
-# Body stills that face screen-right (most face left). The game mirrors each sprite to face its side: heroes right,
-# foes left. Attack clips find their own facing from the swing. Judge this from the still itself (where the face and
-# chest point), never from an older upload: a new still can face the other way.
-FACING = {"brann": "right"}
+# Every sprite is stored facing left, the one default; the game mirrors heroes to face right and leaves foes facing
+# left. These are the body stills uploaded facing right, mirrored when they're built (an idle loop isn't, so a hero
+# here who comes off HOLD_CLIPS needs their loop flipped too). Attack clips find their own facing from the swing.
+# Judge this from the still itself (where the face points), never from an older upload: a new still can face the
+# other way.
+MIRROR = set()
 # Heroes whose body clips are on hold: their idle loops and attack clips stay in art/ but the game uses the still,
-# auto-rigged like everyone else's, so the whole cast moves the same way.
+# auto-rigged like everyone else's, so the whole cast moves the same way. A transparent `<character>-sheet-idle.webp`
+# is not a clip: it comes after the hold, and a hero who has one plays it whether or not they are listed here.
 HOLD_CLIPS = {"surya", "brann", "sorrel", "varuni"}
 
 
@@ -96,11 +101,33 @@ def stale(src, dst):
     return not dst.exists() or dst.stat().st_mtime < src.stat().st_mtime
 
 
+def sheet_body(d, char):
+    """The battle sprite and idle sheet from a transparent `<character>-sheet-idle.webp`, or None. Rebuilt when it's newer."""
+    import json
+    src, grid = d / f"{char}-sheet-idle.webp", d / f"{char}-sheet-idle.json"
+    if not (src.exists() and grid.exists()):
+        return None
+    sprites = GAME / "art" / "sprites"
+    sprite, sheet, meta = sprites / f"{char}.webp", sprites / f"{char}-idle.webp", sprites / f"{char}-idle.json"
+    if stale(src, meta) or stale(grid, meta) or "drift" not in json.loads(meta.read_text()):
+        args = [str(src), str(grid), str(sprite), str(sheet)] + (["mirror"] if char in MIRROR else [])
+        out = subprocess.run([sys.executable, str(ROOT / "tools" / "sheet-idle.py"), *args], check=True,
+            capture_output=True, text=True).stdout
+        meta.write_text(out.strip().splitlines()[-1])
+    m = json.loads(meta.read_text())
+    return {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"],
+        "anim": dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")}
+
+
 def body(d, char):
     """The battle sprite, idle sheet and attack sheet from the body uploads, or None. Rebuilt when an upload is newer.
     The idle loop is the clip named idle, else movement, else any clip that isn't an attack. With no loop, the still
-    alone is the sprite, rigged so the game can bring it to life."""
+    alone is the sprite, rigged so the game can bring it to life. A transparent idle sheet (with its .json) beats them
+    all: it makes both the sprite and the frames (tools/sheet-idle.py), so it carries no attack of its own."""
     import json
+    made = sheet_body(d, char)
+    if made:
+        return made
     stills = sorted(d.glob(f"{char}-body-*.png"), key=lambda p: ("idle" not in p.stem, p.name))
     loops = sorted((p for p in d.glob(f"{char}-body-*.mp4") if "attack" not in p.stem),
         key=lambda p: ("idle" not in p.stem, "movement" not in p.stem, p.name))
@@ -119,9 +146,14 @@ def body(d, char):
         args += [str(hits[0]), str(swing)] if hits else []
         out = subprocess.run([sys.executable, str(ROOT / "tools" / "body-clip.py"), *args], check=True,
             capture_output=True, text=True).stdout
-        meta.write_text(out.strip().splitlines()[-1])
+        m = json.loads(out.strip().splitlines()[-1])
+        if char in MIRROR:
+            from PIL import Image
+            Image.open(sprite).transpose(Image.FLIP_LEFT_RIGHT).save(sprite, "WEBP", quality=88, method=6)
+            m["foot_x"] = round(1 - m["foot_x"], 4)
+        meta.write_text(json.dumps(m))
     m = json.loads(meta.read_text())
-    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"], "faces": FACING.get(char, "left")}
+    b = {"src": f"res://art/sprites/{char}.webp", "foot_x": m["foot_x"]}
     if "idle" in m:
         b["anim"] = dict(m["idle"], src=f"res://art/sprites/{char}-idle.webp")
     if "attack" in m:
@@ -152,7 +184,20 @@ def card(d, char):
     return {"src": f"res://art/cards/{char}.webp", "cx": round(cx, 3)}
 
 
+def sheets_stamp():
+    """A short fingerprint of everything the web build ships in sheets/."""
+    import hashlib
+    h = hashlib.sha1()
+    sprites = GAME / "art" / "sprites"
+    painted = (GAME / "art" / "backgrounds").glob("*.webp")
+    grounds = (GAME / "art" / "grounds").glob("*.webp")
+    for p in sorted(list(sprites.glob("*-idle.webp")) + list(sprites.glob("*-attack.webp")) + list(painted) + list(grounds)):
+        h.update(p.name.encode() + p.read_bytes())
+    return h.hexdigest()[:12]
+
+
 def build():
+    import json
     faces = {}
     bodies = {}
     cards = {}
@@ -204,7 +249,16 @@ def build():
         "const BODIES := {"]
     for key, b in bodies.items():
         lines.append(f'\t"{key}": {gdv(b)},')
-    lines += ["}", "", "## Keyed card art, by game key: the phone build's cards show it over the element's glow, centred on the",
+    lines += ["}", "", "## Changes with the idle and attack sheets, so a player's kept copies are replaced (Clips.refresh_sheets).",
+        f'const SHEETS_STAMP := "{sheets_stamp()}"']
+    lines += ["", "## The lights in each painted background, found by tools/glow-spots.py: [x, y, radius, colour], as shares of its width.",
+        "const GLOWS := {"]
+    for p in sorted((GAME / "art" / "backgrounds").glob("*.webp")):
+        spots = json.loads(subprocess.run([sys.executable, str(ROOT / "tools" / "glow-spots.py"), str(p)], check=True,
+            capture_output=True, text=True).stdout)
+        lines.append(f'\t"{p.stem}": {spots},'.replace("'", '"'))
+    lines += ["}"]
+    lines += ["", "## Keyed card art, by game key: the phone build's cards show it over the element's glow, centred on the",
         "## figure (`cx`, its centre across the image).", "const CARDS := {"]
     for key, c in cards.items():
         lines.append(f'\t"{key}": {{"src": "{c["src"]}", "cx": {c["cx"]}}},')

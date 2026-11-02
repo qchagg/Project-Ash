@@ -11,6 +11,12 @@ var title := ""
 var body: VBoxContainer
 ## The row beside the title, for resource chips or a link.
 var head_right: HBoxContainer
+## The title and scrolling body together, so a screen can step aside for a view of its own.
+var frame: Control
+## A painting to stand behind the whole screen, dimmed so what's on it reads. Empty for none.
+var backdrop := ""
+## The road whose ground this screen stands on, if it has one (Backdrop.GROUNDS). Empty for none.
+var ground := ""
 
 
 func setup(a: App) -> Screen:
@@ -19,9 +25,14 @@ func setup(a: App) -> Screen:
 
 
 func _ready() -> void:
+	var art := Painted.new().setup(backdrop) if backdrop != "" else Backdrop.ground(ground)
+	if art:
+		add_child(art)
+		art.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var root := Forge.vbox(0)
 	root.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(root)
+	frame = root
 	# A wide screen has height to spare for nothing, so the title sits tighter there.
 	var wide := Forge.wide()
 	var head := Forge.margins(MarginContainer.new(), 40, 26 if wide else 56, 40 if wide else 44, 10 if wide else 24)

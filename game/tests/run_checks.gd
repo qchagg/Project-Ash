@@ -5,19 +5,17 @@ extends SceneTree
 
 func _init() -> void:
 	var checks := [
-		["Cards · best-of merge: two 1★ copies make a 2★ with the higher of each stat +10%; the fodder augment carries and is set", _best_merge],
-		["Cards · sum merge: stats add up, like the Undine example", _sum_merge],
-		["Cards · a fodder augment with no matching skill goes loose", _fodder_loose],
-		["Cards · free augments swap until a merge; set ones stay put", _swap_until_merge],
-		["Cards · only the same star level merges, 3★ is the cap, and an Ashcrown makes a 4★", _star_rules],
-		["Cards · the seeded collection rolls the same stats as the sandbox", _seeded_rolls],
+		["Stars · every hero is one card at 1★, with their own stats", _one_card_each],
+		["Stars · each copy lights a star up to 4★, and each star adds 10% and an augment slot", _copies_add_stars],
+		["Stars · a copy past 4★ pays embers and changes nothing else", _spare_copies],
+		["Augments · a hero holds one per star, and they swap freely", _aug_slots],
 		["Augments · Keen and Wellspring add up; Lingering does not and stun caps at 2; Hasten stops at cooldown 1; Kindling adds Burn", _aug_math],
 		["Elements · four-way cycle: each element beats one, loses to one, and is neutral with its opposite", _four_way],
 		["Visuals · augments name the skill and pick the aura: most augments wins, ties go to the first slotted", _aura_names],
 		["Celerity · fits damage, heal and shield skills, renames with Fleet, and marks the skill as an opener", _celerity_fits],
 		["Squad · formation: placing moves a card, a taken tile swaps, off-grid and benched cards are refused, a joining card never stacks", _formation],
 		["Regions · every hero's home is a region with a dark and a light colorway and its own sigil", _regions],
-		["Lore · thirty archetypes, every region has two or more, every element at least seven, each linked hero exists", _archetypes],
+		["Lore · forty archetypes, every region has two or more, every element at least seven, each linked hero exists", _archetypes],
 		["Town · every level costs more than the last, in tens; the Hearth raises the battle reward", _town_costs],
 		["Town · nothing rises without the embers or above the Hearth, and a blocked upgrade changes nothing", _town_blocked],
 		["Town · buildings stop at their top level; routes open two then one a level; envoys sit in region order", _town_caps],
@@ -53,9 +51,31 @@ func _init() -> void:
 		["Playback · a round marks the ally and enemy turns, and Varuni's Rain of Renewal cues her cut-in", _b_turn_marks],
 		["Faces · every clip, still and body sheet a hero names is in the project", _faces_exist],
 		["Facing · heroes face right and foes face left, whichever way their art was drawn", _facing],
+		["Facing · every sprite is stored facing the same way; only an attack swing keeps its own direction", _facing_default],
 		["Sound · every cue the game plays has a sound file, and a cue with none is silent rather than an error", _sounds],
+		["Sound · the button click and page turn stay silent", _muted_cues],
+		["Roads · every road shows a painting the game carries", _road_art],
+		["Stands · a hero's standing art has its file, travels with the sheets, and their profile crop stays on the art", _hero_stands],
+		["Travel Log · a milestone locks until enough wardens fall and pays once", _travel_log],
+		["Voices · every voice has an actor, every clip has its file, and the web build fetches them", _voices],
+		["Choices · every boon\'s stat has a picture on its card", _boon_glyphs],
+		["Title · it draws from every background the game carries, each with its file", _title_art],
+		["Roads · next and back walk every road and wrap, and the screens' paintings travel with the rest", _road_steps],
+		["Title · the art drifts both ways but never shows an edge, on a phone or a wide screen, and every background has its air", _title_pan],
+		["Music · every road names a map track, slots are the map or a stop, and the files on disk are exactly the tracks in use", _road_music],
+		["Music · a slot plays the road's track, then the shared default, then the road's map; off the road plays the default map", _music_fallback],
+		["Music · the player keeps wanting a track while sound is off, plays nothing, loops what it loads, and a missing file is silent", _music_player],
 		["Health bars · a hit drops the bar at once and leaves a pale chunk that drains; a heal fills it", _hp_lag],
 		["Rig · every still with no idle loop is rigged; its feet stay planted while its loose parts sway", _rig],
+		["Backgrounds · every hero has a home with art on file, a home picks among its own, and one without any falls back to the glow", _backgrounds],
+		["Grounds · each belongs to a road and is on file, every file is used, they tile, travel in sheets/ and stay out of the pack", _grounds],
+		["Sheets · a device keeps its sheets only while the art is unchanged, then fetches them fresh", _sheets_refresh],
+		["Sound · the web page suspends all audio while the game isn't in front", _sound_in_front],
+		["Weather · every painted background has its air, its motes loop inside the screen, and an unknown one has none", _weather],
+		["Title · a painting plays its road's music, or its home's road, and one with no road leaves the music alone", _art_music],
+		["Status effects · each status shows on the body, and a fighter with none shows nothing", _status_fx],
+		["Lights · every painted background has its lights on file, inside the picture", _glows],
+		["Idle sheets · each holds every frame it names at about 560 tall and its own rate, the feet stay planted, and no key colour is left", _idle_sheets],
 		["Plan · a hero steps then acts: Brann steps to the front row and Rockfall lands, though he planned it from the second row", _b_step_then_act],
 		["Plan · queue order holds: Varuni's heal lands on Sorrel before he steps away; he then casts from his new tile", _b_step_order],
 		["Plan · steps reach 2 tiles, never onto a unit or a tile another hero has claimed; stepping home cancels", _b_step_tiles],
@@ -63,11 +83,19 @@ func _init() -> void:
 		["Forecast · counts the chain the skill would carry at the back of the queue, and marks a knockout", _b_forecast_chain],
 		["Intents · each foe's preview is the action and area it then uses when nothing changes first", _b_intents],
 		["Crops · a crop set for one view wins there, and every other view keeps the eye-line rule", _b_crop_override],
+		["Forecast · the face is the battle tile's close crop, in a tile's shape", _b_forecast_crop],
+		["Home · the roads take turns between runs, every one with a painting and words; on the road it holds on yours", _h_slides],
+		["Wide board · the floor fits above the skills, the two grids stay apart, and it closes up toward the far lane", _b_wide_floor],
 		["Expedition · every road is connected start to warden, with a camp before the warden", _x_map],
 		["Expedition · fights send the road's home foe, more and tougher further down the road", _x_foes],
 		["Expedition · health carries between fights, camps heal the standing, the fallen stay down", _x_health],
 		["Expedition · boons stack by rarity and boost the squad; a loss banks half the embers", _x_boons],
 		["Expedition · a fight can field only the named foes, scaled", _x_battle_subset],
+		["Wayside · the stop has replaced Cache and Trial, and no event repeats on a run", _w_stops],
+		["Wayside · every event is well formed, with its last choice free and safe", _w_events],
+		["Wayside · every cost and risk is shown, and a price you can't meet is refused", _w_terms],
+		["Wayside · an event never fells a hero; hero and fallen choices appear only when they should", _w_health],
+		["Wayside · rewards follow the stop's rarity, a started fight pays by its kind, and debts come out of the bank", _w_rewards],
 		["Hero picks · a won fight offers three different upgrades that fit, round the squad, past the fallen", _x_pick_offer],
 		["Hero picks · nothing useless is offered: no second Celerity, no Hasten at cooldown 1, no Kindling on a burn", _x_pick_useful],
 		["Hero picks · no offer after a loss or the warden; an elite steps the odds up", _x_pick_when],
@@ -84,94 +112,52 @@ func _init() -> void:
 	quit(1 if failed else 0)
 
 
-func _other(col: Collection, hero: String, not_uid: String) -> Dictionary:
-	for c in col.cards:
-		if c.hero == hero and c.uid != not_uid:
-			return c
-	return {}
-
-
-func _best_merge() -> Array:
+func _one_card_each() -> Array:
 	var col := Collection.new()
-	var k1 := col.by("kaede")
-	var k2 := _other(col, "kaede", "kaede")
-	col.slot_aug(k2.uid, 0, "keen")
-	var want := {}
-	for s in Data.STATS:
-		want[s] = roundi(maxi(k1.base[s], k2.base[s]) * 1.1)
-	var r := col.merge("kaede", k2.uid)
-	var got := col.stats(k1)
-	var ok: bool = r.ok and k1.stars == 2 and got == want and col.by(k2.uid).is_empty() \
-		and k1.augs.size() == 1 and k1.augs[0].aug == "keen" and k1.augs[0].skill == 0 and k1.augs[0].locked and not "keen" in col.loose
-	return [ok, "2★ Surya %s (expected %s)" % [got, want]]
+	var keys: Array = col.cards.map(func(c): return c.uid)
+	var plain := col.cards.all(func(c):
+		var h := Data.hero(c.hero)
+		return c.stars == 1 and c.uid == c.hero and c.base.atk == h.atk and c.base.def == h.def and c.base.spd == h.spd)
+	return [keys == Data.HEROES.map(func(h): return h.key) and plain, "%d heroes" % keys.size()]
 
 
-func _sum_merge() -> Array:
+func _copies_add_stars() -> Array:
 	var col := Collection.new()
-	col.merge_mode = "sum"
-	var i1 := col.by("ilse")
-	var i2 := _other(col, "ilse", "ilse")
-	var a := col.stats(i1)
-	var b := col.stats(i2)
-	col.merge("ilse", i2.uid)
-	var got := col.stats(i1)
-	var ok: bool = i1.stars == 2
-	for s in Data.STATS:
-		ok = ok and got[s] == a[s] + b[s]
-	return [ok, "(%d ATK, %d HP) + (%d ATK, %d HP) = (%d ATK, %d HP)" % [a.atk, a.max_hp, b.atk, b.max_hp, got.atk, got.max_hp]]
+	var k := col.by("kaede")
+	var base: Dictionary = k.base
+	var seen := [k.stars]
+	var paid := 0
+	for i in 3:
+		paid += col.add_copy("kaede")
+		seen.append(k.stars)
+	var got := col.stats(k)
+	var ok: bool = seen == [1, 2, 3, 4] and paid == 0 and got.atk == roundi(base.atk * 1.3) and got.max_hp == roundi(base.max_hp * 1.3)
+	var fitted := 0
+	for aug in ["keen", "hasten", "lingering", "kindling", "keen"]:
+		fitted += 1 if col.slot_aug("kaede", 0, aug) else 0
+	return [ok and fitted == 4, "stars %s · attack %d → %d · %d augments fit" % [seen, base.atk, got.atk, fitted]]
 
 
-func _fodder_loose() -> Array:
+func _spare_copies() -> Array:
 	var col := Collection.new()
-	var ilse := _other(col, "ilse", "ilse")
-	col.slot_aug(ilse.uid, 1, "wellspring")
-	var before := col.loose.count("wellspring")
-	col.merge("kaede", ilse.uid)
-	var after := col.loose.count("wellspring")
-	return [before == 0 and after == 1 and col.by("kaede").augs.is_empty(), "Wellspring loose: %d before, %d after" % [before, after]]
+	var k := col.by("kaede")
+	for i in 3:
+		col.add_copy("kaede")
+	var before := col.stats(k)
+	var paid := col.add_copy("kaede")
+	return [paid == Collection.SPARE_EMBERS and k.stars == 4 and col.stats(k) == before, "%d embers · still %d★" % [paid, k.stars]]
 
 
-func _swap_until_merge() -> Array:
+func _aug_slots() -> Array:
 	var col := Collection.new()
 	var slotted := col.slot_aug("kaede", 0, "keen")
-	var free_out := col.unslot_aug("kaede", 0)
+	var full := col.slot_aug("kaede", 1, "hasten")
+	var out := col.unslot_aug("kaede", 0)
 	var back := col.slot_aug("kaede", 0, "keen")
-	var full := col.slot_aug("kaede", 1, "hasten")   # 1★ holds one augment
-	col.merge("kaede", _other(col, "kaede", "kaede").uid)
-	var set_out := col.unslot_aug("kaede", 0)
+	col.add_copy("kaede")
 	var second := col.slot_aug("kaede", 1, "hasten")
-	var second_out := col.unslot_aug("kaede", 1)
-	var ok: bool = slotted and free_out and back and not full and not set_out and second and second_out
-	return [ok, "slot %s, unslot %s, 2nd on a 1★ %s · after merge: unslot set %s, new slot %s, unslot it %s" % [slotted, free_out, full, set_out, second, second_out]]
-
-
-func _star_rules() -> Array:
-	var col := Collection.new()
-	var kc := col.cards.filter(func(c): return c.hero == "kaede")
-	var ic := col.cards.filter(func(c): return c.hero == "ilse")
-	col.merge(kc[0].uid, kc[1].uid)
-	var mixed: bool = col.merge(kc[0].uid, kc[2].uid).ok   # 2★ + 1★
-	col.merge(ic[0].uid, ic[1].uid)
-	col.merge(kc[0].uid, ic[0].uid)
-	var three: int = kc[0].stars
-	var k3 := col.new_card("kaede", true)
-	k3.stars = 3
-	col.cards.append(k3)
-	var past: bool = col.merge(kc[0].uid, k3.uid).ok
-	var crowned := col.crown(kc[0].uid)
-	var again := col.crown(k3.uid)
-	var ok: bool = not mixed and three == 3 and not past and crowned and kc[0].stars == 4 and not again and col.crowns == 0
-	return [ok, "2★+1★ %s · reached %d★ · 3★+3★ %s · crown %s → %d★ · second crown %s" % [mixed, three, past, crowned, kc[0].stars, again]]
-
-
-# Values printed by the sandbox's newCollection() with seed 7; a drift here means the port's dice changed.
-func _seeded_rolls() -> Array:
-	var col := Collection.new()
-	var got := {}
-	for c in col.cards:
-		got[c.uid] = [c.base.max_hp, c.base.atk, c.base.def, c.base.spd]
-	var want := SEEDED
-	return [got == want, str(got)]
+	var out_again := col.unslot_aug("kaede", 0)
+	return [slotted and not full and out and back and second and out_again, "2nd on a 1★ %s · 2nd on a 2★ %s" % [full, second]]
 
 
 func _aug_math() -> Array:
@@ -248,7 +234,7 @@ func _regions() -> Array:
 func _archetypes() -> Array:
 	var per_region := {}
 	var per_elem := {}
-	var ok := Lore.ARCHETYPES.size() == 30
+	var ok := Lore.ARCHETYPES.size() == 40
 	for a in Lore.ARCHETYPES:
 		ok = ok and Data.REGIONS.has(a.region) and Data.ELEMS.has(a.elem) and Lore.ROLES.has(a.role) \
 			and a.favored.all(func(x): return Data.APTITUDES.has(x)) and (a.hero == "" or not Data.hero(a.hero).is_empty())
@@ -323,14 +309,6 @@ func _eye_line() -> Array:
 		ok = ok and absf(eye - Forge.EYE_LINE) < 0.01 and absf(face - Forge.FACE) < 0.01
 		lines.append("%s eyes %d%%, face %d%%" % [h.name, roundi(eye * 100), roundi(face * 100)])
 	return [ok, " · ".join(lines)]
-
-
-const SEEDED := {"kaede": [820, 150, 40, 92], "brann": [1400, 100, 95, 70], "sorrel": [900, 135, 45, 105], "ilse": [850, 95, 50, 88],
-	"rock": [1500, 115, 85, 60], "leaf": [950, 145, 40, 110],
-	# Heroes added since the sandbox start at their base stats; the rolled copies below are the sandbox's.
-	"snake": [900, 105, 55, 92], "smoke": [1250, 120, 70, 98], "seer": [820, 125, 40, 94], "caller": [880, 110, 48, 86],
-	"kaede-1": [700, 169, 37, 84], "kaede-2": [880, 151, 38, 99], "ilse-3": [920, 96, 53, 92], "ilse-4": [930, 88, 48, 93],
-	"brann-5": [1480, 87, 100, 69], "sorrel-6": [1010, 147, 40, 105]}
 
 
 # ---------- battle (ported from the sandbox's combat checks) ----------
@@ -876,6 +854,15 @@ func _faces_exist() -> Array:
 	return [missing.is_empty(), "%d clips named · missing %s" % [Clips.wanted().size(), missing]]
 
 
+## One default: no sprite says it faces its own way.
+func _facing_default() -> Array:
+	var odd := []
+	for key in Data.SPRITES:
+		if Data.sprite_for({"key": key}).has("faces") or Data.SPRITES[key].has("faces"):
+			odd.append(key)
+	return [odd.is_empty(), "%d sprites · odd %s" % [Data.SPRITES.size(), odd]]
+
+
 ## Heroes face right and foes face left whichever way their art was drawn: every hero's and foe's sprite (and
 ## swing) is mirrored exactly when its art faces the other way.
 func _facing() -> Array:
@@ -891,6 +878,152 @@ func _facing() -> Array:
 				wrong.append(key)
 	return [wrong.is_empty() and Figure.mirrored({"faces": "right"}, false) and not Figure.mirrored({}, false),
 		"%d sprites · facing wrong %s" % [Data.SPRITES.size(), wrong]]
+
+
+func _muted_cues() -> Array:
+	var was := Sfx.on()
+	Sfx._on = 1
+	Sfx._last.erase("tap")
+	Sfx.play("tap")
+	Sfx.play("page")
+	var quiet := not Sfx._last.has("tap") and not Sfx._last.has("page")
+	Sfx._on = 1 if was else 0
+	return [quiet, "silent: %s" % quiet]
+
+
+func _road_art() -> Array:
+	var missing := []
+	for key in Expedition.ROADS:
+		var road: Dictionary = Expedition.ROADS[key]
+		# A road is a ruin of a real home: its painting is one of that home's, and its element has a home foe.
+		if not Data.REGIONS.has(road.region) or road.art not in Backdrop.ART.get(road.region, []) or not Expedition.HOME_FOE.has(road.elem):
+			missing.append(key + " home")
+		var art: String = Expedition.ROADS[key].art
+		if art not in Backdrop.all_art() or not FileAccess.file_exists(Backdrop.art_path(art)):
+			missing.append(key)
+	return [missing.is_empty() and Expedition.ROADS.size() == 9, "%d roads · missing %s" % [Expedition.ROADS.size(), missing]]
+
+
+func _hero_stands() -> Array:
+	var n := 0
+	var ok := true
+	for h in Data.HEROES:
+		if not h.portrait.has("stand"):
+			continue
+		n += 1
+		var c: Array = h.portrait.crops.get("profile", [0, 0, 100])
+		ok = ok and ResourceLoader.exists(h.portrait.stand) and h.portrait.stand in Clips.wanted_sheets()
+		ok = ok and c[0] >= 0 and c[1] >= 0 and c[0] + c[2] <= 100 and c[1] + c[2] <= 100
+	return [ok and n > 0, "%d heroes stand" % n]
+
+
+func _road_steps() -> Array:
+	var seen := {}
+	var at: String = Expedition.ROADS.keys()[0]
+	for i in Expedition.ROADS.size():
+		seen[at] = true
+		var there := Expedition.road_step(at, 1)
+		if Expedition.road_step(there, -1) != at:
+			seen.clear()
+			break
+		at = there
+	var wrapped: bool = at == Expedition.ROADS.keys()[0] and seen.size() == Expedition.ROADS.size()
+	var shipped := Backdrop.SCREEN_ART.all(func(a): return Backdrop.art_path(a) in Clips.wanted_sheets() and FileAccess.file_exists(Backdrop.art_path(a)))
+	return [wrapped and shipped, "%d roads · wraps %s · screen art ships %s" % [seen.size(), wrapped, shipped]]
+
+
+func _travel_log() -> Array:
+	var town := Town.new()
+	var locked: bool = town.log_state(0) == "locked" and town.claim_log(0).is_empty()
+	town.felled = 1
+	var before := town.embers
+	var paid: bool = town.claim_log(0).get("gold", 0) == 200 and town.embers == before + 200
+	var once: bool = town.claim_log(0).is_empty() and town.log_state(0) == "claimed"
+	return [locked and paid and once, "locked · pays %d · once only" % (town.embers - before)]
+
+
+func _voices() -> Array:
+	var ok := true
+	for key in Voice.CAST:
+		ok = ok and Voice.CAST[key][0] in Voice.ACTORS
+	for src in Voice.files():
+		ok = ok and FileAccess.file_exists(src) and src in Clips.wanted_sheets()
+	return [ok, "%d clips for %d voices" % [Voice.files().size(), Voice.CAST.size()]]
+
+
+func _boon_glyphs() -> Array:
+	var ok := true
+	for key in Expedition.BOONS:
+		ok = ok and FileAccess.file_exists("res://art/icons/ui/%s.svg" % ExpeditionScreen.boon_glyph(key))
+	return [ok, "%d boons" % Expedition.BOONS.size()]
+
+
+func _title_art() -> Array:
+	var arts := Backdrop.all_art()
+	var bare := arts.filter(func(art): return not FileAccess.file_exists(Backdrop.art_path(art)))
+	var on_disk := Array(DirAccess.get_files_at("res://art/backgrounds/")).filter(func(f): return f.ends_with(".webp"))
+	var unlisted := on_disk.filter(func(f): return f.get_basename() not in arts and f.get_basename() not in Backdrop.SCREEN_ART)
+	return [not arts.is_empty() and bare.is_empty() and unlisted.is_empty(), "%d backgrounds · no file %s · unlisted %s" % [arts.size(), bare, unlisted]]
+
+
+func _title_pan() -> Array:
+	var edges := 0
+	var reach := 0.0
+	for view in [Vector2(720, 1560), Vector2(1560, 720)]:
+		var full: Vector2 = Vector2(1792, 896) * maxf(view.x / 1792.0, view.y / 896.0) * TitleScreen.ZOOM
+		for i in 400:
+			var at := TitleScreen.pan(full, view, i * 0.5)
+			if at.x > 0.0 or at.y > 0.0 or at.x + full.x < view.x or at.y + full.y < view.y:
+				edges += 1
+			reach = maxf(reach, absf(at.x + (full.x - view.x) / 2.0))
+	var airless := Backdrop.all_art().filter(func(a): return not Weather.AIR.has(a))
+	return [edges == 0 and reach > 100.0 and airless.is_empty(), "edges shown %d · reach %d px · no air %s" % [edges, reach, airless]]
+
+
+func _road_music() -> Array:
+	var bad := []
+	var sets := {"default": Expedition.MUSIC_DEFAULT}
+	for key in Expedition.ROADS:
+		sets[key] = Expedition.ROADS[key].music
+		if sets[key].get("map", "") == "":
+			bad.append(key + " has no map track")
+	for key in sets:
+		for slot in sets[key]:
+			var menu: bool = key == "default" and slot in Expedition.MENU_SLOTS
+			if slot != "map" and not Expedition.NODES.has(slot) and not menu:
+				bad.append("%s slot %s" % [key, slot])
+	var used := Expedition.music_tracks()
+	# The files are licensed and stay out of git, so a fresh checkout has none; the export fails if any is missing.
+	var files := Array(DirAccess.get_files_at(Music.DIR)).filter(func(f): return f.ends_with(".ogg"))
+	if not files.is_empty():
+		for t in used:
+			if t + ".ogg" not in files:
+				bad.append("no file for " + t)
+		for f in files:
+			if f.get_basename() not in used:
+				bad.append("unused file " + f)
+	return [bad.is_empty() and used[0] == Expedition.MUSIC_DEFAULT.map, "%d tracks · %d files · %s" % [used.size(), files.size(), bad]]
+
+
+func _music_fallback() -> Array:
+	var own: String = Expedition.ROADS.lotus.music.elite
+	var map: String = Expedition.ROADS.lotus.music.map
+	var d := Expedition.MUSIC_DEFAULT
+	return [Expedition.music_for("lotus", "elite") == own and Expedition.music_for("lotus", "map") == map
+		and Expedition.music_for("lotus", "rest") == map and Expedition.music_for("", "map") == d.map
+		and Expedition.music_for("", "elite") == d.elite and Expedition.music_for("", "rest") == d.map
+		and Expedition.music_for("", "town") == d.get("town", d.map) and Expedition.music_for("", "menu") == d.get("menu", d.map)
+		and Expedition.music_for("lotus", "heroes") == d.get("heroes", map), "%s · %s" % [own, map]]
+
+
+func _music_player() -> Array:
+	var was := Sfx.on()
+	Sfx._on = 0
+	Music.play(Expedition.MUSIC_DEFAULT.map)
+	var quiet := Music.wanted() == Expedition.MUSIC_DEFAULT.map and Music.sounding() == ""
+	Sfx._on = 1 if was else 0
+	var s := Music.stream(Expedition.MUSIC_DEFAULT.map)
+	return [quiet and Music.stream("no_such_track") == null and (s == null or s.loop), "off: %s · stream %s" % [quiet, s]]
 
 
 func _sounds() -> Array:
@@ -936,13 +1069,18 @@ func _rig() -> Array:
 	var unrigged := []
 	var worst_foot := 0.0
 	var best_sway := {}
+	var rigged := {}
 	for key in Data.SPRITES:
 		var spr := Data.sprite_for({"key": key})
-		if not spr.has("rig"):
-			if not spr.has("anim") and Faces.BODIES.has(key):
-				unrigged.append(key)
-			continue
-		var rig := Figure.rig_of(spr)
+		if spr.has("rig"):
+			rigged[key] = spr
+		elif not spr.has("anim") and Faces.BODIES.has(key):
+			unrigged.append(key)
+	# The rig waits for the next still with no loop: while the whole cast has idle sheets, a rig on file stands in.
+	if rigged.is_empty():
+		rigged["on file"] = {"src": "rig-on-file", "rig": JSON.parse_string(FileAccess.get_file_as_string("res://art/sprites/seer-rig.json"))}
+	for key in rigged:
+		var rig := Figure.rig_of(rigged[key])
 		var cols: int = rig.cols
 		var rows: int = rig.rows
 		var sway := 0.0
@@ -958,9 +1096,180 @@ func _rig() -> Array:
 				sway = maxf(sway, most)
 		best_sway[key] = snappedf(sway, 0.001)
 	var swaying := best_sway.values().all(func(x): return x > 0.008)
-	return [unrigged.is_empty() and best_sway.size() >= 5 and worst_foot < 0.004 and swaying,
+	return [unrigged.is_empty() and not best_sway.is_empty() and worst_foot < 0.004 and swaying,
 		"rigged %s · loose parts reach %s of their height · planted feet move at most %.4f · unrigged %s" % [
 		best_sway.keys(), best_sway.values(), worst_foot, unrigged]]
+
+
+func _sheets_refresh() -> Array:
+	var dir := "user://sheets-check/"
+	DirAccess.make_dir_recursive_absolute(dir)
+	Clips.refresh_sheets(dir, "one")
+	var keep := FileAccess.open(dir + "a-idle.webp", FileAccess.WRITE)
+	keep.store_string("x")
+	keep.close()
+	Clips.refresh_sheets(dir, "one")
+	var kept := FileAccess.file_exists(dir + "a-idle.webp")
+	Clips.refresh_sheets(dir, "two")
+	var cleared := not FileAccess.file_exists(dir + "a-idle.webp")
+	var stamped := FileAccess.get_file_as_string(dir + "stamp") == "two"
+	DirAccess.remove_absolute(dir + "stamp")
+	DirAccess.remove_absolute(dir)
+	return [kept and cleared and stamped and Faces.SHEETS_STAMP.length() == 12, "same art keeps %s · new art clears %s · stamp %s" % [kept, cleared, Faces.SHEETS_STAMP]]
+
+
+func _sound_in_front() -> Array:
+	var shell := FileAccess.get_file_as_string("res://web/shell.html")
+	var ok := shell.contains("c.suspend()") and shell.contains("document.hasFocus()") and shell.contains("visibilitychange")
+	return [ok, "shell suspends audio: %s" % ok]
+
+
+func _weather() -> Array:
+	var bare := []
+	var strayed := 0
+	for art in Backdrop.all_art():
+		var w := Weather.over(art)
+		if w == null:
+			bare.append(art)
+			continue
+		w.size = Vector2(720, 1560)
+		w.fill()
+		for i in 600:
+			w.step(0.1)
+		for m in w.motes():
+			if m.p.x < 0.0 or m.p.x >= 1.0 or m.p.y < 0.0 or m.p.y >= 1.0:
+				strayed += 1
+		if w.motes().is_empty():
+			bare.append(art)
+		w.free()
+	var none := Weather.over("nowhere") == null
+	return [bare.is_empty() and strayed == 0 and none, "%d backgrounds · no air %s · strayed %d" % [Backdrop.all_art().size(), bare, strayed]]
+
+
+func _grounds() -> Array:
+	var wrong := []
+	var files := []
+	for road in Backdrop.GROUNDS:
+		var src := Backdrop.ground_path(Backdrop.GROUNDS[road].art)
+		files.append(src.get_file())
+		if not Expedition.ROADS.has(road) or not ResourceLoader.exists(src) or src not in Clips.wanted_sheets():
+			wrong.append(road)
+	for f in DirAccess.get_files_at("res://art/grounds/"):
+		if f.ends_with(".webp") and f not in files:
+			wrong.append(f)
+	var g := Backdrop.ground("basalt")
+	var tiles := g.stretch_mode == TextureRect.STRETCH_TILE
+	g.free()
+	var left_out := FileAccess.get_file_as_string("res://export_presets.cfg").count("art/grounds/*") == 2
+	return [wrong.is_empty() and tiles and left_out and Backdrop.ground("nowhere") == null, "%d grounds · wrong %s · tiles %s · out of the pack %s" % [files.size(), wrong, tiles, left_out]]
+
+
+func _backgrounds() -> Array:
+	var wrong := []
+	for home in Backdrop.ART:
+		if not Data.REGIONS.has(home):
+			wrong.append(home)
+	for h in Data.HEROES:
+		var p := Backdrop.painted(h.home)
+		if p == null:
+			wrong.append(h.key)
+		else:
+			p.free()
+	var arts := Backdrop.all_art()
+	for art in arts:
+		if not ResourceLoader.exists(Backdrop.art_path(art)):
+			wrong.append(art)
+	for f in DirAccess.get_files_at("res://art/backgrounds/"):
+		if f.ends_with(".webp") and f.get_basename() not in arts and f.get_basename() not in Backdrop.SCREEN_ART:
+			wrong.append(f)
+	# A home with several shows each of them over enough visits, and a home without any falls back to the glow.
+	var seen := {}
+	for i in 60:
+		var p := Backdrop.painted("jaladesh")
+		seen[p.art] = true
+		p.free()
+	var ok: bool = seen.size() == Backdrop.ART.jaladesh.size() and Backdrop.painted("nowhere") == null
+	var travels: bool = Backdrop.art_path(arts[0]) in Clips.wanted_sheets()
+	return [ok and travels and wrong.is_empty(), "%d backgrounds · %d of Jaladesh's shown · wrong %s" % [arts.size(), seen.size(), wrong]]
+
+
+func _art_music() -> Array:
+	var wrong := []
+	for key in Expedition.ROADS:
+		if Backdrop.music_of(Expedition.ROADS[key].art) != Expedition.ROADS[key].music.map:
+			wrong.append(key)
+	var near: bool = Backdrop.music_of("basalt-city") == Expedition.ROADS.basalt.music.map
+	return [wrong.is_empty() and near and Backdrop.music_of("coast") == "" and Backdrop.music_of("nowhere") == "", "wrong %s" % [wrong]]
+
+
+func _status_fx() -> Array:
+	var all := StatusFx.active({"burn": 3, "stun": 1, "shield": 40, "guard": true})
+	var none := StatusFx.active({"burn": 0, "stun": 0, "shield": 0, "guard": false})
+	return [all == ["guard", "shield", "burn", "stun"] and none.is_empty(), "all %s · none %s" % [all, none]]
+
+
+func _glows() -> Array:
+	var bad := []
+	var lit := 0
+	for art in Backdrop.all_art():
+		if not Faces.GLOWS.has(art):
+			bad.append(art)
+			continue
+		for l in Faces.GLOWS[art]:
+			lit += 1
+			if l[0] < 0.0 or l[0] > 1.0 or l[1] < 0.0 or l[1] > 0.5 or l[2] <= 0.0:
+				bad.append(art)
+	return [bad.is_empty() and lit >= 25, "%d lights across %d backgrounds · bad %s" % [lit, Backdrop.all_art().size(), bad]]
+
+
+## Idle sheets are built whole: every cell the sprite names is on the sheet, about 560 tall, at the sprite's own rate;
+## the feet hold still from frame to frame (the loop's first frame against the rest, in pixels of a cell); no pure key
+## colour is left on the figure.
+func _idle_sheets() -> Array:
+	var wrong := []
+	var worst_foot := 0.0
+	var sheets := 0
+	for key in Faces.BODIES:
+		var anim: Dictionary = Faces.BODIES[key].get("anim", {})
+		if anim.is_empty():
+			continue
+		var im := Image.load_from_file(ProjectSettings.globalize_path(anim.src))
+		im.convert(Image.FORMAT_RGBA8)
+		var w: int = anim.w
+		var h: int = anim.h
+		var cols: int = anim.cols
+		var n: int = anim.n
+		var fit: bool = im.get_width() == w * cols and im.get_height() == h * ceili(float(n) / cols)
+		if not fit or absi(h - 560) > 20 or anim.fps <= 0 or n < 12:
+			wrong.append(key + " size")
+			continue
+		sheets += 1
+		var first := Vector2(-1.0, -1.0)
+		var key_left := 0
+		for f in n:
+			var ox := (f % cols) * w
+			var oy := (f / cols) * h
+			var low := -1
+			var sum := 0.0
+			var count := 0
+			for y in range(h - 1, h - 40, -1):
+				for x in range(0, w, 2):
+					if im.get_pixel(ox + x, oy + y).a > 0.7:
+						low = maxi(low, y)
+						sum += x
+						count += 1
+			var feet := Vector2(sum / maxi(count, 1), low)
+			first = feet if first.x < 0.0 else first
+			worst_foot = maxf(worst_foot, absf(feet.y - first.y))
+			for y in range(0, h, 7):
+				for x in range(0, w, 7):
+					var c := im.get_pixel(ox + x, oy + y)
+					if c.a > 0.8 and ((c.g > 0.75 and c.r < 0.25 and c.b < 0.35) or (c.r > 0.8 and c.b > 0.7 and c.g < 0.2)):
+						key_left += 1
+		if key_left > 0:
+			wrong.append("%s key %d" % [key, key_left])
+	return [wrong.is_empty() and worst_foot <= 2.0 and sheets >= 1,
+		"%d sheets · feet rise at most %.0f px · wrong %s" % [sheets, worst_foot, wrong]]
 
 
 func _b_turn_marks() -> Array:
@@ -1108,7 +1417,7 @@ func _x_map() -> Array:
 
 
 func _x_foes() -> Array:
-	var x := Expedition.new().begin("ghats", 7)
+	var x := Expedition.new().begin("lotus", 7)
 	var first := x.foes_for(Vector2i(0, 0))
 	var last := x.foes_for(Vector2i(x.layers.size() - 1, 0))
 	var ok: bool = first.keys[0] == "caller" and last.keys[0] == "caller" and first.keys.size() == 2 and last.keys.size() == 4 \
@@ -1142,6 +1451,32 @@ func _x_boons() -> Array:
 	return [u.atk == 146 and v.atk == 130 and u.def == 50 and x.banked() == 50, "fire hero atk %d · water hero atk %d · 101 embers bank %d on a loss" % [u.atk, v.atk, x.banked()]]
 
 
+func _h_slides() -> Array:
+	var all := MainMenu.slides("")
+	var ok: bool = all == Expedition.ROADS.keys() and MainMenu.slides("lotus") == ["lotus"]
+	for key in all:
+		var r: Dictionary = Expedition.ROADS[key]
+		ok = ok and r.about != "" and Weather.AIR.has(r.art) and Data.REGIONS.has(r.region)
+	return [ok, "%d roads" % all.size()]
+
+
+func _b_wide_floor() -> Array:
+	var rows := Collection.ROWS
+	var cols := Collection.COLS
+	var ok := true
+	for side in ["P", "E"]:
+		for r in rows:
+			for c in cols:
+				for p in BattleScreen.floor_quad(side, r, c, rows, cols):
+					ok = ok and Rect2(Vector2.ZERO, BattleScreen.FIELD).has_point(p) and p.y <= BattleScreen.FLOOR_BOTTOM + 0.5
+	var near_p := BattleScreen.floor_quad("P", 0, cols - 1, rows, cols)
+	var near_e := BattleScreen.floor_quad("E", 0, cols - 1, rows, cols)
+	var far := BattleScreen.floor_quad("P", 0, 0, rows, cols)
+	var gap: float = near_e[3].x - near_p[2].x
+	var closes: bool = (far[1] - far[0]).x < (near_p[2] - near_p[3]).x and (far[3] - far[0]).y < (near_p[3] - near_p[0]).y
+	return [ok and gap > 40.0 and closes, "gap %d px · closes up %s" % [gap, closes]]
+
+
 func _x_battle_subset() -> Array:
 	var b := Battle.new()
 	b.start(b.pristine_heroes(), {}, ["golem", "seer"], 1.5)
@@ -1158,7 +1493,134 @@ func _pick_kit() -> Dictionary:
 	return kit
 
 
-func _pick_run(road := "ghats", sd := 7) -> Expedition:
+## A run standing on its first stop, with `hp` as the squad's health, for the wayside checks.
+func _wayside_run(hp: Dictionary, rarity := 0) -> Expedition:
+	var x := Expedition.new().begin("lotus", 7)
+	x.step(Vector2i(0, 0))
+	x.hp = hp
+	x.node(x.at).rarity = rarity
+	return x
+
+
+func _w_stops() -> Array:
+	var bad := []
+	var met := 0
+	if Expedition.NODES.has("cache") or Expedition.NODES.has("trial") or not FileAccess.file_exists("res://art/icons/ui/%s.svg" % Expedition.NODES.wayside.icon):
+		bad.append("stops")
+	for road in Expedition.ROADS:
+		if Events.pool(road, []).size() < 3:
+			bad.append("%s pool" % road)
+		for sd in 40:
+			var x := Expedition.new().begin(road, sd)
+			for layer in x.layers:
+				for nd in layer:
+					met += 1 if nd.type == "wayside" else 0
+			var before := []
+			for i in Events.pool(road, []).size() + Events.pool("any", []).size():
+				var k := x.draw_event(Vector2i(i, 0))
+				if k in before or (Events.LIST[k].road != road and Events.LIST[k].road != "any"):
+					bad.append("%s/%d %s" % [road, sd, k])
+				before.append(k)
+	return [bad.is_empty() and met > 0, "%d events · %d wayside stops on 360 maps · %s" % [Events.LIST.size(), met, bad.slice(0, 3)]]
+
+
+func _w_events() -> Array:
+	var bad := []
+	var roads: Array = Expedition.ROADS.keys() + ["any"]
+	for key in Events.LIST:
+		var ev: Dictionary = Events.LIST[key]
+		var choices: Array = ev.choices
+		if not ev.road in roads or ev.title != ev.title.to_lower() or choices.size() < 2 or choices.size() > 4:
+			bad.append(key)
+		for c in choices:
+			var how := ["do", "roll", "luck"].filter(func(k): return c.has(k))
+			if how.size() != 1 or (c.has("do") == c.has("win")) or c.has("win") != c.has("lose"):
+				bad.append("%s shape" % key)
+			if c.has("roll") and not Data.APTITUDES.has(c.roll):
+				bad.append("%s aptitude" % key)
+			if c.has("hero") and Data.HEROES.all(func(h): return h.key != c.hero):
+				bad.append("%s hero" % key)
+			for o in [c.get("do", {}), c.get("win", {}), c.get("lose", {})]:
+				if not o.is_empty() and o.get("say", "") == "":
+					bad.append("%s silent" % key)
+				if o.has("boon") and not Expedition.BOONS.has(o.boon):
+					bad.append("%s boon" % key)
+				if o.has("fight") and not o.fight in ["battle", "elite"]:
+					bad.append("%s fight" % key)
+		var last: Dictionary = choices[-1]
+		var plain: Dictionary = last.get("do", {"fight": true})
+		if last.has("pay") or last.has("half") or last.has("hero") or last.has("needs") or plain.has("fight") or plain.has("hurt") or plain.has("loan") or plain.get("gold", 0.0) < 0.0:
+			bad.append("%s unsafe" % key)
+	return [bad.is_empty(), "%d events · %s" % [Events.LIST.size(), bad.slice(0, 4)]]
+
+
+func _w_terms() -> Array:
+	var bad := []
+	var x := _wayside_run({"a": 1.0})
+	for key in Events.LIST:
+		for c in Events.LIST[key].choices:
+			var o: Dictionary = c.get("lose", c.get("do", {}))
+			var costly: bool = c.has("pay") or c.has("half") or c.has("roll") or o.has("hurt") or o.has("hurt_all") or o.has("fight") or o.has("loan") or o.get("gold", 0.0) < 0.0
+			if costly == (x.event_terms(c) == ""):
+				bad.append("%s %s" % [key, c.text])
+	var c := {"pay": 2.0}
+	x.embers = 89
+	var refused := not x.can_pay(c)
+	x.embers = x.event_price(c)
+	var met := x.can_pay(c)
+	x.event_pay(c)
+	var odds := Expedition.roll_wins(12, false) and not Expedition.roll_wins(11, false) and Expedition.roll_wins(9, true) and not Expedition.roll_wins(8, true)
+	return [bad.is_empty() and refused and met and x.embers == 0 and odds, "price %d · %s" % [x.event_price(c), bad.slice(0, 3)]]
+
+
+func _w_health() -> Array:
+	var x := _wayside_run({"a": 0.05, "b": 0.5, "c": 0.0})
+	x.event_apply({"hurt": 0.2}, "a")
+	var floored := x.health("a") > 0.0 and not x.fallen("a")
+	x.event_apply({"hurt_all": 0.1})
+	var all := x.health("a") > 0.0 and is_equal_approx(x.health("b"), 0.4) and x.fallen("c")
+	x.event_apply({"heal": 0.3})
+	var stays := x.fallen("c") and is_equal_approx(x.health("b"), 0.7)
+	var squad := {"a": "rock", "b": "seer", "c": "ilse"}
+	var stair := x.event_choices("unfinished_stair", squad)
+	var gone := x.event_choices("unfinished_stair", {"b": "seer", "c": "rock"})
+	var lamp := x.event_choices("lamp_upstream", squad)
+	var safe := x.event_choices("lamp_upstream", {"a": "rock"})
+	var hero: bool = stair.size() == 4 and gone.size() == 3 and lamp.size() == 3 and lamp[0].uid == "c" and Data.hero("ilse").name in lamp[0].text and safe.size() == 2
+	x.embers = 101
+	var c: Dictionary = lamp[0]
+	x.event_pay(c)
+	x.event_apply(c.do, c.uid)
+	return [floored and all and stays and hero and x.embers == 51 and is_equal_approx(x.health("c"), 0.30), "fallen raised at %.0f%% for half the gold" % (x.health("c") * 100)]
+
+
+func _w_rewards() -> Array:
+	var plain := _wayside_run({})
+	var rare := _wayside_run({}, 2)
+	var a := plain.event_apply({"gold": 2.0})
+	var b := rare.event_apply({"gold": 2.0, "boon": "bulwark", "up": 1, "augment": true, "rerolls": 2})
+	var scaled: bool = a.gold == plain.event_gold(2.0) and b.gold == plain.event_gold(4.0) and b.boon.rarity == 3 and Data.AUGS.has(b.augment) and rare.rerolls == 2
+	var loss := plain.event_apply({"gold": -100.0})
+	var kept: bool = loss.gold == -a.gold and plain.embers == 0
+	var x := _wayside_run({})
+	x.event_apply({"fight": "elite"})
+	var foes := x.foes_for(x.at)
+	var plain_foes := plain.foes_for(plain.at)
+	var harder: bool = x.stop_kind() == "elite" and foes.keys.size() == 3 and foes.scale > plain_foes.scale
+	x.finish_fight(true, {})
+	var paid := x.embers == x.purse("elite")
+	x.step(x.choices()[0])
+	var cleared := x.ambush == ""
+	var debt := _wayside_run({})
+	debt.event_apply({"loan": [3.0, 5.0]})
+	var lent := debt.embers == debt.event_gold(3.0)
+	debt.over = "win"
+	var bankrupt := debt.banked() == 0
+	debt.embers = debt.debt + 75
+	return [scaled and kept and harder and paid and cleared and lent and bankrupt and debt.banked() == 75, "2 purses pay %d, or %d at epic · a loan owes %d" % [a.gold, b.gold, debt.debt]]
+
+
+func _pick_run(road := "lotus", sd := 7) -> Expedition:
 	var x := Expedition.new().begin(road, sd)
 	x.step(Vector2i(0, 0))
 	return x
@@ -1168,7 +1630,7 @@ func _x_pick_offer() -> Array:
 	var bad := []
 	var seen := []
 	for sd in 40:
-		var x := _pick_run("ghats", sd)
+		var x := _pick_run("lotus", sd)
 		x.hp["kaede"] = 0.0
 		for i in 3:
 			x.offer_pick(_pick_kit())
@@ -1215,7 +1677,7 @@ func _x_pick_when() -> Array:
 	var rarities := {"battle": 0, "elite": 0}
 	for t in rarities:
 		for sd in 200:
-			var x := _pick_run("ghats", sd)
+			var x := _pick_run("lotus", sd)
 			x.layers[0][0].type = t
 			x.offer_pick(_pick_kit())
 			for o in x.pick_now.options:
@@ -1272,12 +1734,12 @@ func _x_pick_take() -> Array:
 	var o: Dictionary = x.pick_now.options[0]
 	var refused: bool = not x.take_pick(o) and x.picks.kaede.size() == 2
 	var swapped: bool = x.take_pick(o, 0) and x.picks.kaede.size() == 2 and x.picks.kaede.any(func(p): return p.aug == "kindling") and not x.picks.kaede.any(func(p): return p.aug == "keen")
-	var held := Expedition.new().begin("ghats", 1)
+	var held := Expedition.new().begin("lotus", 1)
 	held.step(Vector2i(0, 0))
 	var slotted := [{"aug": "keen", "skill": 0, "locked": false}]
 	held.offer_pick({"kaede": {"skills": Data.hero("kaede").skills, "augs": slotted}})
 	var stacked: float = held.pick_preview({"aug": "keen", "skill": 0}).power
-	var bare := Expedition.new().begin("ghats", 1)
+	var bare := Expedition.new().begin("lotus", 1)
 	var plain := Battle.card_unit(col, "brann", b)
 	var kept: Array = plain.skills
 	bare.fit_out(plain, col.by("brann"))
@@ -1288,3 +1750,14 @@ func _x_pick_take() -> Array:
 	var both: float = Data.apply_augs(Data.hero("kaede").skills, [{"aug": "keen", "skill": 0}, {"aug": "keen", "skill": 0}])[0].power
 	return [is_equal_approx(stacked, both) and hits and refused and swapped and plain.skills == kept and share > 0 and x.embers == had + share and x.pick_now.is_empty(),
 		"Foxfire Lance power %.3f → %.3f · full hero refused without a choice · skip +%d" % [base, u.skills[0].power, share]]
+
+
+func _b_forecast_crop() -> Array:
+	var bad := []
+	for h in Data.HEROES:
+		var ts: Vector2 = load(h.portrait.src).get_size()
+		var tile := Forge.crop(ts, Vector2(152, 112), h.portrait, 0.62, "tile")
+		var face := Forge.crop(ts, BattleScreen.HEAD_SIZE, h.portrait, 0.85, "tile")
+		if h.portrait.get("crops", {}).has("face") or not face.size.is_equal_approx(tile.size) and h.portrait.get("crops", {}).has("tile"):
+			bad.append(h.name)
+	return [bad.is_empty(), "%d heroes · %s" % [Data.HEROES.size(), ", ".join(bad) if bad.size() else "all share the tile crop"]]

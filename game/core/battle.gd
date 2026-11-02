@@ -17,22 +17,22 @@ const FOES := [
 	# The golem's slot, played by Smoke for now: his name and art, the golem's rules (the reference fights depend on them).
 	{"key": "golem", "name": "Smoke", "short": "Smoke", "elem": "earth", "legacy_elem": "fire", "range": "melee",
 		"max_hp": 1500, "atk": 115, "def": 85, "spd": 60, "r": 0, "c": 1,
-		"portrait": {"src": "res://art/faces/smoke.webp", "eyes": [53, 44], "chin": 57}, "skills": [
+		"portrait": {"src": "res://art/portraits/smoke.webp", "eyes": [49.5, 45.5], "chin": 65.5, "crops": {"tile": [31, 35.5, 28]}}, "skills": [
 		{"name": "Magma Fist", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.5, "cd": 3, "fx": {"burn": 2}},
 		{"name": "Quake", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 0.8, "cd": 3}]},
 	{"key": "blade", "name": "Galeblade", "short": "Galeblade", "elem": "wind", "range": "melee",
 		"max_hp": 950, "atk": 145, "def": 40, "spd": 110, "r": 0, "c": 0,
-		"portrait": {"src": "res://art/portraits/blade.webp", "eyes": [38, 41], "chin": 58}, "skills": [
+		"portrait": {"src": "res://art/portraits/leaf.webp", "eyes": [56.5, 47], "chin": 64, "crops": {"tile": [41, 35.5, 20.5]}}, "skills": [
 		{"name": "Gust Step", "kind": "dmg", "range": "melee", "pattern": "single", "power": 1.6, "cd": 4, "fx": {"stun": 1}},
 		{"name": "Cyclone Cut", "kind": "dmg", "range": "melee", "pattern": "sweep", "power": 1.0, "cd": 2}]},
 	{"key": "caller", "name": "Tidecaller", "short": "Tidecaller", "elem": "water", "range": "ranged",
 		"max_hp": 900, "atk": 125, "def": 45, "spd": 85, "r": 1, "c": 2,
-		"portrait": {"src": "res://art/faces/tidecaller.webp", "eyes": [50, 35], "chin": 47}, "skills": [
+		"portrait": {"src": "res://art/portraits/caller.webp", "eyes": [52.5, 41], "chin": 57.5, "crops": {"tile": [35.5, 31.5, 21]}}, "skills": [
 		{"name": "Mend", "kind": "heal", "pattern": "all", "power": 1.2, "cd": 4},
 		{"name": "Tidal Pillar", "kind": "dmg", "range": "ranged", "pattern": "pierce", "power": 1.15, "cd": 3}]},
 	{"key": "seer", "name": "Ashen Seer", "short": "Seer", "elem": "fire", "range": "ranged",
 		"max_hp": 800, "atk": 135, "def": 35, "spd": 95, "r": 2, "c": 1,
-		"portrait": {"src": "res://art/faces/seer.webp", "eyes": [47, 32], "chin": 45}, "skills": [
+		"portrait": {"src": "res://art/portraits/seer.webp", "eyes": [50, 45.5], "chin": 66.5, "crops": {"tile": [31.5, 33.5, 26]}}, "skills": [
 		{"name": "Ember Rain", "kind": "dmg", "range": "ranged", "pattern": "all", "power": 0.55, "cd": 4, "fx": {"burn": 1}},
 		{"name": "Flare", "kind": "dmg", "range": "ranged", "pattern": "single", "power": 1.6, "cd": 2}]},
 ]

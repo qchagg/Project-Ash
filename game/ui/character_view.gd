@@ -2,7 +2,7 @@ class_name CharacterView
 extends Control
 ## The hero out of the card: full art drifting over their element's backdrop, name, title and lore. A hero with faces
 ## (see Bust) is alive here: the zoom rail's face end is their live bust, and tapping them gets a line.
-## The first page of a hero: the sheet sits one scroll below. Tags float their details on tap. A painted regional background can slot in under the backdrop.
+## The first page of a hero: the sheet sits one scroll below. Tags float their details on tap. A painted home background, when there is one, covers the glow.
 
 const MODE := "four"
 
@@ -51,6 +51,12 @@ func _ready() -> void:
 	bd.strength = 1.4
 	bd.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(bd)
+	var bg := Backdrop.painted(h.get("home", ""))
+	if bg:
+		add_child(bg)
+		var air := Weather.over(bg.art)
+		if air:
+			add_child(air)
 
 	# The art, drifting slowly and fading out above the text.
 	_art = Control.new()
@@ -184,7 +190,7 @@ func _fill_tags() -> void:
 	elem.add_child(Forge.glyph("chevron", 18, Forge.GOLD))
 	row.add_child(_tappable(_tag_panel(elem), "Matchups", _matchups))
 	row.add_child(_tag_panel(_tag(h.range.capitalize(), "", Color.WHITE)))
-	# The hero's favoured aptitudes, for trials. Tap one for what it covers.
+	# The hero's favoured aptitudes, for wayside rolls. Tap one for what it covers.
 	var apts := Forge.hbox(14)
 	_tags.add_child(apts)
 	for a in h.get("favored", []):

@@ -10,8 +10,16 @@ const ROW_NAMES := ["front", "mid", "deep", "back"]
 const W := 632.0
 const GAP := 14.0
 
+## Where each hero stands in the wide line-up, furthest first: foot x and y on the screen, and how tall.
+const LINE := [Vector3(1250, 590, 370), Vector3(1010, 612, 400), Vector3(780, 640, 470), Vector3(540, 682, 560)]
+const LIST_W := 340.0
+
+## Wide only: the squad standing in a line, or the formation page.
+static var lined := true
+
 ## The fielded card picked for a move or a swap, if any.
 var _sel := ""
+var _scene: Control
 
 
 func _init() -> void:
@@ -19,9 +27,29 @@ func _init() -> void:
 	title = "party"
 
 
+func setup(a: App) -> Screen:
+	super(a)
+	if Forge.wide():
+		var arts: Array = Backdrop.ART.get(Data.hero(a.col.by(a.col.squad[0]).hero).get("home", ""), [])
+		if not arts.is_empty():
+			backdrop = arts.pick_random()
+	return self
+
+
 func _build() -> void:
 	if _sel != "" and not _sel in app.col.squad:
 		_sel = ""
+	if _scene:
+		_scene.queue_free()
+		_scene = null
+	frame.visible = not (Forge.wide() and lined)
+	if not frame.visible:
+		_lineup()
+		return
+	if Forge.wide():
+		var line := Forge.link("line-up", "tab_squad", 20)
+		line.pressed.connect(_set_view.bind(true))
+		head_right.add_child(line)
 	var n := Forge.sc("%d of %d" % [app.col.squad.size(), Collection.MAX_SQUAD], 22, Forge.LABEL)
 	n.size_flags_vertical = SIZE_SHRINK_CENTER
 	head_right.add_child(n)
@@ -50,6 +78,143 @@ func _build() -> void:
 	go.size_flags_horizontal = SIZE_SHRINK_CENTER
 	go.pressed.connect(func(): app.show_tab("expedition"))
 	right.add_child(go)
+
+
+func _set_view(on: bool) -> void:
+	lined = on
+	rebuild()
+
+
+# --- the line-up -------------------------------------------------------------------------------
+
+## The squad standing together on the lead hero's home: the title across the top, the roster at the left, and tapping
+## anyone picks them to swap with someone on the bench.
+func _lineup() -> void:
+	_scene = Control.new()
+	_scene.set_anchors_preset(PRESET_FULL_RECT)
+	_scene.mouse_filter = MOUSE_FILTER_IGNORE
+	add_child(_scene)
+	var band := ColorRect.new()
+	band.color = Color(Forge.INK, 0.5)
+	band.set_anchors_preset(PRESET_TOP_WIDE)
+	band.offset_bottom = 100
+	band.mouse_filter = MOUSE_FILTER_IGNORE
+	_scene.add_child(band)
+	var head := Forge.sc("select squad", 46, Forge.PARCHMENT, false, 0.3)
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.set_anchors_preset(PRESET_TOP_WIDE)
+	head.offset_bottom = 100
+	head.mouse_filter = MOUSE_FILTER_IGNORE
+	_scene.add_child(head)
+	var count := Forge.sc("%d of %d" % [app.col.squad.size(), Collection.MAX_SQUAD], 20, Forge.LABEL)
+	count.position = Vector2(44, 38)
+	_scene.add_child(count)
+	var sound := Forge.sound_toggle()
+	sound.set_anchors_preset(PRESET_TOP_RIGHT)
+	sound.position += Vector2(-84, 22)
+	_scene.add_child(sound)
+	var n: int = app.col.squad.size()
+	for i in n:
+		_stand_up(app.col.squad[n - 1 - i], LINE[LINE.size() - n + i])
+	_scene.add_child(_list())
+	var foot := Forge.hbox(26)
+	foot.set_anchors_preset(PRESET_BOTTOM_WIDE)
+	foot.offset_left = 44
+	foot.offset_right = -44
+	foot.offset_top = -92
+	foot.offset_bottom = -24
+	foot.mouse_filter = MOUSE_FILTER_IGNORE
+	_scene.add_child(foot)
+	var form := Forge.link("formation", "tab_squad", 20)
+	form.pressed.connect(_set_view.bind(false))
+	foot.add_child(form)
+	var gap := Control.new()
+	gap.size_flags_horizontal = SIZE_EXPAND_FILL
+	gap.mouse_filter = MOUSE_FILTER_IGNORE
+	foot.add_child(gap)
+	var go := Forge.studs("back to the road" if app.run else "choose a road", true, 64, 22)
+	go.custom_minimum_size.x = 280
+	go.pressed.connect(app.show_tab.bind("expedition"))
+	foot.add_child(go)
+
+
+func _stand_up(uid: String, at: Vector3) -> void:
+	var c := app.col.by(uid)
+	var h := Data.hero(c.hero)
+	var s := Stand.new().setup(c.hero, c.stars)
+	s.tall = 0.96
+	s.size = Vector2(at.z * 0.8, at.z)
+	s.position = Vector2(at.x - s.size.x / 2.0, at.y - at.z + 12.0)
+	_scene.add_child(s)
+	var picked := uid == _sel
+	var tag := Forge.sc(h.name, 18, Forge.GOLD_LIGHT if picked else Forge.PARCHMENT, picked, 0.12)
+	tag.add_theme_color_override("font_shadow_color", Color.BLACK)
+	tag.size = Vector2(240, 26)
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.position = Vector2(at.x - 120.0, maxf(108.0, at.y - at.z - 22.0))
+	tag.mouse_filter = MOUSE_FILTER_IGNORE
+	_scene.add_child(tag)
+	_tap(s, func():
+		_sel = "" if picked else uid
+		rebuild())
+
+
+## Who is on the field and who is waiting: one panel at the left of the line.
+func _list() -> Control:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.INK, 0.72), Color(Forge.GOLD_DEEP, 0.4), 1, Vector4(14, 12, 14, 12)))
+	p.position = Vector2(44, 124)
+	p.custom_minimum_size = Vector2(LIST_W, 470)
+	p.size = p.custom_minimum_size
+	var v := Forge.vbox(4)
+	p.add_child(v)
+	v.add_child(Forge.sc("the field", 16, Forge.GOLD))
+	for uid in app.col.squad:
+		v.add_child(_row(uid, true))
+	v.add_child(Forge.sc("pick who comes in" if _sel != "" else "the bench", 16, Forge.GOLD_LIGHT if _sel != "" else Forge.GOLD))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	v.add_child(scroll)
+	var bench := Forge.vbox(4)
+	bench.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll.add_child(bench)
+	for c in app.col.cards:
+		if not c.uid in app.col.squad:
+			bench.add_child(_row(c.uid, false))
+	return p
+
+
+func _row(uid: String, fielded: bool) -> Control:
+	var c := app.col.by(uid)
+	var h := Data.hero(c.hero)
+	var picked := uid == _sel
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.GOLD, 0.2) if picked else Color(Forge.PLAQUE, 0.5), Color.TRANSPARENT, 0, Vector4(10, 6, 10, 6)))
+	var r := Forge.hbox(10)
+	r.mouse_filter = MOUSE_FILTER_IGNORE
+	p.add_child(r)
+	var g := Forge.glyph("elem_" + h.elem, 20, Forge.ELEM[h.elem])
+	g.mouse_filter = MOUSE_FILTER_IGNORE
+	r.add_child(g)
+	var n := Forge.sc(h.name, 17, Forge.GOLD_LIGHT if picked else Forge.PARCHMENT)
+	n.size_flags_horizontal = SIZE_EXPAND_FILL
+	n.mouse_filter = MOUSE_FILTER_IGNORE
+	r.add_child(n)
+	var stars := Forge.stars(c.stars, 11)
+	stars.mouse_filter = MOUSE_FILTER_IGNORE
+	for star in stars.get_children():
+		star.mouse_filter = MOUSE_FILTER_IGNORE
+	r.add_child(stars)
+	if fielded:
+		_tap(p, func():
+			_sel = "" if picked else uid
+			rebuild())
+	else:
+		_tap(p, _bench_tap.bind(uid, p))
+	return p
 
 
 func _heading(text: String) -> Control:
@@ -116,7 +281,7 @@ func _empty_seat(w: float, locked: bool) -> Control:
 		if locked:
 			_say(v, "a fifth seat is planned", "Teams are planned to grow to five, and six in rare cases. Four take the field for now.")
 		else:
-			_say(v, "an open seat", "Tap a card on the bench to field it."))
+			_say(v, "an open seat", "Tap a hero on the bench to field them."))
 	return v
 
 
@@ -130,7 +295,7 @@ func _hint() -> Control:
 		row.add_child(l)
 		return row
 	var h := Data.hero(app.col.by(_sel).hero)
-	var l := Forge.label("%s: tap a tile to move, or a bench card to swap in." % h.name, 24, Forge.PARCHMENT, Forge.SANS_ITALIC)
+	var l := Forge.label("%s: tap a tile to move, or a hero on the bench to swap in." % h.name, 24, Forge.PARCHMENT, Forge.SANS_ITALIC)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.size_flags_horizontal = SIZE_EXPAND_FILL
 	row.add_child(l)
@@ -284,25 +449,17 @@ func _range_note() -> Control:
 func _bench() -> Control:
 	var cards := app.col.cards.filter(func(c): return not c.uid in app.col.squad)
 	var order := Data.HEROES.map(func(h): return h.key)
-	cards.sort_custom(func(a, b):
-		if a.hero != b.hero:
-			return order.find(a.hero) < order.find(b.hero)
-		return a.stars > b.stars)
+	cards.sort_custom(func(a, b): return order.find(a.hero) < order.find(b.hero))
 	if cards.is_empty():
-		return Forge.label("Every card is on the field.", 24, Forge.MUTED, Forge.SANS_ITALIC)
+		return Forge.label("Every hero is on the field.", 24, Forge.MUTED, Forge.SANS_ITALIC)
 	var cols := 4
 	var g := GridContainer.new()
 	g.columns = cols
 	g.add_theme_constant_override("h_separation", int(GAP))
 	g.add_theme_constant_override("v_separation", 24)
 	var w := (W - GAP * (cols - 1)) / cols
-	var fielded_heroes := app.col.squad.map(func(u): return app.col.by(u).hero)
 	for c in cards:
 		var v := _card(c, w)
-		# A hero already on the field can only come in for that same hero.
-		var blocked: bool = c.hero in fielded_heroes and (_sel == "" or app.col.by(_sel).hero != c.hero)
-		if blocked:
-			v.modulate = Color(1, 1, 1, 0.45)
 		_tap(v, _bench_tap.bind(c.uid, v))
 		g.add_child(v)
 	return g
@@ -448,10 +605,7 @@ func _card(c: Dictionary, w: float) -> VBoxContainer:
 	var n := Forge.sc(h.name, 18, Forge.PARCHMENT, true, 0.1)
 	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(n)
-	var stars := Forge.hbox(2)
-	stars.alignment = BoxContainer.ALIGNMENT_CENTER
-	for i in c.stars:
-		stars.add_child(Forge.glyph("star", 12, Data.TIER_COLORS[c.stars].lightened(0.15)))
+	var stars := Forge.stars(c.stars, 12)
 	v.add_child(stars)
 	for ch in [art, n, stars]:
 		ch.mouse_filter = Control.MOUSE_FILTER_IGNORE

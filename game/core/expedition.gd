@@ -6,15 +6,43 @@ extends RefCounted
 ## Embers gathered on the road are banked in the town when the run ends: all of them on a win or a turn for home, half
 ## if the squad falls.
 
-## Where you can go. `danger` scales the foes and the rewards; `elem` is the road's home element.
+## Where you can go. `danger` scales the foes and the rewards; `elem` is the road's home element; `music` is the road's
+## track for "map" and for each kind of stop (keys of NODES), and any it leaves out fall back (see music_for). `art` is
+## the road's painting, a file in art/backgrounds/.
 const ROADS := {
-	"basalt": {"name": "The Basalt Steps", "region": "hraunvald", "elem": "earth", "danger": 1, "depth": 7,
-		"about": "Black stairs cut into a cooling lava field. The golems that guard them were masons once."},
-	"ghats": {"name": "The Drowned Ghats", "region": "jaladesh", "elem": "water", "danger": 2, "depth": 8,
-		"about": "River steps that go down further than the river does. Lamps still float where the shrines sank."},
-	"saltglass": {"name": "The Saltglass Road", "region": "marusthal", "elem": "fire", "danger": 3, "depth": 9,
-		"about": "A caravan road fused to glass by an old fire. It still shows the footprints of the people who ran."},
+	"basalt": {"name": "The Basalt Steps", "region": "hraunvald", "elem": "earth", "danger": 1, "depth": 7, "art": "basalt-steps",
+		"about": "Black stairs cut into a cooling lava field. The golems that guard them were masons once.",
+		"music": {"map": "jrpg-celestial-path", "elite": "jrpg-celestial-path", "wayside": "jrpg-celestial-path"}},
+	"lotus": {"name": "The Aqueduct", "region": "jaladesh", "elem": "water", "danger": 2, "depth": 8, "art": "lotus-2",
+		"about": "Flooded arches of pink stone below the Lotus Palace, where the lotuses never stopped blooming. Someone still keeps the gates.",
+		"music": {"map": "desert-ash-and-oasis", "elite": "desert-canyon-echoes", "wayside": "desert-canyon-echoes"}},
+	"saltglass": {"name": "The Saltglass Road", "region": "marusthal", "elem": "fire", "danger": 3, "depth": 9, "art": "saltglass-1",
+		"about": "A caravan road fused to glass by an old fire. It still shows the footprints of the people who ran.",
+		"music": {"map": "desert-scorchlight-mirage", "elite": "desert-whispers-in-the-sand", "wayside": "desert-whispers-in-the-sand"}},
+	"stones": {"name": "The Standing Stones", "region": "gwyntmoor", "elem": "wind", "danger": 1, "depth": 7, "art": "standing-stones",
+		"about": "A ring of old stones on the high moor. The herds graze right up to it, and not one step further.",
+		"music": {"map": "fairytale-pale-waters-full", "elite": "fairytale-pale-waters-intense-part", "wayside": "fairytale-pale-waters-intense-part"}},
+	"pavilions": {"name": "The Empty Pavilions", "region": "mehfil", "elem": "fire", "danger": 2, "depth": 8, "art": "empty-pavilions-1",
+		"about": "The lantern village moved on and left its camp standing. The silk still hangs, and something has moved into the tents.",
+		"music": {"map": "desert-whispers-in-the-sand", "elite": "desert-canyon-echoes", "wayside": "desert-canyon-echoes"}},
+	"wood": {"name": "The Walking Wood", "region": "vetroles", "elem": "wind", "danger": 2, "depth": 8, "art": "walking-wood",
+		"about": "An old forest city the trees took back. The paths move at night, so nobody walks the same road twice.",
+		"music": {"map": "jrpg-celestial-path", "elite": "fairytale-pale-waters-intense-part", "wayside": "fairytale-pale-waters-intense-part"}},
+	"archive": {"name": "The Serpent Archive", "region": "yuling", "elem": "wind", "danger": 3, "depth": 9, "art": "serpent-archive",
+		"about": "A library cut into the cliff beneath the monastery, winding down to the river. Its keepers still shelve what you drop.",
+		"music": {"map": "fairytale-pale-waters-full", "elite": "desert-canyon-echoes", "wayside": "desert-canyon-echoes"}},
+	"undercroft": {"name": "The Veiled Undercroft", "region": "velata", "elem": "fire", "danger": 3, "depth": 9, "art": "undercroft",
+		"about": "The old city under the silk city. Ember vents light the vaults, and the real business happens behind the curtains.",
+		"music": {"map": "desert-scorchlight-mirage", "elite": "desert-canyon-echoes", "wayside": "desert-canyon-echoes"}},
+	"whale": {"name": "The Whale Cathedral", "region": "sikuvik", "elem": "water", "danger": 3, "depth": 9, "art": "whale-cathedral",
+		"about": "A cathedral built inside the bones of something enormous, frozen into the sea. The bells still ring under the ice.",
+		"music": {"map": "jrpg-celestial-path", "elite": "fairytale-pale-waters-intense-part", "wayside": "fairytale-pale-waters-intense-part"}},
 }
+
+## What plays where a road has no track of its own, and everywhere off the road. It alone can also hold MENU_SLOTS.
+const MENU_SLOTS := ["menu", "heroes", "town"]
+const MUSIC_DEFAULT := {"map": "fairytale-pale-waters-full", "elite": "fairytale-pale-waters-intense-part", "wayside": "fairytale-pale-waters-intense-part",
+	"menu": "desert-sunblade-horizon", "heroes": "desert-dunes-of-silence", "town": "jrpg-frostfire-tales"}
 
 ## Each road's home foe, always among the fights there.
 const HOME_FOE := {"earth": "golem", "water": "caller", "fire": "seer", "wind": "blade"}
@@ -22,12 +50,11 @@ const HOME_FOE := {"earth": "golem", "water": "caller", "fire": "seer", "wind": 
 ## What a node is. Weights pick the middle of the road; the first layer is always fights, the warden is always last
 ## and a camp always comes before it.
 const NODES := {
-	"battle": {"name": "Skirmish", "icon": "node_battle", "weight": 40, "about": "A fight. Win to go on, and bring the embers home."},
+	"battle": {"name": "Skirmish", "icon": "node_battle", "weight": 34, "about": "A fight. Win to go on, and bring the gold home."},
 	"elite": {"name": "Elite", "icon": "node_elite", "weight": 12, "about": "A harder fight, with a rarer boon for the winner."},
 	"rest": {"name": "Camp", "icon": "node_rest", "weight": 11, "about": "Rest: the squad heals. A higher Infirmary heals more."},
 	"boon": {"name": "Boon", "icon": "node_boon", "weight": 15, "about": "Choose one of three blessings for the rest of the run."},
-	"cache": {"name": "Cache", "icon": "node_cache", "weight": 11, "about": "Something left on the road: embers, sometimes an augment."},
-	"trial": {"name": "Trial", "icon": "node_trial", "weight": 11, "about": "A test on the road. A hero rolls d20 on an aptitude; succeed for a reward."},
+	"wayside": {"name": "Wayside", "icon": "node_wayside", "weight": 28, "about": "Something on the road. You won't know what until you get there."},
 	"boss": {"name": "Warden", "icon": "node_boss", "weight": 0, "about": "The road's warden. Beat them to finish the expedition."},
 }
 
@@ -42,7 +69,7 @@ const BOONS := {
 	"fleetfoot": {"name": "Fleetfoot", "stat": "spd", "amount": [0.05, 0.08, 0.12, 0.18], "about": "Speed +%d%% for the whole squad."},
 	"heartwood": {"name": "Heartwood", "stat": "max_hp", "amount": [0.08, 0.12, 0.18, 0.28], "about": "Max health +%d%% for the whole squad."},
 	"kinfire": {"name": "Kinfire", "stat": "atk_elem", "amount": [0.10, 0.16, 0.24, 0.36], "about": "Heroes of the road's element: attack +%d%%."},
-	"tithe": {"name": "Pilgrim's Tithe", "stat": "embers", "amount": [0.10, 0.18, 0.28, 0.45], "about": "Embers found on this road +%d%%."},
+	"tithe": {"name": "Pilgrim's Tithe", "stat": "embers", "amount": [0.10, 0.18, 0.28, 0.45], "about": "Gold found on this road +%d%%."},
 }
 
 ## Hero picks: after a won fight one standing hero is offered three upgrades drawn from their own skills. A pick is an
@@ -58,11 +85,13 @@ const REROLL_COST_CAP := 320
 const SKIP_SHARE := 0.25
 
 ## Embers per node at danger 1; more danger, more embers.
-const PURSE := {"battle": 40, "elite": 80, "boss": 160, "cache": 50, "trial": 45}
+const PURSE := {"battle": 40, "elite": 80, "boss": 160, "wayside": 45}
 ## Share of max health a camp restores, by Infirmary level (0 = no Infirmary yet).
 const CAMP_HEAL := [0.30, 0.40, 0.50, 0.60, 0.75, 1.00]
-## A trial's difficulty: roll d20 (+3 on a favored aptitude) at least this.
-const TRIAL_DC := 12
+## What a wayside roll must reach: d20 (+3 on a favored aptitude) at least this.
+const ROLL_DC := 12
+## Wayside events never take a hero below this much health.
+const HURT_FLOOR := 0.01
 
 var road := ""
 var run_seed := 0
@@ -85,6 +114,12 @@ var paid_rerolls := 0
 ## Every reroll on the run so far, which keeps each new draw different.
 var reroll_total := 0
 var embers := 0
+## The events already met on this run, so none repeats.
+var seen_events: Array = []
+## The kind of fight a wayside event started at this stop, or "".
+var ambush := ""
+## Gold owed to the road: it comes out of what the run banks.
+var debt := 0
 ## "" while the road goes on, then "win", "lose" or "home" (turned back).
 var over := ""
 var _rng := RandomNumberGenerator.new()
@@ -101,6 +136,35 @@ func begin(road_key: String, seed_value: int) -> Expedition:
 
 func info() -> Dictionary:
 	return ROADS[road]
+
+
+## The road `by` steps along from `key`, wrapping round the list.
+static func road_step(key: String, by: int) -> String:
+	var keys := ROADS.keys()
+	return keys[posmod(keys.find(key) + by, keys.size())]
+
+
+## The track for a road ("" when off the road) and a slot ("map" or a kind of stop): the road's own, then the shared
+## default, then the road's map track, so a stop with no track of its own never falls silent.
+static func music_for(road_key: String, slot: String) -> String:
+	var own: Dictionary = ROADS.get(road_key, {}).get("music", {})
+	for t in [own.get(slot, ""), MUSIC_DEFAULT.get(slot, ""), own.get("map", "")]:
+		if t != "":
+			return t
+	return MUSIC_DEFAULT.map
+
+
+## Every track the game can play, the default map first, since it plays as the game opens.
+static func music_tracks() -> Array[String]:
+	var out: Array[String] = []
+	var sets: Array = [MUSIC_DEFAULT]
+	for key in ROADS:
+		sets.append(ROADS[key].music)
+	for s in sets:
+		for slot in ["map"] + NODES.keys() + MENU_SLOTS:
+			if s.get(slot, "") != "" and s[slot] not in out:
+				out.append(s[slot])
+	return out
 
 
 ## The road's layers: two or three nodes across, a camp before the warden, the warden alone at the end.
@@ -198,14 +262,20 @@ func step(p: Vector2i) -> bool:
 	if not can_step(p):
 		return false
 	at = p
+	ambush = ""
 	return true
+
+
+## What a stop is right now: a wayside event can turn its stop into a fight.
+func stop_kind(p := at) -> String:
+	return ambush if p == at and ambush != "" else node(p).type
 
 
 # ---------- fights ----------
 
 ## The foes a fight node sends, and how much tougher than base they are.
 func foes_for(p: Vector2i) -> Dictionary:
-	var t: String = node(p).type
+	var t := stop_kind(p)
 	var danger: int = ROADS[road].danger
 	var home: String = HOME_FOE[ROADS[road].elem]
 	var others: Array = ["golem", "blade", "caller", "seer"].filter(func(k): return k != home)
@@ -229,7 +299,7 @@ func finish_fight(won: bool, health: Dictionary) -> void:
 	if not won:
 		over = "lose"
 		return
-	embers += purse(node(at).type)
+	embers += purse(stop_kind())
 	if node(at).type == "boss":
 		over = "win"
 
@@ -316,7 +386,7 @@ func _draw_pick(uid: String, gear: Dictionary) -> void:
 	var options := pick_options(uid, gear.skills, gear.augs)
 	var out := []
 	while out.size() < PICK_OFFERS and not options.is_empty():
-		var chosen := _pick_one(options, r, node(at).type == "elite")
+		var chosen := _pick_one(options, r, stop_kind() == "elite")
 		out.append(chosen)
 		options.erase(chosen)
 	pick_now = {} if out.is_empty() else {"uid": uid, "options": out, "gear": gear}
@@ -434,25 +504,147 @@ func fit_out(u: Dictionary, c: Dictionary) -> void:
 		u.skills = Data.apply_augs(Data.hero(c.hero).skills, c.augs + picks[c.uid])
 
 
-## A cache: embers, scaled by the node's rarity. Rare or better also leaves an augment (the screen picks which).
-func open_cache() -> Dictionary:
-	var n := roundi(purse("cache") * (1.0 + 0.5 * node(at).rarity))
-	embers += n
-	return {"embers": n, "augment": node(at).rarity >= 1}
+# ---------- the wayside ----------
+
+## The event at a wayside stop (Events.LIST): two chances in three from the road's own pool, else the shared one, and
+## none twice on a run while any is left. The run's seed fixes it, like a boon's offers.
+func draw_event(p: Vector2i) -> String:
+	var r := RandomNumberGenerator.new()
+	r.seed = run_seed * 71 + p.x * 17 + p.y
+	var own := Events.pool(road, seen_events)
+	var shared := Events.pool("any", seen_events)
+	var pool: Array = own if not own.is_empty() and (shared.is_empty() or r.randi() % 3 < 2) else shared
+	if pool.is_empty():
+		pool = Events.pool(road, [])
+	var total := 0
+	for k in pool:
+		total += Events.weight(k)
+	var roll := r.randi() % total
+	for k in pool:
+		roll -= Events.weight(k)
+		if roll < 0:
+			seen_events.append(k)
+			return k
+	return pool[0]
 
 
-## A trial: a d20 roll, +3 when the aptitude is one the hero favors. Success pays the trial's purse.
-func trial(roll: int, favored: bool) -> bool:
-	var ok := roll + (Data.FAVORED_BONUS if favored else 0) >= TRIAL_DC
-	if ok:
-		embers += purse("trial")
-	return ok
+## An event's choices for this squad ({uid: hero key}): a hero's choice only with that hero standing, and one choice for
+## each hero who has fallen where a choice needs them. Each carries the `uid` it belongs to.
+func event_choices(key: String, squad: Dictionary) -> Array:
+	var out := []
+	for c in Events.LIST[key].choices:
+		if c.has("hero"):
+			for uid in squad:
+				if squad[uid] == c.hero and not fallen(uid):
+					out.append(c.merged({"uid": uid}))
+					break
+		elif c.get("needs", "") == "fallen":
+			for uid in squad:
+				if fallen(uid):
+					out.append(c.merged({"uid": uid, "text": c.text % Data.hero(squad[uid]).name}, true))
+		else:
+			out.append(c)
+	return out
 
 
-## The aptitude a trial node tests, fixed per node.
-func trial_aptitude(p: Vector2i) -> String:
-	var keys: Array = Data.APTITUDES.keys()
-	return keys[(run_seed + p.x * 5 + p.y * 3) % keys.size()]
+## A number of a wayside's purses, in gold.
+func event_gold(purses: float) -> int:
+	return roundi(purse("wayside") * purses)
+
+
+## What a choice costs up front.
+func event_price(c: Dictionary) -> int:
+	return embers / 2 if c.get("half", false) else event_gold(c.get("pay", 0.0))
+
+
+func can_pay(c: Dictionary) -> bool:
+	return embers >= event_price(c)
+
+
+## A d20 roll, +3 when the aptitude is one the hero favors.
+static func roll_wins(roll: int, favored: bool) -> bool:
+	return roll + (Data.FAVORED_BONUS if favored else 0) >= ROLL_DC
+
+
+## What a choice can cost you, in words, so that no price is a surprise.
+func event_terms(c: Dictionary) -> String:
+	var bits := []
+	if c.get("half", false):
+		bits.append("costs half your gold")
+	elif c.has("pay"):
+		bits.append("costs %d gold" % event_price(c))
+	if c.has("roll"):
+		bits.append("%s roll" % c.roll)
+	var o: Dictionary = c.get("lose", c.get("do", {}))
+	var risky := c.has("lose")
+	if o.has("hurt"):
+		bits.append("may cost the hero %d%% health" % roundi(o.hurt * 100))
+	if o.has("hurt_all"):
+		bits.append("may cost everyone %d%% health" % roundi(o.hurt_all * 100))
+	if o.get("gold", 0.0) < 0.0:
+		bits.append("may cost %d gold" % event_gold(-o.gold))
+	if o.has("fight"):
+		bits.append(("may start %s" if risky else "starts %s") % {"battle": "a fight", "elite": "an elite fight"}[o.fight])
+	if o.has("loan"):
+		bits.append("owes %d gold when you bank" % event_gold(o.loan[1]))
+	return " · ".join(bits)
+
+
+## Pays a choice's cost up front.
+func event_pay(c: Dictionary) -> void:
+	embers -= event_price(c)
+
+
+## Carries out an outcome and says what it did, for the screen. `uid` is the hero it's about. Health lost here never
+## takes a hero below HURT_FLOOR: only a fight can knock one out. An augment's key comes back for the screen to hand over.
+func event_apply(o: Dictionary, uid := "") -> Dictionary:
+	var out := {"say": o.get("say", ""), "uid": uid}
+	var rarity: int = node(at).rarity
+	var gold: float = o.get("gold", 0.0)
+	if gold != 0.0:
+		var n := event_gold(gold * (1.0 + 0.5 * rarity)) if gold > 0.0 else -mini(event_gold(-gold), embers)
+		embers += n
+		out.gold = n
+	if o.has("loan"):
+		embers += event_gold(o.loan[0])
+		debt += event_gold(o.loan[1])
+		out.gold = event_gold(o.loan[0])
+		out.debt = event_gold(o.loan[1])
+	if o.has("heal"):
+		for k in hp:
+			if hp[k] > 0.0:
+				hp[k] = minf(1.0, hp[k] + o.heal)
+		out.heal = o.heal
+	if o.has("hurt"):
+		_hurt(uid, o.hurt)
+		out.hurt = o.hurt
+	if o.has("hurt_all"):
+		for k in hp:
+			_hurt(k, o.hurt_all)
+		out.hurt_all = o.hurt_all
+	if o.has("boon"):
+		var b := {"key": o.boon, "rarity": mini(rarity + o.get("up", 0), RARITIES.size() - 1)}
+		take(b)
+		out.boon = b
+	if o.get("augment", false):
+		var keys: Array = Data.AUGS.keys()
+		out.augment = keys[_rng.randi() % keys.size()]
+	if o.has("rerolls"):
+		rerolls += o.rerolls
+		out.rerolls = o.rerolls
+	if o.has("raise"):
+		hp[uid] = o.raise
+		out.raise = o.raise
+	if o.has("fight"):
+		ambush = o.fight
+		out.fight = o.fight
+	return out
+
+
+func _hurt(uid: String, share: float) -> void:
+	var h := health(uid)
+	if h > 0.0:
+		hp[uid] = maxf(minf(h, HURT_FLOOR), h - share)
 
 
 ## Turn for home with what you've gathered.
@@ -461,9 +653,9 @@ func head_home() -> void:
 		over = "home"
 
 
-## The embers the town receives when the run ends: all of them, or half if the squad fell.
+## The embers the town receives when the run ends: all of them, or half if the squad fell, less anything owed.
 func banked() -> int:
-	return embers / 2 if over == "lose" else embers
+	return maxi(0, (embers / 2 if over == "lose" else embers) - debt)
 
 
 ## Applies the run's boons to a unit about to fight.

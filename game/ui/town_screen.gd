@@ -16,7 +16,8 @@ var _lit := false
 
 func _init() -> void:
 	tab = "town"
-	title = "town"
+	title = "caravan"
+	backdrop = "caravan"
 
 
 func _build() -> void:
@@ -41,11 +42,11 @@ func _build() -> void:
 		grid.add_child(_tile(k))
 	var foot := Forge.hbox(18)
 	body.add_child(foot)
-	var note := Forge.label("Playtest: embers come home from expeditions. This adds some for trying the buildings.", 20, Forge.DIM, Forge.SANS_ITALIC)
+	var note := Forge.label("Playtest: gold come home from expeditions. This adds some for trying the buildings.", 20, Forge.DIM, Forge.SANS_ITALIC)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.size_flags_horizontal = SIZE_EXPAND_FILL
 	foot.add_child(note)
-	var gather := Forge.link("+%d embers" % (t.battle_reward() * 2), "ember", 20)
+	var gather := Forge.link("+%d gold" % (t.battle_reward() * 2), "gold", 20)
 	gather.pressed.connect(func():
 		t.earn(t.battle_reward() * 2)
 		_refresh())
@@ -70,7 +71,7 @@ func _embers_chip() -> Control:
 	var h := Forge.hbox(10)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_child(h)
-	h.add_child(Forge.glyph("ember", 26, Forge.GOLD_LIGHT))
+	h.add_child(Forge.glyph("gold", 26, Forge.GOLD_LIGHT))
 	var l := Forge.label(str(t.embers), 26, Forge.PARCHMENT, Forge.SANS_BOLD)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(l)
@@ -78,10 +79,10 @@ func _embers_chip() -> Control:
 	b.flat = true
 	b.focus_mode = Control.FOCUS_NONE
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	b.tooltip_text = "Embers"
+	b.tooltip_text = "Gold"
 	b.set_anchors_preset(PRESET_FULL_RECT)
 	b.pressed.connect(func(): Tooltip.open(p, func(lines: VBoxContainer):
-		lines.add_child(Forge.sc("embers · %d" % t.embers, 22, Forge.GOLD))
+		lines.add_child(Forge.sc("gold · %d" % t.embers, 22, Forge.GOLD))
 		var d := Forge.label("The town's one resource. Expeditions bring them home: everything gathered on a road, or half if the squad falls. Buildings rise on them.",
 			24, Forge.PARCHMENT, Forge.SANS_ITALIC)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -158,7 +159,7 @@ func _tile(key: String) -> Control:
 			row.add_child(Forge.region_badge(k, 30))
 		v.add_child(row)
 	else:
-		var status := Forge.sc("unbuilt · %d embers" % t.cost(key) if lvl == 0 else "level %d" % lvl, 18,
+		var status := Forge.sc("unbuilt · %d gold" % t.cost(key) if lvl == 0 else "level %d" % lvl, 18,
 			Forge.DIM if lvl == 0 else Forge.LABEL)
 		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		status.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -269,7 +270,7 @@ func _open_drawer() -> void:
 	var row := Forge.hbox(20)
 	v.add_child(row)
 	if lvl < info.max:
-		var up := Forge.studs("%s · %d embers" % ["build" if lvl == 0 else "raise to level %d" % (lvl + 1), t.cost(key)], true, 72)
+		var up := Forge.studs("%s · %d gold" % ["build" if lvl == 0 else "raise to level %d" % (lvl + 1), t.cost(key)], true, 72)
 		up.size_flags_horizontal = SIZE_EXPAND_FILL
 		up.disabled = why != ""
 		up.pressed.connect(func():
