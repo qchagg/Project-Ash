@@ -78,7 +78,7 @@ func _ready() -> void:
 
 ## What the page's link ends with after the #, if anything.
 func _link() -> String:
-	return str(JavaScriptBridge.eval("location.hash", true)).trim_prefix("#") if OS.has_feature("web") else ""
+	return str(JavaScriptBridge.eval("location.hash", true)).trim_prefix("#").uri_decode() if OS.has_feature("web") else ""
 
 
 ## Playtest shortcut: a link ending #event-boon (or camp, wayside, shrine, fight, warden) starts a run and steps straight
