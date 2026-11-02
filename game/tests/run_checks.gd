@@ -954,7 +954,7 @@ func _voices() -> Array:
 func _boon_glyphs() -> Array:
 	var ok := true
 	for key in Expedition.BOONS:
-		ok = ok and FileAccess.file_exists("res://art/icons/ui/%s.svg" % ExpeditionScreen.boon_glyph(key))
+		ok = ok and FileAccess.file_exists("res://art/icons/ui/%s.svg" % RunChoices.boon_glyph(key))
 	return [ok, "%d boons" % Expedition.BOONS.size()]
 
 
