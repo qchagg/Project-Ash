@@ -20,6 +20,8 @@ const ABOUT_LINES := -7
 
 var _road := "basalt"
 var _map: Control
+## The wide map's height: what is left of the screen under the road's line, so its lowest stops stay clear of the nav.
+const MAP_H_WIDE := 360.0
 
 ## Between runs, the big view: its layers from the art up, the road's words, and the strip.
 var _land: Control
@@ -412,7 +414,7 @@ func _road_map() -> Control:
 	var run := app.run
 	var m := Control.new()
 	var n := run.layers.size()
-	m.custom_minimum_size = Vector2(0, 440) if Forge.wide() else Vector2(0, 140 + (n - 1) * LAYER)
+	m.custom_minimum_size = Vector2(0, MAP_H_WIDE) if Forge.wide() else Vector2(0, 140 + (n - 1) * LAYER)
 	m.mouse_filter = Control.MOUSE_FILTER_PASS
 	var next := run.choices()
 	m.draw.connect(func():
