@@ -29,7 +29,7 @@ const STEP := 0.35
 static var _shader: Shader
 
 var app: App
-var tab := "menu"
+var tab := "graces"
 var at := 2
 var _stage: Control
 var _figures: Array[TextureRect] = []
