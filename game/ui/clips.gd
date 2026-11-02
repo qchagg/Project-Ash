@@ -54,6 +54,8 @@ static func wanted_sheets() -> Array[String]:
 		out.append(Backdrop.art_path(art))
 	for road in Backdrop.GROUNDS:
 		out.append(Backdrop.ground_path(Backdrop.GROUNDS[road].art))
+	for road in Backdrop.FOREGROUNDS:
+		out.append(Backdrop.foreground_path(Backdrop.FOREGROUNDS[road].art))
 	for h in Data.HEROES:
 		if h.portrait.has("stand"):
 			out.append(h.portrait.stand)

@@ -213,6 +213,10 @@ func _wide_scene() -> void:
 	field.draw.connect(func(): _wide_floor(field))
 	field.add_child(_grid("P"))
 	field.add_child(_grid("E"))
+	# The road's foreground stands nearest the camera: over the fighters, under the controls.
+	var fore := Backdrop.foreground(app.run.road if app.run else "", FIELD)
+	if fore:
+		field.add_child(fore)
 	_controls()
 	var tl := Forge.vbox(0)
 	add_child(tl)

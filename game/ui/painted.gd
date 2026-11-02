@@ -44,6 +44,13 @@ func setup(art_name: String, shade := DIM) -> Painted:
 	return self
 
 
+## Shows a cut-out layer (a foreground) filling its parent instead of a painting, undimmed and with no sky.
+func layer(path: String) -> Painted:
+	src = path
+	material = null
+	return self
+
+
 ## Repeats a seamless texture at its own size instead of covering with a painting.
 func tiled(path: String) -> Painted:
 	src = path

@@ -4,7 +4,7 @@ extends Control
 ## The nav (the row of places along the foot) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.75"
+const VERSION := "v0.76"
 ## Moving between screens: how long the new one takes to come in, and how far it rises as it does.
 const FADE := 0.2
 const RISE := 18.0
@@ -82,14 +82,17 @@ func _link() -> String:
 
 
 ## Playtest shortcut: a link ending #event-boon (or camp, wayside, shrine, fight, warden) starts a run and steps straight
-## onto that kind of stop, so a reviewer can see each one without walking the road. #town, #heroes and #graces open those screens.
+## onto that kind of stop, so a reviewer can see each one without walking the road; `@road` on the end picks the road. #town, #heroes and #graces open those screens.
 func _deep_link() -> void:
 	var hash := _link()
+	# `@road` picks the road (#event-fight@wood); the Aqueduct otherwise.
+	var road := hash.get_slice("@", 1) if Expedition.ROADS.has(hash.get_slice("@", 1)) else "lotus"
+	hash = hash.get_slice("@", 0)
 	if hash in ["town", "heroes", "graces"]:
 		show_tab(hash)
 		return
 	if hash == "event-pick":
-		run = Expedition.new().begin("lotus", 7)
+		run = Expedition.new().begin(road, 7)
 		run.step(Vector2i(0, 0))
 		run.finish_fight(true, {})
 		run.offer_pick(squad_kit())
@@ -99,7 +102,7 @@ func _deep_link() -> void:
 		return
 	var want: String = {"camp": "rest", "fight": "battle", "warden": "boss"}.get(hash.trim_prefix("event-"), hash.trim_prefix("event-"))
 	for sd in 200:
-		var x := Expedition.new().begin("lotus", sd)
+		var x := Expedition.new().begin(road, sd)
 		for i in x.layers.size():
 			for j in x.layers[i].size():
 				if x.layers[i][j].type != want:

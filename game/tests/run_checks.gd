@@ -73,6 +73,7 @@ func _init() -> void:
 		["Rig · every still with no idle loop is rigged; its feet stay planted while its loose parts sway", _rig],
 		["Backgrounds · every hero has a home with art on file, a home picks among its own, and one without any falls back to the glow", _backgrounds],
 		["Grounds · each belongs to a road and is on file, every file is used, they tile, travel in sheets/ and stay out of the pack", _grounds],
+		["Foregrounds · each belongs to a road and is on file, every file is used, it stands on the board's foot, travels in sheets/ and stays out of the pack", _foregrounds],
 		["Sheets · a device keeps its sheets only while the art is unchanged, then fetches them fresh", _sheets_refresh],
 		["Sound · the web page suspends all audio while the game isn't in front", _sound_in_front],
 		["Weather · every painted background has its air, its motes loop inside the screen, and an unknown one has none", _weather],
@@ -1227,6 +1228,27 @@ func _grounds() -> Array:
 	g.free()
 	var left_out := FileAccess.get_file_as_string("res://export_presets.cfg").count("art/grounds/*") == 2
 	return [wrong.is_empty() and tiles and left_out and Backdrop.ground("nowhere") == null, "%d grounds · wrong %s · tiles %s · out of the pack %s" % [files.size(), wrong, tiles, left_out]]
+
+
+func _foregrounds() -> Array:
+	var wrong := []
+	var files := []
+	for road in Backdrop.FOREGROUNDS:
+		var src := Backdrop.foreground_path(Backdrop.FOREGROUNDS[road].art)
+		files.append(src.get_file())
+		if not Expedition.ROADS.has(road) or not ResourceLoader.exists(src) or src not in Clips.wanted_sheets():
+			wrong.append(road)
+	for f in DirAccess.get_files_at("res://art/foregrounds/"):
+		if f.ends_with(".webp") and f not in files:
+			wrong.append(f)
+	var board := BattleScreen.FIELD
+	var fore := Backdrop.foreground("wood", board)
+	# No gap under it, and it covers the board edge to edge.
+	var grounded := fore.position.y + fore.size.y >= board.y and fore.position.x <= 0.0 and fore.position.x + fore.size.x >= board.x
+	fore.free()
+	var left_out := FileAccess.get_file_as_string("res://export_presets.cfg").count("art/foregrounds/*") == 2
+	return [wrong.is_empty() and grounded and left_out and Backdrop.foreground("nowhere", board) == null,
+		"%d foregrounds · wrong %s · on the foot %s · out of the pack %s" % [files.size(), wrong, grounded, left_out]]
 
 
 func _backgrounds() -> Array:
