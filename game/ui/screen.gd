@@ -17,6 +17,11 @@ var frame: Control
 var backdrop := ""
 ## The road whose ground this screen stands on, if it has one (Backdrop.GROUNDS). Empty for none.
 var ground := ""
+## Stand on plain ink instead of home's scene, for a page whose own pictures should carry it.
+var black := false
+## The room around every screen's page: the side margins and the gap between what stands in its body, wide and phone.
+const SIDE := Vector2(96, 44)
+const BODY_GAP := Vector2(48, 44)
 
 
 func setup(a: App) -> Screen:
@@ -25,6 +30,12 @@ func setup(a: App) -> Screen:
 
 
 func _ready() -> void:
+	if black:
+		var ink := ColorRect.new()
+		ink.color = Forge.INK
+		ink.mouse_filter = MOUSE_FILTER_IGNORE
+		add_child(ink)
+		ink.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var art := Painted.new().setup(backdrop) if backdrop != "" else Backdrop.ground(ground)
 	if art:
 		add_child(art)
@@ -35,7 +46,8 @@ func _ready() -> void:
 	frame = root
 	# A wide screen has height to spare for nothing, so the title sits tighter there.
 	var wide := Forge.wide()
-	var head := Forge.margins(MarginContainer.new(), 40, 26 if wide else 56, 40 if wide else 44, 10 if wide else 24)
+	var side := int(SIDE.x if wide else SIDE.y)
+	var head := Forge.margins(MarginContainer.new(), side, 44 if wide else 64, side, 18 if wide else 28)
 	root.add_child(head)
 	var top := Forge.hbox(14)
 	head.add_child(top)
@@ -51,10 +63,10 @@ func _ready() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	root.add_child(scroll)
-	var pad := Forge.margins(MarginContainer.new(), 40, 8, 40, 24) if wide else Forge.margins(MarginContainer.new(), 44, 16, 44, 64)
+	var pad := Forge.margins(MarginContainer.new(), side, 16, side, 48) if wide else Forge.margins(MarginContainer.new(), side, 20, side, 72)
 	pad.size_flags_horizontal = SIZE_EXPAND_FILL
 	scroll.add_child(pad)
-	body = Forge.vbox(34)
+	body = Forge.vbox(int(BODY_GAP.x if wide else BODY_GAP.y))
 	pad.add_child(body)
 	_build()
 

@@ -10,9 +10,12 @@ const ROW_NAMES := ["front", "mid", "deep", "back"]
 const W := 632.0
 const GAP := 14.0
 
-## Where each hero stands in the wide line-up, furthest first: foot x and y on the screen, and how tall.
-const LINE := [Vector3(1250, 590, 370), Vector3(1010, 612, 400), Vector3(780, 640, 470), Vector3(540, 682, 560)]
-const LIST_W := 340.0
+## Where each hero stands in the wide line-up, furthest first: foot x and y on the screen, and how tall. Everyone's feet
+## stay well clear of the foot of the screen, so the heroes stand big with nothing cut off.
+const LINE := [Vector3(1240, 548, 380), Vector3(1010, 566, 420), Vector3(785, 588, 476), Vector3(555, 614, 536)]
+const LIST_W := 280.0
+## The line-up's title band, kept slim so the heroes have the screen.
+const BAND := 76.0
 
 ## Wide only: the squad standing in a line, or the formation page.
 static var lined := true
@@ -88,22 +91,22 @@ func _lineup() -> void:
 	var band := ColorRect.new()
 	band.color = Color(Forge.INK, 0.5)
 	band.set_anchors_preset(PRESET_TOP_WIDE)
-	band.offset_bottom = 100
+	band.offset_bottom = BAND
 	band.mouse_filter = MOUSE_FILTER_IGNORE
 	_scene.add_child(band)
-	var head := Forge.sc("select squad", 46, Forge.PARCHMENT, false, 0.3)
+	var head := Forge.sc("select squad", 30, Forge.PARCHMENT, false, 0.3)
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.set_anchors_preset(PRESET_TOP_WIDE)
-	head.offset_bottom = 100
+	head.offset_bottom = BAND
 	head.mouse_filter = MOUSE_FILTER_IGNORE
 	_scene.add_child(head)
-	var count := Forge.sc("%d of %d" % [app.col.squad.size(), Collection.MAX_SQUAD], 20, Forge.LABEL)
-	count.position = Vector2(44, 38)
+	var count := Forge.sc("%d of %d" % [app.col.squad.size(), Collection.MAX_SQUAD], 16, Forge.LABEL)
+	count.position = Vector2(Screen.SIDE.x * 0.6, 28)
 	_scene.add_child(count)
 	var sound := Forge.sound_toggle()
 	sound.set_anchors_preset(PRESET_TOP_RIGHT)
-	sound.position += Vector2(-84, 22)
+	sound.position += Vector2(-Screen.SIDE.x * 0.6 - 40, 14)
 	_scene.add_child(sound)
 	var n: int = app.col.squad.size()
 	for i in n:
@@ -111,21 +114,21 @@ func _lineup() -> void:
 	_scene.add_child(_list())
 	var foot := Forge.hbox(26)
 	foot.set_anchors_preset(PRESET_BOTTOM_WIDE)
-	foot.offset_left = 44
-	foot.offset_right = -44
-	foot.offset_top = -92
-	foot.offset_bottom = -24
+	foot.offset_left = Screen.SIDE.x * 0.6
+	foot.offset_right = -Screen.SIDE.x * 0.6
+	foot.offset_top = -108
+	foot.offset_bottom = -22
 	foot.mouse_filter = MOUSE_FILTER_IGNORE
 	_scene.add_child(foot)
-	var form := Forge.link("formation", "tab_squad", 20)
+	var form := Forge.link("formation", "tab_squad", 17)
 	form.pressed.connect(_set_view.bind(false))
 	foot.add_child(form)
 	var gap := Control.new()
 	gap.size_flags_horizontal = SIZE_EXPAND_FILL
 	gap.mouse_filter = MOUSE_FILTER_IGNORE
 	foot.add_child(gap)
-	var go := Forge.studs("back to the road" if app.run else "choose a road", true, 64, 22)
-	go.custom_minimum_size.x = 280
+	var go := Forge.studs("back to the road" if app.run else "choose a road", true, 52, 18)
+	go.custom_minimum_size.x = 230
 	go.pressed.connect(app.show_tab.bind("expedition"))
 	foot.add_child(go)
 
@@ -139,11 +142,11 @@ func _stand_up(uid: String, at: Vector3) -> void:
 	s.position = Vector2(at.x - s.size.x / 2.0, at.y - at.z + 12.0)
 	_scene.add_child(s)
 	var picked := uid == _sel
-	var tag := Forge.sc(h.name, 18, Forge.GOLD_LIGHT if picked else Forge.PARCHMENT, picked, 0.12)
+	var tag := Forge.sc(h.name, 16, Forge.GOLD_LIGHT if picked else Forge.PARCHMENT, picked, 0.12)
 	tag.add_theme_color_override("font_shadow_color", Color.BLACK)
 	tag.size = Vector2(240, 26)
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tag.position = Vector2(at.x - 120.0, maxf(108.0, at.y - at.z - 22.0))
+	tag.position = Vector2(at.x - 120.0, maxf(BAND + 6.0, at.y - at.z - 20.0))
 	tag.mouse_filter = MOUSE_FILTER_IGNORE
 	_scene.add_child(tag)
 	_tap(s, func():
@@ -155,15 +158,15 @@ func _stand_up(uid: String, at: Vector3) -> void:
 func _list() -> Control:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.INK, 0.72), Color(Forge.GOLD_DEEP, 0.4), 1, Vector4(14, 12, 14, 12)))
-	p.position = Vector2(44, 124)
-	p.custom_minimum_size = Vector2(LIST_W, 470)
+	p.position = Vector2(Screen.SIDE.x * 0.6, BAND + 28)
+	p.custom_minimum_size = Vector2(LIST_W, 420)
 	p.size = p.custom_minimum_size
 	var v := Forge.vbox(4)
 	p.add_child(v)
-	v.add_child(Forge.sc("the field", 16, Forge.GOLD))
+	v.add_child(Forge.sc("the field", 14, Forge.GOLD))
 	for uid in app.col.squad:
 		v.add_child(_row(uid, true))
-	v.add_child(Forge.sc("pick who comes in" if _sel != "" else "the bench", 16, Forge.GOLD_LIGHT if _sel != "" else Forge.GOLD))
+	v.add_child(Forge.sc("pick who comes in" if _sel != "" else "the bench", 14, Forge.GOLD_LIGHT if _sel != "" else Forge.GOLD))
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -183,18 +186,18 @@ func _row(uid: String, fielded: bool) -> Control:
 	var h := Data.hero(c.hero)
 	var picked := uid == _sel
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.GOLD, 0.2) if picked else Color(Forge.PLAQUE, 0.5), Color.TRANSPARENT, 0, Vector4(10, 6, 10, 6)))
+	p.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.GOLD, 0.2) if picked else Color(Forge.PLAQUE, 0.5), Color.TRANSPARENT, 0, Vector4(10, 4, 10, 4)))
 	var r := Forge.hbox(10)
 	r.mouse_filter = MOUSE_FILTER_IGNORE
 	p.add_child(r)
-	var g := Forge.glyph("elem_" + h.elem, 20, Forge.ELEM[h.elem])
+	var g := Forge.glyph("elem_" + h.elem, 17, Forge.ELEM[h.elem])
 	g.mouse_filter = MOUSE_FILTER_IGNORE
 	r.add_child(g)
-	var n := Forge.sc(h.name, 17, Forge.GOLD_LIGHT if picked else Forge.PARCHMENT)
+	var n := Forge.sc(h.name, 15, Forge.GOLD_LIGHT if picked else Forge.PARCHMENT)
 	n.size_flags_horizontal = SIZE_EXPAND_FILL
 	n.mouse_filter = MOUSE_FILTER_IGNORE
 	r.add_child(n)
-	var stars := Forge.stars(c.stars, 11)
+	var stars := Forge.stars(c.stars, 10)
 	stars.mouse_filter = MOUSE_FILTER_IGNORE
 	for star in stars.get_children():
 		star.mouse_filter = MOUSE_FILTER_IGNORE

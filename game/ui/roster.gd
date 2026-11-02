@@ -134,7 +134,7 @@ func _wide() -> void:
 	_strips.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_strips.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	main.add_child(_strips)
-	var line := Forge.hbox(12)
+	var line := Forge.hbox(20)
 	_strips.add_child(line)
 	for h in Data.HEROES:
 		if app.filter != "" and h.elem != app.filter:
@@ -194,7 +194,35 @@ func _strip(h: Dictionary, card: Dictionary) -> Control:
 	v.add_child(stars)
 	for c in [name, title, stars]:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	s.add_child(_star(h.key, Vector2(8, 8)))
 	return s
+
+
+## A star in a hero's corner: tap it to have home feature them between the roads.
+func _star(hero_key: String, at: Vector2) -> Button:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.tooltip_text = "Star to feature on home"
+	b.custom_minimum_size = Vector2(44, 44)
+	b.size = b.custom_minimum_size
+	b.position = at
+	b.draw.connect(func():
+		var c := b.size / 2.0
+		b.draw_colored_polygon(MainMenu.star(c, 19), Color(Forge.INK, 0.7))
+		var pts := MainMenu.star(c, 14)
+		if hero_key in app.starred:
+			b.draw_colored_polygon(pts, Forge.GOLD_LIGHT)
+		else:
+			b.draw_polyline(pts + PackedVector2Array([pts[0]]), Color(Forge.PARCHMENT, 0.85), 2.0, true))
+	b.pressed.connect(func():
+		if hero_key in app.starred:
+			app.starred.erase(hero_key)
+		else:
+			app.starred.append(hero_key)
+		b.queue_redraw())
+	return b
 
 
 func _fill() -> void:
@@ -228,6 +256,7 @@ func _tile(h: Dictionary, copies: Array) -> Control:
 	var art := CardArt.new().setup(h.key, best.stars)
 	art.custom_minimum_size = Vector2(WIDE_W, WIDE_H) if Forge.wide() else Vector2(TILE_W, ART_H)
 	tile.add_child(art)
+	art.add_child(_star(h.key, Vector2(12, art.custom_minimum_size.y - 58)))
 	art.overlay = func(ci: Control):
 		if fielded:
 			# The squad pennant, top right.
@@ -273,6 +302,7 @@ func _figure_tile(h: Dictionary, copies: Array, best: Dictionary, fielded: bool)
 	var stand := Stand.new().setup(h.key, best.stars)
 	stand.custom_minimum_size = Vector2(196, 300)
 	tile.add_child(stand)
+	stand.add_child(_star(h.key, Vector2(0, 252)))
 	stand.draw.connect(func():
 		if fielded:
 			var x := stand.size.x - 34

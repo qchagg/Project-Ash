@@ -6,7 +6,11 @@ extends Screen
 ## wears the full flowing rim. Tap a building for its panel (what it does, what the next level brings, the way in).
 
 const GRID := ["forge", "archive", "infirmary", "grounds", "caravanserai", "bazaar", "envoys"]
+## A building's tile and the gap between tiles, on a phone and (smaller, with more air) on a wide screen.
 const TILE := Vector2(300, 268)
+const TILE_WIDE := Vector2(244, 224)
+const GAP := 32
+const GAP_WIDE := 60
 
 ## The building whose panel is open, or "".
 var _sel := ""
@@ -34,8 +38,8 @@ func _build() -> void:
 	body.add_child(_hearth())
 	var grid := GridContainer.new()
 	grid.columns = 4 if Forge.wide() else 2
-	grid.add_theme_constant_override("h_separation", 32)
-	grid.add_theme_constant_override("v_separation", 32)
+	grid.add_theme_constant_override("h_separation", _gap())
+	grid.add_theme_constant_override("v_separation", _gap())
 	body.add_child(grid)
 	for k in GRID:
 		grid.add_child(_tile(k))
@@ -59,6 +63,20 @@ func _build() -> void:
 
 func _refresh() -> void:
 	rebuild()
+
+
+func _tile_size() -> Vector2:
+	return TILE_WIDE if Forge.wide() else TILE
+
+
+func _gap() -> int:
+	return GAP_WIDE if Forge.wide() else GAP
+
+
+## The width of the building grid, which the Hearth matches.
+func _grid_w() -> float:
+	var cols := 4 if Forge.wide() else 2
+	return _tile_size().x * cols + _gap() * (cols - 1)
 
 
 ## The resource count; tapping it says where embers come from.
@@ -96,7 +114,8 @@ func _hearth() -> Control:
 	var t := app.town
 	var lvl := t.level("hearth")
 	var b := _tap("hearth")
-	b.custom_minimum_size = Vector2(0, 168)
+	b.custom_minimum_size = Vector2(_grid_w(), 156)
+	b.size_flags_horizontal = SIZE_SHRINK_BEGIN
 	b.draw.connect(func():
 		var on := _sel == "hearth"
 		var r := Rect2(Vector2.ZERO, b.size)
@@ -125,7 +144,9 @@ func _tile(key: String) -> Control:
 	var info: Dictionary = Town.BUILDINGS[key]
 	var lvl := t.level(key)
 	var b := _tap(key)
-	b.custom_minimum_size = TILE
+	var ts := _tile_size()
+	var zoom := ts.y / TILE.y
+	b.custom_minimum_size = ts
 	b.draw.connect(func():
 		var on := _sel == key
 		var built := lvl > 0
@@ -133,19 +154,19 @@ func _tile(key: String) -> Control:
 		b.draw_rect(r, Color(Forge.PLAQUE, 0.94) if built else Color(Forge.INK, 0.7))
 		if not on and t.blocked(key) != "":
 			b.draw_rect(r, Forge.GOLD_DEEP if built else Color(Forge.DIM, 0.4), false, 2.0)
-		var c := Vector2(r.size.x / 2, 78)
-		b.draw_circle(c, 48, Forge.INK)
-		b.draw_circle(c, 45, Forge.GOLD_DEEP if built else Color(Forge.DIM, 0.5))
-		b.draw_circle(c, 42, Forge.PLAQUE_DEEP)
-		b.draw_texture_rect(Forge.icon(info.icon), Rect2(c - Vector2(28, 28), Vector2(56, 56)), false,
+		var c := Vector2(r.size.x / 2, 78 * zoom)
+		b.draw_circle(c, 48 * zoom, Forge.INK)
+		b.draw_circle(c, 45 * zoom, Forge.GOLD_DEEP if built else Color(Forge.DIM, 0.5))
+		b.draw_circle(c, 42 * zoom, Forge.PLAQUE_DEEP)
+		b.draw_texture_rect(Forge.icon(info.icon), Rect2(c - Vector2(28, 28) * zoom, Vector2(56, 56) * zoom), false,
 			Forge.GOLD_LIGHT if built else Color(Forge.DIM, 0.75))
-		_pips(b, Vector2(r.size.x / 2, r.size.y - 30), lvl, t.cap(key), info.max))
+		_pips(b, Vector2(r.size.x / 2, r.size.y - 30 * zoom), lvl, t.cap(key), info.max))
 	var v := Forge.vbox(6)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.position = Vector2(0, 140)
-	v.size = Vector2(TILE.x, 80)
+	v.position = Vector2(0, 140 * zoom)
+	v.size = Vector2(ts.x, 80)
 	b.add_child(v)
-	var nm := Forge.sc(info.name, 24, Forge.GOLD if lvl > 0 else Forge.MUTED, true)
+	var nm := Forge.sc(info.name, 22 if Forge.wide() else 24, Forge.GOLD if lvl > 0 else Forge.MUTED, true)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(nm)

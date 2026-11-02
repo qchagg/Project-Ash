@@ -89,6 +89,7 @@ func _init() -> void:
 		["Crops · a crop set for one view wins there, and every other view keeps the eye-line rule", _b_crop_override],
 		["Forecast · the face is the battle tile's close crop, in a tile's shape", _b_forecast_crop],
 		["Home · every road can be featured between runs, with a painting and words; on the road it holds on yours", _h_slides],
+		["Home · any hero can be starred onto home: every home has a painting to stand on, and the archive sits last in the menu", _h_starred],
 		["Scene · the places stand on home's road, with no painting of their own, and each road has a theme to play there", _h_scene],
 		["Wide board · the floor fits above the skills, the two grids stay apart, and it closes up toward the far lane", _b_wide_floor],
 		["Expedition · every road is connected start to warden, with a camp before the warden", _x_map],
@@ -1522,6 +1523,13 @@ func _h_slides() -> Array:
 		var r: Dictionary = Expedition.ROADS[key]
 		ok = ok and r.about != "" and Weather.AIR.has(r.art) and Data.REGIONS.has(r.region)
 	return [ok, "%d roads" % all.size()]
+
+
+func _h_starred() -> Array:
+	var bare: Array = Data.HEROES.filter(func(h): return not Backdrop.ART.has(h.get("home", ""))).map(func(h): return h.key)
+	var last: String = NavBar.PLACES.back()[1]
+	return [bare.is_empty() and last == "archive" and MainMenu.star(Vector2.ZERO, 1.0).size() == 10,
+		"heroes with no home painting %s · last place %s" % [bare, last]]
 
 
 func _h_scene() -> Array:

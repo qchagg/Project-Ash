@@ -1,20 +1,24 @@
 class_name MainMenu
 extends Control
-## Home, the first place after the title: one road is featured on the app's scene, with its name, a line about it and a
-## single commit. The road stays until you pick another from the diamonds (on the road it holds on yours), and its
-## painting, air and music go with you to every place. Everything else stays quiet: the gold and the sound in the
-## corners, plain links along the foot in place of the nav.
+## Home, the first place after the title: the menu of places over the app's scene. The scene turns slowly through the
+## roads (on the road it holds on yours) and the heroes you have starred, each standing on their home's painting, with
+## a quiet line naming what is on show. Whatever is showing when you leave goes with you to every place, its music too.
 
-## How long a road's words take to change.
+## How long each slide stays before the next comes in, and how long its words take to change.
+const HOLD := 14.0
 const WORDS_FADE := 0.4
+## How tall a starred hero stands on home, against the screen's height.
+const HERO_TALL := Vector2(0.9, 0.62)
 
 var app: App
 var tab := "menu"
-## The roads on show and the one featured now.
-var _keys: Array = []
+## What home turns through ({"road": key} or {"hero": key}), the one on show, and how long it has been there.
+var _slides: Array = []
 var _at := 0
+var _t := 0.0
 var _words: VBoxContainer
 var _dots: Control
+var _hero_layer: Control
 
 
 func setup(a: App) -> MainMenu:
@@ -27,16 +31,32 @@ static func slides(on_road: String) -> Array:
 	return [on_road] if on_road != "" else Expedition.ROADS.keys()
 
 
+## The road whose music goes with a hero's home, or "" when their home has no road.
+static func home_road(home: String) -> String:
+	for key in Expedition.ROADS:
+		if Expedition.ROADS[key].region == home:
+			return key
+	return ""
+
+
 func _ready() -> void:
 	clip_contents = true
 	var wide := Forge.wide()
-	_keys = slides(app.run.road if app.run else "")
-	_at = maxi(0, _keys.find(app.scene_road))
-	# The painting stays bright where the road is and falls away under the words.
+	_slides = slides(app.run.road if app.run else "").map(func(k): return {"road": k})
+	for h in app.starred:
+		if Backdrop.ART.has(Data.hero(h).get("home", "")):
+			_slides.append({"hero": h})
+	_at = maxi(0, _slides.find({"road": app.scene_road}))
+	_hero_layer = Control.new()
+	_hero_layer.mouse_filter = MOUSE_FILTER_IGNORE
+	add_child(_hero_layer)
+	_hero_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	# The painting stays bright on the right and falls away under the menu.
 	if wide:
-		add_child(Forge.wash(Color(Forge.INK, 0.94), Vector2(0.0, 0.5), Vector2(0.62, 0.5)))
-	add_child(Forge.wash(Color(Forge.INK, 0.96), Vector2(0.5, 1.0), Vector2(0.5, 0.74 if wide else 0.4)))
-	var m := Forge.margins(MarginContainer.new(), 56 if wide else 44, 18 if wide else 40, 40 if wide else 44, 18 if wide else 40)
+		add_child(Forge.wash(Color(Forge.INK, 0.9), Vector2(0.0, 0.5), Vector2(0.5, 0.5)))
+	add_child(Forge.wash(Color(Forge.INK, 0.94), Vector2(0.5, 1.0), Vector2(0.5, 0.7 if wide else 0.35)))
+	var side := int(Screen.SIDE.x if wide else Screen.SIDE.y)
+	var m := Forge.margins(MarginContainer.new(), side, 36 if wide else 56, side, 40 if wide else 64)
 	m.mouse_filter = MOUSE_FILTER_IGNORE
 	add_child(m)
 	m.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
@@ -44,27 +64,18 @@ func _ready() -> void:
 	col.mouse_filter = MOUSE_FILTER_IGNORE
 	m.add_child(col)
 	col.add_child(_top())
-	var above := _gap()
-	# A phone's words sit low, where the painting falls to dark; a wide screen keeps them in the middle.
-	above.size_flags_stretch_ratio = 1.0 if wide else 4.0
-	col.add_child(above)
-	_words = Forge.vbox(8)
-	_words.mouse_filter = MOUSE_FILTER_IGNORE
-	col.add_child(_words)
-	var go := Forge.studs("continue" if app.run else "set out", true, 56, 22)
-	go.custom_minimum_size.x = 190
-	go.size_flags_horizontal = SIZE_SHRINK_BEGIN if wide else SIZE_SHRINK_CENTER
-	go.pressed.connect(_go)
-	var space := Control.new()
-	space.custom_minimum_size.y = 26
-	col.add_child(space)
-	col.add_child(go)
-	if _keys.size() > 1:
-		col.add_child(_dot_row())
 	col.add_child(_gap())
-	col.add_child(NavBar.links(app, "menu"))
+	if not wide:
+		col.add_child(_caption())
+		var space := Control.new()
+		space.custom_minimum_size.y = 48
+		col.add_child(space)
+	col.add_child(_menu())
+	col.add_child(_gap())
+	if wide:
+		col.add_child(_caption())
 	_show()
-	# The app builds the nav after this screen comes in; home has its own links.
+	# Home is the menu, so the app's own row of links stays away.
 	app.show_nav.call_deferred(false)
 
 
@@ -73,6 +84,14 @@ func _gap() -> Control:
 	g.size_flags_vertical = SIZE_EXPAND_FILL
 	g.mouse_filter = MOUSE_FILTER_IGNORE
 	return g
+
+
+func _process(delta: float) -> void:
+	if _slides.size() < 2:
+		return
+	_t += delta
+	if _t >= HOLD:
+		_feature((_at + 1) % _slides.size())
 
 
 ## The corners: what you hold, and the sound.
@@ -90,24 +109,61 @@ func _top() -> Control:
 	return row
 
 
-## Small diamonds, one a road; the lit one is on show, and a tap goes to another.
+## The places, large, one above the next: home's whole purpose.
+func _menu() -> Control:
+	var wide := Forge.wide()
+	var v := Forge.vbox(4 if wide else 10)
+	for place in NavBar.PLACES:
+		if place[1] == "menu":
+			continue
+		var b := Forge.link(place[0], "", 30 if wide else 34)
+		b.custom_minimum_size.y = 50 if wide else 64
+		b.size_flags_horizontal = SIZE_SHRINK_BEGIN if wide else SIZE_SHRINK_CENTER
+		b.add_theme_color_override("font_color", Forge.PARCHMENT)
+		b.add_theme_color_override("font_outline_color", Color(Forge.INK, 0.7))
+		b.add_theme_constant_override("outline_size", 5)
+		b.pressed.connect(app.show_tab.bind(place[1]))
+		v.add_child(b)
+	return v
+
+
+## The quiet line naming what is on show, with a diamond for each slide.
+func _caption() -> Control:
+	var v := Forge.vbox(6)
+	v.mouse_filter = MOUSE_FILTER_IGNORE
+	_words = Forge.vbox(4)
+	_words.mouse_filter = MOUSE_FILTER_IGNORE
+	v.add_child(_words)
+	if _slides.size() > 1:
+		v.add_child(_dot_row())
+	return v
+
+
+## Small diamonds, one a slide; the lit one is on show, and a tap goes to another.
 func _dot_row() -> Control:
-	var step := 26.0
+	var step := 22.0
 	_dots = Control.new()
-	_dots.custom_minimum_size = Vector2(step * _keys.size(), 34)
+	_dots.custom_minimum_size = Vector2(step * _slides.size(), 26)
 	_dots.size_flags_horizontal = SIZE_SHRINK_BEGIN if Forge.wide() else SIZE_SHRINK_CENTER
 	_dots.mouse_default_cursor_shape = CURSOR_POINTING_HAND
 	_dots.draw.connect(func():
-		for i in _keys.size():
-			Forge.diamond(_dots, Vector2(step * (i + 0.5), 22), 5, Forge.GOLD_LIGHT if i == _at else Color(Forge.PARCHMENT, 0.4), i == _at))
+		for i in _slides.size():
+			var lit := i == _at
+			var col := Forge.GOLD_LIGHT if lit else Color(Forge.PARCHMENT, 0.4)
+			if _slides[i].has("hero"):
+				# A starred hero's diamond is a small star.
+				_dots.draw_colored_polygon(star(Vector2(step * (i + 0.5), 16), 6.5), col)
+			else:
+				Forge.diamond(_dots, Vector2(step * (i + 0.5), 16), 4, col, lit))
 	_dots.gui_input.connect(func(e: InputEvent):
 		if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT and e.pressed:
-			_feature(clampi(int(e.position.x / step), 0, _keys.size() - 1)))
+			_feature(clampi(int(e.position.x / step), 0, _slides.size() - 1)))
 	return _dots
 
 
-## Changes the road on show: its words fade through, and its painting comes slowly in over the last.
+## Changes the slide on show: its words fade through, and its painting comes slowly in over the last.
 func _feature(i: int) -> void:
+	_t = 0.0
 	if i == _at:
 		return
 	_at = i
@@ -120,34 +176,61 @@ func _feature(i: int) -> void:
 
 
 func _show() -> void:
-	var r: Dictionary = Expedition.ROADS[_keys[_at]]
-	app.set_scene(_keys[_at])
+	var slide: Dictionary = _slides[_at]
 	for c in _words.get_children():
 		_words.remove_child(c)
 		c.queue_free()
+	for c in _hero_layer.get_children():
+		var out := c.create_tween()
+		out.tween_property(c, "modulate:a", 0.0, App.SCENE_FADE * 0.5)
+		out.tween_callback(c.queue_free)
 	var wide := Forge.wide()
-	var where := Forge.sc("on the road" if app.run else Data.REGIONS[r.region].name, 18, Forge.GOLD)
-	var name := Forge.sc(r.name, 54 if wide else 44, Forge.PARCHMENT, true, 0.06)
-	name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name.custom_minimum_size.x = 900 if wide else 632
-	var about := Forge.label(r.about, 22, Forge.PARCHMENT, Forge.SANS_ITALIC)
-	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	about.custom_minimum_size.x = 580 if wide else 632
-	for l in [where, name, about]:
+	var lines := []
+	if slide.has("road"):
+		var r: Dictionary = Expedition.ROADS[slide.road]
+		app.set_scene(slide.road, "", false)
+		lines = [Forge.sc("on the road" if app.run else Data.REGIONS[r.region].name, 16, Forge.GOLD),
+			Forge.sc(r.name, 30 if wide else 28, Forge.PARCHMENT, true, 0.06)]
+	else:
+		var h := Data.hero(slide.hero)
+		var road := home_road(h.home)
+		app.set_scene(road if road != "" else app.scene_road, Backdrop.ART[h.home][0], false)
+		_stand(slide.hero)
+		lines = [Forge.sc("starred · " + Data.REGIONS[h.home].name, 16, Forge.GOLD),
+			Forge.sc(h.name, 30 if wide else 28, Forge.PARCHMENT, true, 0.06)]
+	for l in lines:
 		_readable(l)
 		if not wide:
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_words.add_child(l)
 
 
+## A starred hero standing big on their home: to the right of the menu on a wide screen, behind it on a phone.
+func _stand(hero_key: String) -> void:
+	var owned := app.copies(hero_key)
+	var s := Stand.new().setup(hero_key, owned[0].stars if not owned.is_empty() else 1)
+	var wide := Forge.wide()
+	var area := size if size.y > 0.0 else get_viewport_rect().size
+	var tall: float = area.y * (HERO_TALL.x if wide else HERO_TALL.y)
+	s.tall = 0.98
+	s.size = Vector2(tall * 0.8, tall)
+	s.position = Vector2(area.x * 0.68 - s.size.x / 2.0, area.y * 0.97 - tall) if wide else Vector2((area.x - s.size.x) / 2.0, area.y * 0.06)
+	s.mouse_filter = MOUSE_FILTER_IGNORE
+	s.modulate.a = 0.0
+	_hero_layer.add_child(s)
+	s.create_tween().tween_property(s, "modulate:a", 1.0, App.SCENE_FADE * 0.5)
+
+
+## A five-pointed star of radius `r` around `c`, the mark of a starred hero.
+static func star(c: Vector2, r: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in 10:
+		var a := -PI / 2.0 + i * PI / 5.0
+		pts.append(c + Vector2(cos(a), sin(a)) * (r if i % 2 == 0 else r * 0.45))
+	return pts
+
+
 ## Words over a painting: a soft dark edge keeps them readable on any of them.
 func _readable(l: Label) -> void:
 	l.add_theme_color_override("font_outline_color", Color(Forge.INK, 0.7))
 	l.add_theme_constant_override("outline_size", 5)
-
-
-## The commit: back to the road, or to the road on show, ready to set out on it.
-func _go() -> void:
-	if not app.run:
-		app.road_pick = _keys[_at]
-	app.show_tab("expedition")
