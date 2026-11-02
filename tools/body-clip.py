@@ -16,6 +16,7 @@ stand across it), and `hit` is when the blow lands (the frame reaching furthest 
 Prints {"idle": anim, "foot_x": …, "attack": anim or absent}.
 """
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -36,6 +37,10 @@ STILL_H = 1000
 ATTACK_FPS = 16
 ATTACK_BEFORE, ATTACK_AFTER = 0.45, 0.6
 ATTACK_RES = 0.6
+# The longest a whole-move clip plays for (see `move`): a strike is quick, a skill takes its time.
+ATTACK_FIT, SKILL_FIT = 1.3, 2.0
+# The share of the frame's width (and height, at the top) over which a clip's edges fade out.
+EDGE = 0.12
 
 
 def clean(rgba):
@@ -50,19 +55,32 @@ def clean(rgba):
     return rgba
 
 
-def frames(src, fps=FPS):
-    w, h, _ = face.probe(src)
-    dec = subprocess.run(["ffmpeg", "-v", "error", "-i", src, "-vf", f"fps={fps}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
-        capture_output=True, check=True).stdout
-    n = w * h * 3
+def decode(src, fps):
+    """The clip's frames as RGB arrays at `fps`: through ffmpeg, or PyAV where ffmpeg isn't installed."""
+    if shutil.which("ffmpeg"):
+        w, h, _ = face.probe(src)
+        dec = subprocess.run(["ffmpeg", "-v", "error", "-i", src, "-vf", f"fps={fps}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            capture_output=True, check=True).stdout
+        n = w * h * 3
+        return [np.frombuffer(dec[i * n:(i + 1) * n], np.uint8).reshape(h, w, 3) for i in range(len(dec) // n)]
+    import av
+    out = []
+    with av.open(src) as c:
+        for fr in c.decode(video=0):
+            while len(out) <= fr.time * fps:
+                out.append(fr.to_ndarray(format="rgb24"))
+    return out
+
+
+def frames(src, fps=FPS, channel=False):
+    """The clip keyed, frame by frame; with `channel`, also which backdrop it was shot on (see face.key_channel)."""
     out = []
     ch = None
-    for i in range(len(dec) // n):
-        rgb = np.frombuffer(dec[i * n:(i + 1) * n], np.uint8).reshape(h, w, 3)
+    for rgb in decode(src, fps):
         ch = ch or face.key_channel(rgb)
         col, a = face.key(rgb, ch)
         out.append(clean(np.dstack([col, a])))
-    return out
+    return (out, ch) if channel else out
 
 
 def box(alphas):
@@ -93,22 +111,68 @@ def feet(a):
     return float(low.mean()), float(bottom + 1), float(bottom + 1 - top)
 
 
-def attack(src, dst, idle_h, idle_fx_px, idle_bx, still_shape):
-    """The swing as a sheet matched to the idle (see the module notes)."""
-    seq = frames(src, ATTACK_FPS)
+def fade_edges(f):
+    """Fades the frame's alpha toward its sides and top, so an effect the clip cut off at the frame thins out instead of
+    ending in a straight edge. The bottom stays, for the feet."""
+    h, w = f.shape[:2]
+    k = np.minimum(np.clip(np.arange(w) / (w * EDGE), 0, 1), np.clip((w - 1 - np.arange(w)) / (w * EDGE), 0, 1))
+    f = f.copy()
+    f[..., 3] = (f[..., 3] * k[None, :] * np.clip(np.arange(h) / (h * EDGE), 0, 1)[:, None]).astype(np.uint8)
+    return f
+
+
+def glow(f):
+    """Takes the backdrop out of a see-through effect: flame glowing over green turns olive (green as strong as red, well
+    above blue), so a half-clear pixel that olive fades and warms back to orange. Water (bluer than green) keeps its teal.
+    Only for clips shot on green: a hero who wears green is shot on magenta and skips this."""
+    rgb = f[..., :3].astype(np.float32)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    a = f[..., 3].astype(np.float32)
+    # Thick glow keys as solid while still plainly greener than it is red or blue: clear it by how much greener.
+    over = g - np.maximum(r, b)
+    a *= np.clip(1 - over / 50, 0, 1)
+    olive = np.clip((g / np.maximum(r, 1) - 0.7) / 0.3, 0, 1) * (a < 250) * (g > b + 20)
+    a *= 1 - 0.85 * olive
+    g = np.where((olive > 0) | (over > 0), np.minimum(g, np.maximum(r, b) * 0.75), g)
+    return np.dstack([r, g, b, a]).clip(0, 255).astype(np.uint8)
+
+
+def move(seq, fit):
+    """The whole move in a clip that starts and ends in the standing pose, sped up to last at most `fit` seconds: from
+    the first frame that leaves the pose to the one that settles back."""
+    a0 = seq[0][..., 3].astype(np.float32)
+    off = [float(np.abs(f[..., 3].astype(np.float32) - a0).mean()) for f in seq]
+    busy = np.nonzero(np.array(off) > max(off) * 0.08)[0]
+    lo, hi = max(0, busy[0] - 2), min(len(seq), busy[-1] + 3)
+    keep = np.unique(np.linspace(lo, hi - 1, min(hi - lo, round(fit * ATTACK_FPS))).round().astype(int))
+    return [seq[i] for i in keep]
+
+
+def attack(src, dst, idle_h, idle_fx_px=0, idle_bx=None, still_shape=None, fit=None):
+    """The swing as a sheet matched to the idle (see the module notes). With `fit` (seconds) the clip is a whole move
+    made facing left, as Gamelabs clips are: all of it plays, sped up to fit, and its see-through effects are cleaned."""
+    seq, ch = frames(src, ATTACK_FPS, channel=True)
     fx, fy, fh = feet(seq[0][..., 3])
+    if fit:
+        seq = [fade_edges(f) for f in move(seq, fit)]
+        seq = [glow(f) for f in seq] if ch == 1 else seq
     left, right = [], []
     for f in seq:
         ys, xs = np.nonzero(f[..., 3] > 24)
         left.append(fx - xs.min())
         right.append(xs.max() - fx)
     # The swing faces whichever way it reaches furthest, and the blow is the frame reaching furthest that way.
-    faces = "left" if max(left) >= max(right) else "right"
+    faces = "left" if fit or max(left) >= max(right) else "right"
     reach = left if faces == "left" else right
     blow = int(np.argmax(reach))
-    lo = max(0, blow - round(ATTACK_BEFORE * ATTACK_FPS))
-    hi = min(len(seq), blow + round(ATTACK_AFTER * ATTACK_FPS) + 1)
-    seq, blow = seq[lo:hi], blow - lo
+    if fit:
+        # A cast may not reach ahead at all (a pillar, a veil): its peak is the frame furthest from the standing pose.
+        a0 = seq[0][..., 3].astype(np.float32)
+        blow = int(np.argmax([np.abs(f[..., 3].astype(np.float32) - a0).mean() for f in seq]))
+    else:
+        lo = max(0, blow - round(ATTACK_BEFORE * ATTACK_FPS))
+        hi = min(len(seq), blow + round(ATTACK_AFTER * ATTACK_FPS) + 1)
+        seq, blow = seq[lo:hi], blow - lo
     # Pixels of the idle cell per pixel of this clip, so the fighter stands the same height in both.
     k = idle_h / fh * ATTACK_RES
     l, t, r = seq[0].shape[1], seq[0].shape[0], 0
@@ -165,5 +229,16 @@ def main(still_src, clip_src, sprite_dst, sheet_dst, attack_src=None, attack_dst
     print(json.dumps(out))
 
 
+def swing(idle_sheet, idle_json, clip_src, dst, kind="attack"):
+    """A move for a fighter whose idle is a ready sheet: matched to the height they stand in its first cell."""
+    m = json.loads(Path(idle_json).read_text())["idle"]
+    cell = np.asarray(Image.open(idle_sheet).convert("RGBA").crop((0, 0, m["w"], m["h"])))
+    _, _, fh = feet(cell[..., 3])
+    print(json.dumps(attack(clip_src, dst, fh, fit=SKILL_FIT if kind == "skill" else ATTACK_FIT)))
+
+
 if __name__ == "__main__":
-    main(*sys.argv[1:7])
+    if sys.argv[1] == "swing":
+        swing(*sys.argv[2:7])
+    else:
+        main(*sys.argv[1:7])

@@ -23,6 +23,8 @@ var _lunge := Vector2.ZERO
 var _cast := 0.0
 ## Seconds into the fighter's attack sheet while it plays, else -1.
 var _swing := -1.0
+## Which of the fighter's sheets `_swing` runs through: "attack" or "skill".
+var _move := "attack"
 ## 0 → 1 as the fighter falls (1 if it was already down when this board first saw it).
 var _ko := 1.0
 ## Plates, statuses, the queue number and the forecast: drawn on a layer above every fighter, so the fighter in front
@@ -66,7 +68,7 @@ func _process(delta: float) -> void:
 	_flash = maxf(0.0, _flash - delta * 3.0)
 	if _swing >= 0.0:
 		_swing += delta
-		if not Figure.swinging(_unit().get("sprite", {}), _swing):
+		if not Figure.swinging(_unit().get("sprite", {}), _swing, _move):
 			_swing = -1.0
 	queue_redraw()
 	_over.queue_redraw()
@@ -116,7 +118,7 @@ func _draw() -> void:
 		draw_texture_rect(Forge.sigil(u.elem), Rect2(foot - Vector2(h * 0.14, h * 0.54), Vector2(h * 0.28, h * 0.28)), false, Forge.GOLD)
 	else:
 		Figure.draw(self, spr, foot, h, {"t": _t, "flip": tile.side == "P", "breathe": 1.0 if alive else 1.0 - _ko, "modulate": mod,
-			"swing": _swing})
+			"swing": _swing, "move": _move})
 
 
 ## Everything about the fighter that must stay readable: plate, KO, statuses, intent, forecast, queue number.
@@ -240,17 +242,21 @@ func cheer() -> void:
 
 
 ## The fighter acts: melee lunges toward the other side, ranged leans in, support lifts and opens a ring of light.
-## Returns how long until the blow lands: a fighter with an attack sheet swings it, and the hit waits for the blade.
-func act(kind: String, reach: String) -> float:
+## Returns how long until the blow lands: a fighter with a sheet for the move swings it (a skill its skill sheet, any
+## kind; a blow its attack sheet), and the hit waits for the peak.
+func act(kind: String, reach: String, skill := false) -> float:
 	var dir := 1.0 if tile.side == "P" else -1.0
 	var spr: Dictionary = _unit().get("sprite", {})
-	if not kind in ["heal", "shield", "buff", "guard"] and spr.has("attack") and Clips.sheet(spr.attack.src):
+	var support := kind in ["heal", "shield", "buff", "guard"]
+	_move = "skill" if skill and spr.has("skill") else "attack"
+	if (_move == "skill" or not support) and spr.has(_move) and Clips.sheet(spr[_move].src):
 		_swing = 0.0
+		var hit: float = spr[_move].hit
 		var step := create_tween()
-		step.tween_property(self, "_lunge", Vector2(dir * (24.0 if reach == "melee" else 8.0), 0), 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		step.tween_interval(spr.attack.hit)
+		step.tween_property(self, "_lunge", Vector2(0 if support else dir * (24.0 if reach == "melee" else 8.0), 0), 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		step.tween_interval(hit)
 		step.tween_property(self, "_lunge", Vector2.ZERO, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
-		return spr.attack.hit
+		return hit
 	var tw := create_tween()
 	if kind in ["heal", "shield", "buff", "guard"]:
 		_cast = 1.0

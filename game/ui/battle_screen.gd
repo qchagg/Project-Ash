@@ -1209,7 +1209,7 @@ func _play() -> void:
 				if not e.kind in ["heal", "shield", "buff", "guard"]:
 					Voice.play(_voice_key(b.unit(e.id)), "attack")
 				if tile and tile.figure:
-					await get_tree().create_timer(tile.figure.act(e.kind, e.range)).timeout
+					await get_tree().create_timer(tile.figure.act(e.kind, e.range, e.get("skill", false))).timeout
 					if not is_inside_tree():
 						return
 			"walk":
