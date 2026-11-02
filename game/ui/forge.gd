@@ -232,32 +232,79 @@ static func type_glyph(s: Dictionary, px: int, color := LABEL) -> TextureRect:
 	return g
 
 
-## A placeholder skill icon until the painted ones exist: an element-lit diamond with the skill's initials,
-## its type glyph in the corner. Initials skip small words ("Rain of Renewal" → RR).
-static func skill_icon(s: Dictionary, elem: String, px := 64) -> Control:
+## The gold-art mask lit in the skill's element, with a slow band of light passing over it. `lick` adds running flame.
+const SKILL_SHADER := """
+shader_type canvas_item;
+uniform vec4 tint;
+uniform vec4 shine;
+uniform float lick = 0.0;
+uniform float phase = 0.0;
+void fragment() {
+	float a = texture(TEXTURE, UV).a;
+	vec3 lit = mix(tint.rgb, vec3(1.0), 0.3);
+	vec3 col = mix(tint.rgb * 0.7, mix(lit, tint.rgb, UV.y), smoothstep(0.15, 0.9, a));
+	float d = (UV.x + UV.y) * 0.5 - (fract(TIME * 0.2 + phase) * 2.0 - 0.5);
+	float band = exp(-d * d * 70.0);
+	float flame = pow(0.5 + 0.5 * sin(UV.y * 10.0 + UV.x * 5.0 + TIME * 3.2 + phase * 6.28), 3.0) * lick;
+	COLOR = vec4(mix(col, shine.rgb, clamp(band * 0.8 + flame, 0.0, 1.0)) * COLOR.rgb, COLOR.a);
+}
+"""
+## Each element's passing light. Fire burns red.
+const SKILL_SHINE := {"fire": Color("#ff1e0a"), "water": Color("#d8f6ff"), "earth": Color("#ffd9a0"), "wind": Color("#e4ffdc")}
+static var _skill_shader: Shader
+
+
+## A skill's icon file. An augmented skill keeps the icon of the skill it grew from.
+static func skill_art(s: Dictionary) -> String:
+	return "res://art/skills/%s.webp" % s.get("base_name", s.name).to_lower().replace(" ", "-")
+
+
+## A skill's icon, tinted by element, with its type glyph in the corner. `plate` sets it on its own dark disc; leave it off inside an orb.
+static func skill_icon(s: Dictionary, elem: String, px := 64, plate := true) -> Control:
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(px, px)
 	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var words: Array = s.get("base_name", s.name).split(" ")
-	var initials := "".join(words.filter(func(w): return not w.to_lower() in ["of", "the", "and", "a"]).map(func(w): return w.left(1))).left(2)
 	var tint: Color = ELEM.get(elem, GOLD)
-	c.draw.connect(func():
-		var m := c.size / 2
-		var r := minf(m.x, m.y) - 2
-		diamond(c, m, r, tint.darkened(0.55))
-		diamond(c, m, r * 0.78, tint.darkened(0.25))
-		diamond(c, m + Vector2(0, -r * 0.1), r * 0.5, Color(tint.lightened(0.35), 0.35))
-		diamond(c, m, r, GOLD_DEEP, false)
-		var f := tracked(SC_HEAVY, 1)
-		var fs := roundi(r * 0.62)
-		c.draw_string_outline(f, Vector2(0, m.y + fs * 0.36), initials.to_lower(), HORIZONTAL_ALIGNMENT_CENTER, c.size.x, fs, 6, Color(INK, 0.8))
-		c.draw_string(f, Vector2(0, m.y + fs * 0.36), initials.to_lower(), HORIZONTAL_ALIGNMENT_CENTER, c.size.x, fs, PARCHMENT)
-		var b := Vector2(c.size.x - r * 0.42, c.size.y - r * 0.42)
-		c.draw_circle(b, r * 0.34, INK)
-		c.draw_arc(b, r * 0.34, 0, TAU, 20, GOLD_DEEP, 1.5, true)
-		var g := r * 0.4
-		c.draw_texture_rect(icon("type_" + skill_type(s)), Rect2(b - Vector2(g, g) / 2, Vector2(g, g)), false, GOLD_LIGHT))
+	if plate:
+		c.draw.connect(func():
+			var m := c.size / 2
+			c.draw_circle(m, m.x - 1, tint.darkened(0.82))
+			c.draw_arc(m, m.x - 1.5, 0, TAU, 40, Color(tint.lerp(GOLD_DEEP, 0.5), 0.9), 1.5, true))
+	if _skill_shader == null:
+		_skill_shader = Shader.new()
+		_skill_shader.code = SKILL_SHADER
+	var art := TextureRect.new()
+	art.texture = load(skill_art(s))
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var inset := roundi(px * (0.15 if plate else 0.06))
+	art.offset_left = inset
+	art.offset_top = inset
+	art.offset_right = -inset
+	art.offset_bottom = -inset
+	var mat := ShaderMaterial.new()
+	mat.shader = _skill_shader
+	mat.set_shader_parameter("tint", tint.lightened(0.12))
+	mat.set_shader_parameter("shine", SKILL_SHINE.get(elem, GOLD_LIGHT))
+	mat.set_shader_parameter("lick", 0.4 if elem == "fire" else 0.0)
+	mat.set_shader_parameter("phase", float(s.name.hash() % 100) / 100.0)
+	art.material = mat
+	c.add_child(art)
+	# The badge sits above the art, so it draws on a child of its own.
+	var badge := Control.new()
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.set_anchors_preset(Control.PRESET_FULL_RECT)
+	badge.draw.connect(func():
+		var r := badge.size.x * 0.17
+		var b := badge.size - Vector2(r, r) * 1.05
+		badge.draw_circle(b, r, INK)
+		badge.draw_arc(b, r, 0, TAU, 20, GOLD_DEEP, 1.5, true)
+		var g := r * 1.2
+		badge.draw_texture_rect(icon("type_" + skill_type(s)), Rect2(b - Vector2(g, g) / 2, Vector2(g, g)), false, GOLD_LIGHT))
+	c.add_child(badge)
 	return c
 
 
