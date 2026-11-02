@@ -236,7 +236,6 @@ func _wide_scene() -> void:
 	tr.offset_top = 14
 	tr.add_child(_danger_btn)
 	tr.add_child(_retreat)
-	tr.add_child(Forge.sound_toggle())
 	_mid.custom_minimum_size = Vector2(660, MID_H)
 	add_child(_mid)
 	_mid.set_anchors_preset(PRESET_CENTER_TOP)

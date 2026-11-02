@@ -3,14 +3,14 @@ extends Control
 ## How far you have come: milestones rising along a chart at the foot of the screen, one for each count of wardens felled.
 ## A milestone you have reached is yours to claim. A wide screen climbs left to right; a phone stacks them.
 
-const STOP_W := 200.0
-const STEP := Vector2(250, -40)
-const FIRST := Vector2(110, 210)
+const STOP_W := 190.0
+const STEP := Vector2(236, -34)
+const FIRST := Vector2(150, 236)
 ## A milestone's disc: its height and radius. Its prize and what is left to go sit tight under it, one line apart.
-const DISC_H := 150.0
-const DISC_R := 62.0
+const DISC_H := 128.0
+const DISC_R := 52.0
 ## How far below a stop's top the line down to the road begins, just under its words.
-const LINE_FROM := 204.0
+const LINE_FROM := 182.0
 
 var app: App
 var tab := "menu"
@@ -29,7 +29,7 @@ func _fill() -> void:
 	for c in get_children():
 		c.queue_free()
 	var side := int(Screen.SIDE.x if Forge.wide() else Screen.SIDE.y)
-	var m := Forge.margins(MarginContainer.new(), side, 44 if Forge.wide() else 64, side, 30)
+	var m := Forge.margins(MarginContainer.new(), side, 56 if Forge.wide() else 64, side, 30)
 	add_child(m)
 	m.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var v := Forge.vbox(14)
@@ -84,7 +84,7 @@ func _stop(i: int) -> Control:
 		var c := Vector2(STOP_W / 2.0, DISC_H / 2.0)
 		disc.draw_circle(c, DISC_R, Color(Forge.PLAQUE, 0.85))
 		disc.draw_arc(c, DISC_R + 9, 0, TAU, 64, Forge.GOLD if state != "locked" else Color(Forge.GOLD_DEEP, 0.5), 1.5, true)
-		disc.draw_string(Forge.SANS_BOLD, Vector2(0, c.y + 16), str(m.at), HORIZONTAL_ALIGNMENT_CENTER, STOP_W, 46,
+		disc.draw_string(Forge.SANS_BOLD, Vector2(0, c.y + 14), str(m.at), HORIZONTAL_ALIGNMENT_CENTER, STOP_W, 40,
 			Forge.GOLD_LIGHT if state != "locked" else Forge.DIM))
 	v.add_child(disc)
 	# The prize and what is left to go read as one pair, pulled tight together.

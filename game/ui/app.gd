@@ -4,7 +4,7 @@ extends Control
 ## The nav (the row of places along the foot) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.76"
+const VERSION := "v0.77"
 ## Moving between screens: how long the new one takes to come in, and how far it rises as it does.
 const FADE := 0.2
 const RISE := 18.0
@@ -24,6 +24,8 @@ var run: Expedition
 var filter := ""
 ## The road home last sent you to, for the road choice to open on ("" for none).
 var road_pick := ""
+## The road chosen on the road choice, while the party lines up to set out on it ("" otherwise).
+var setting_out := ""
 ## The road home has on show, or the road you're on. Its painting and air stand behind every place, and off the road
 ## its music plays everywhere, so moving between places never changes the scene.
 var scene_road := ""
@@ -209,6 +211,8 @@ func _open(screen: Control) -> void:
 		if screen.get("tab") and not screen is BattleScreen:
 			_ink_wipe()
 	_screen = screen
+	if not screen is SquadScreen:
+		setting_out = ""
 	_content.add_child(screen)
 	screen.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	if _content.get_child_count() > 1:
@@ -286,6 +290,12 @@ func _ink_wipe() -> void:
 func show_nav(on: bool) -> void:
 	if nav:
 		nav.visible = on
+
+
+## Sets out on the road chosen on the road choice, with the party as it stands.
+func set_out() -> void:
+	run = Expedition.new().begin(setting_out, randi() % 100000)
+	show_tab("expedition")
 
 
 ## A hero's card, in a list so a hero not owned yet comes back empty.

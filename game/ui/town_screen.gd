@@ -8,9 +8,9 @@ extends Screen
 const GRID := ["forge", "archive", "infirmary", "grounds", "caravanserai", "bazaar", "envoys"]
 ## A building's tile and the gap between tiles, on a phone and (smaller, with more air) on a wide screen.
 const TILE := Vector2(300, 268)
-const TILE_WIDE := Vector2(244, 224)
+const TILE_WIDE := Vector2(212, 196)
 const GAP := 32
-const GAP_WIDE := 60
+const GAP_WIDE := 68
 
 ## The building whose panel is open, or "".
 var _sel := ""
@@ -114,7 +114,7 @@ func _hearth() -> Control:
 	var t := app.town
 	var lvl := t.level("hearth")
 	var b := _tap("hearth")
-	b.custom_minimum_size = Vector2(_grid_w(), 156)
+	b.custom_minimum_size = Vector2(_grid_w(), 140 if Forge.wide() else 156)
 	b.size_flags_horizontal = SIZE_SHRINK_BEGIN
 	b.draw.connect(func():
 		var on := _sel == "hearth"
@@ -127,10 +127,10 @@ func _hearth() -> Control:
 		b.draw_circle(c, 55, Forge.PLAQUE_DEEP)
 		b.draw_circle(c, 46, Color(Forge.ELEM.fire, 0.14))
 		b.draw_texture_rect(Forge.icon("bld_hearth"), Rect2(c - Vector2(34, 36), Vector2(68, 68)), false, Forge.GOLD_LIGHT)
-		_pips(b, Vector2(180 + 6 * 12, r.size.y - 40), lvl, Town.BUILDINGS.hearth.max, Town.BUILDINGS.hearth.max))
+		_pips(b, Vector2(180 + 6 * 12, r.size.y - 26), lvl, Town.BUILDINGS.hearth.max, Town.BUILDINGS.hearth.max))
 	var v := Forge.vbox(4)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.position = Vector2(180, 30)
+	v.position = Vector2(180, 20)
 	b.add_child(v)
 	v.add_child(Forge.sc(Town.BUILDINGS.hearth.name, 30, Forge.GOLD, true))
 	v.add_child(Forge.sc("level %d · caps every building" % lvl, 18, Forge.LABEL))
@@ -166,7 +166,7 @@ func _tile(key: String) -> Control:
 	v.position = Vector2(0, 140 * zoom)
 	v.size = Vector2(ts.x, 80)
 	b.add_child(v)
-	var nm := Forge.sc(info.name, 22 if Forge.wide() else 24, Forge.GOLD if lvl > 0 else Forge.MUTED, true)
+	var nm := Forge.sc(info.name, 19 if Forge.wide() else 24, Forge.GOLD if lvl > 0 else Forge.MUTED, true)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.add_child(nm)
