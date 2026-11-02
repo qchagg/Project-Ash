@@ -23,7 +23,7 @@ for key, body in re.findall(r"^\t\"(\w+)\": (\{.*\}),$", open("game/core/faces.g
         print(" ".join(set(re.findall(r"\"(\w+-\w+)\"", body))))
 ' | tr -d '\r'); do cp "game/art/clips/$b.ogv" "$out/clips/$b.ogg"; done
 # Idle frame sheets and painted backgrounds stay out of the pack too, and load the same way.
-mkdir -p "$out/sheets" && cp game/art/sprites/*-idle.webp game/art/sprites/*-attack.webp game/art/sprites/*-skill.webp game/art/backgrounds/*.webp game/art/grounds/*.webp game/art/stands/*.webp game/audio/voice/*.wav "$out/sheets/"
+mkdir -p "$out/sheets" && cp game/art/sprites/*-idle.webp game/art/sprites/*-attack.webp game/art/sprites/*-skill.webp game/art/backgrounds/*.webp game/art/grounds/*.webp game/art/stands/*.webp game/art/graces/*.webp game/audio/voice/*.wav "$out/sheets/"
 # Music stays out of the pack and out of git (see game/ui/music.gd): the chosen tracks in game/audio/music/ ship beside
 # the page, and the export fails if one is missing.
 mkdir -p "$out/music"

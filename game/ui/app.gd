@@ -4,7 +4,7 @@ extends Control
 ## The nav (the row of places along the foot) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.70"
+const VERSION := "v0.71"
 ## Moving between screens: how long the new one takes to come in, and how far it rises as it does.
 const FADE := 0.2
 const RISE := 18.0
@@ -60,10 +60,10 @@ func _link() -> String:
 
 
 ## Playtest shortcut: a link ending #event-boon (or camp, wayside, fight, warden) starts a run and steps straight
-## onto that kind of stop, so a reviewer can see each one without walking the road. #town and #heroes open those tabs.
+## onto that kind of stop, so a reviewer can see each one without walking the road. #town, #heroes and #graces open those screens.
 func _deep_link() -> void:
 	var hash := _link()
-	if hash in ["town", "heroes"]:
+	if hash in ["town", "heroes", "graces"]:
 		show_tab(hash)
 		return
 	if hash == "event-pick":
@@ -138,6 +138,7 @@ func show_tab(tab: String) -> void:
 	match tab:
 		"menu": _open(MainMenu.new().setup(self))
 		"log": _open(TravelLog.new().setup(self))
+		"graces": _open(GracesScreen.new().setup(self))
 		"heroes", "roster": show_roster()
 		"expedition": _open(ExpeditionScreen.new().setup(self))
 		"party", "squad": _open(SquadScreen.new().setup(self))

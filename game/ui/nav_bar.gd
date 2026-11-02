@@ -5,7 +5,7 @@ extends RefCounted
 ## quiet strip for it.
 
 ## The places: the link's words and their App.show_tab key.
-const PLACES := [["home", "menu"], ["road", "expedition"], ["heroes", "heroes"], ["party", "party"], ["caravan", "town"], ["archive", "archive"], ["travel log", "log"]]
+const PLACES := [["home", "menu"], ["road", "expedition"], ["heroes", "heroes"], ["party", "party"], ["caravan", "town"], ["archive", "archive"], ["graces", "graces"], ["travel log", "log"]]
 const LINK_H := 44.0
 const GAP_WIDE := 40
 const GAP_PHONE := 26
