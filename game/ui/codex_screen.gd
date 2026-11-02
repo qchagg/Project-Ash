@@ -10,6 +10,9 @@ const STATUSES := [
 	["shield", "earth", "Absorbs damage until broken; holds until then."],
 	["cleanse", "water", "Clears Burn from whoever it heals."],
 ]
+## A region plate's width on a phone and on a wide screen, set two across, and the height of its painting.
+const PLATE_W := Vector2(632, 660)
+const BAND_H := 176.0
 const PATTERNS := [
 	["single", "One exposed enemy."],
 	["pierce", "A whole lane, front to back."],
@@ -25,6 +28,7 @@ var elem_filter := ""
 func _init() -> void:
 	tab = "town"
 	title = "archive"
+	black = true
 
 
 func _build() -> void:
@@ -46,37 +50,52 @@ func _world() -> void:
 	# A wide screen sets the regions two across, so each keeps the shape it has on a phone.
 	var grid := GridContainer.new()
 	grid.columns = 2 if Forge.wide() else 1
-	grid.add_theme_constant_override("h_separation", 24)
-	grid.add_theme_constant_override("v_separation", 34)
+	grid.add_theme_constant_override("h_separation", 48)
+	grid.add_theme_constant_override("v_separation", 48)
 	body.add_child(grid)
 	for key in Data.REGIONS:
 		grid.add_child(_region_plate(key))
 
 
-## A region as a plate: its colorway, its sigil riding the edge, its name and a line about it.
+## A region as a plate: one of its paintings across the top, its dark washing in from the left under its sigil and its
+## light cut along the foot, then its name and a line about it.
 func _region_plate(key: String) -> Control:
 	var r: Dictionary = Data.REGIONS[key]
 	var b := _plate()
 	var v := Forge.vbox(0)
 	v.mouse_filter = MOUSE_FILTER_IGNORE
 	b.add_child(v)
+	var w: float = PLATE_W.y if Forge.wide() else PLATE_W.x
 	var top := Control.new()
-	var w := 728.0 if Forge.wide() else 632.0
-	top.custom_minimum_size = Vector2(w, 120)
+	top.custom_minimum_size = Vector2(w, BAND_H)
+	top.clip_contents = true
 	top.mouse_filter = MOUSE_FILTER_IGNORE
 	v.add_child(top)
-	top.add_child(Forge.region_swatch(key, Vector2(w, 84)))
-	var badge := Forge.region_badge(key, 88)
-	badge.position = Vector2(28, 36)
+	var arts: Array = Backdrop.ART.get(key, [])
+	if arts.is_empty():
+		top.add_child(Forge.region_swatch(key, Vector2(w, BAND_H)))
+	else:
+		top.add_child(Painted.new().setup(arts[0], Color(0.85, 0.85, 0.85)))
+		top.add_child(Forge.wash(Color(r.dark, 0.95), Vector2(0.0, 0.5), Vector2(0.62, 0.5)))
+	var cut := Control.new()
+	cut.mouse_filter = MOUSE_FILTER_IGNORE
+	top.add_child(cut)
+	cut.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	cut.draw.connect(func():
+		var s := cut.size
+		cut.draw_colored_polygon(PackedVector2Array([Vector2(0, s.y), Vector2(s.x, s.y - 18), s]), r.light))
+	var badge := Forge.region_badge(key, 84)
+	badge.position = Vector2(28, (BAND_H - 84) / 2.0 - 8)
 	top.add_child(badge)
-	var names := Lore.in_region(key).map(func(a): return a.name)
-	var count := Forge.sc("%d archetypes" % names.size(), 18, Forge.DIM)
-	count.position = Vector2(136, 92)
+	var count := Forge.sc("%d archetypes" % Lore.in_region(key).size(), 18, Forge.PARCHMENT)
+	count.add_theme_color_override("font_outline_color", Color(Forge.INK, 0.7))
+	count.add_theme_constant_override("outline_size", 4)
+	count.position = Vector2(132, BAND_H / 2.0 - 20)
 	top.add_child(count)
-	var text := Forge.margins(MarginContainer.new(), 28, 10, 28, 24)
+	var text := Forge.margins(MarginContainer.new(), 28, 20, 28, 28)
 	text.mouse_filter = MOUSE_FILTER_IGNORE
 	v.add_child(text)
-	var t := Forge.vbox(8)
+	var t := Forge.vbox(10)
 	t.mouse_filter = MOUSE_FILTER_IGNORE
 	text.add_child(t)
 	t.add_child(Forge.sc(r.name, 30, Forge.GOLD, true, 0.14))
@@ -210,26 +229,28 @@ func _settings() -> void:
 
 
 func _group(heading: String, fill: Callable) -> Control:
-	var v := Forge.vbox(16)
+	var v := Forge.vbox(22)
 	v.add_child(Forge.sc(heading, 24, Forge.GOLD, true, 0.16))
 	v.add_child(Forge.rule())
 	fill.call(v)
 	return v
 
 
-## A glossary term: the word, an optional element sigil, and its meaning.
+## A glossary term: the word, with its element sigil on the same line where it has one, and its meaning under it.
 func _term(word: String, meaning: String, elem: String) -> Control:
-	var h := Forge.hbox(16)
+	var t := Forge.vbox(4)
+	t.size_flags_horizontal = SIZE_EXPAND_FILL
+	var line := Forge.hbox(10)
+	t.add_child(line)
 	if elem != "":
 		var g := Forge.glyph("elem_" + elem, 22, Forge.ELEM[elem])
-		g.size_flags_vertical = SIZE_SHRINK_BEGIN
-		h.add_child(g)
-	var t := Forge.vbox(2)
-	t.size_flags_horizontal = SIZE_EXPAND_FILL
-	t.add_child(Forge.sc(word, 20, Forge.GOLD_LIGHT))
-	t.add_child(_para(meaning, 21, Forge.PARCHMENT, 580 if elem == "" else 540))
-	h.add_child(t)
-	return h
+		g.size_flags_vertical = SIZE_SHRINK_CENTER
+		line.add_child(g)
+	var w := Forge.sc(word, 20, Forge.GOLD_LIGHT)
+	w.size_flags_vertical = SIZE_SHRINK_CENTER
+	line.add_child(w)
+	t.add_child(_para(meaning, 21, Forge.PARCHMENT, 600))
+	return t
 
 
 func _filter(elem: String, glyph: String, tint: Color) -> Button:

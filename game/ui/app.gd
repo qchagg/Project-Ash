@@ -4,7 +4,7 @@ extends Control
 ## The nav (the row of places along the foot) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.74"
+const VERSION := "v0.75"
 ## Moving between screens: how long the new one takes to come in, and how far it rises as it does.
 const FADE := 0.2
 const RISE := 18.0
@@ -27,6 +27,10 @@ var road_pick := ""
 ## The road home has on show, or the road you're on. Its painting and air stand behind every place, and off the road
 ## its music plays everywhere, so moving between places never changes the scene.
 var scene_road := ""
+## The painting the scene shows: the road's own, or a starred hero's home that home is featuring.
+var scene_art := ""
+## The heroes you have starred on the heroes screen, which home features between the roads.
+var starred: Array = []
 ## Each hero's zoom on the character view (0 full body, 1 face), kept between visits.
 var zoom := {}
 var nav: Control
@@ -211,7 +215,7 @@ func _open(screen: Control) -> void:
 		var settle := screen.position
 		screen.position.y += RISE
 		rise.tween_property(screen, "position:y", settle.y, FADE * 1.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	if run and run.over == "" and run.road != scene_road:
+	if run and run.over == "" and (run.road != scene_road or scene_art != Expedition.ROADS[run.road].art):
 		set_scene(run.road)
 	# Home shows the scene in full light; every other place dims it so what stands on it reads.
 	create_tween().tween_property(_scene_dim, "color:a", 0.0 if screen is MainMenu else SCENE_DIM, SCENE_FADE * 0.5)
@@ -231,17 +235,20 @@ func _open(screen: Control) -> void:
 		_frame.add_child(nav)
 
 
-## Puts a road's painting and air behind every place, slowly coming in over the last, and its theme on.
-func set_scene(road: String) -> void:
-	var changed := road != scene_road
+## Puts a road's painting (or `art` in its place) and air behind every place, slowly coming in over the last, and with
+## `play` its theme on. Home turns through its slides without `play`, so the music only follows when you leave.
+func set_scene(road: String, art := "", play := true) -> void:
+	if art == "":
+		art = Expedition.ROADS[road].art
+	var changed := road != scene_road or art != scene_art
 	scene_road = road
+	scene_art = art
 	if not changed and _scene.get_child_count() > 0:
 		return
 	for old in _scene.get_children():
 		var out := old.create_tween()
 		out.tween_property(old, "modulate:a", 0.0, SCENE_FADE)
 		out.tween_callback(old.queue_free)
-	var art: String = Expedition.ROADS[road].art
 	var layer := Control.new()
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scene.add_child(layer)
@@ -253,7 +260,7 @@ func set_scene(road: String) -> void:
 	if _scene.get_child_count() > 1:
 		layer.modulate.a = 0.0
 		layer.create_tween().tween_property(layer, "modulate:a", 1.0, SCENE_FADE).set_trans(Tween.TRANS_SINE)
-	if _screen:
+	if _screen and play:
 		music()
 
 
