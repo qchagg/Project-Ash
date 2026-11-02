@@ -55,6 +55,7 @@ const NODES := {
 	"rest": {"name": "Camp", "icon": "node_rest", "weight": 11, "about": "Rest: the squad heals. A higher Infirmary heals more."},
 	"boon": {"name": "Boon", "icon": "node_boon", "weight": 15, "about": "Choose one of three blessings for the rest of the run."},
 	"wayside": {"name": "Wayside", "icon": "node_wayside", "weight": 28, "about": "Something on the road. You won't know what until you get there."},
+	"shrine": {"name": "Shrine", "icon": "node_shrine", "weight": 0, "about": "A wayside shrine of the Graces of Mehfil. One of them will bless the rest of the run."},
 	"boss": {"name": "Warden", "icon": "node_boss", "weight": 0, "about": "The road's warden. Beat them to finish the expedition."},
 }
 
@@ -84,6 +85,9 @@ const REROLL_COST_CAP := 320
 ## Skipping a pick pays this share of a skirmish's purse.
 const SKIP_SHARE := 0.25
 
+## The layer that holds the road's one shrine.
+const SHRINE_LAYER := 2
+
 ## Embers per node at danger 1; more danger, more embers.
 const PURSE := {"battle": 40, "elite": 80, "boss": 160, "wayside": 45}
 ## Share of max health a camp restores, by Infirmary level (0 = no Infirmary yet).
@@ -102,6 +106,8 @@ var at := Vector2i(-1, -1)
 ## Each card's health as a share of its max (missing = full). 0 means fallen for the rest of the run.
 var hp := {}
 var boons: Array = []
+## The Grace who blesses this run (a key of Graces.LIST), or "" until a shrine is visited.
+var grace := ""
 ## Each card's hero picks on this road: uid -> array of {aug, skill}. They fade with the run.
 var picks := {}
 ## How many offers each card has had, so the offers go round the squad.
@@ -193,6 +199,20 @@ func _draw_map() -> void:
 				here[_nearest(here, ahead[k].x)].next.append(k)
 		for node in here:
 			node.next.sort()
+	_place_shrine()
+
+
+## One shrine a run, on SHRINE_LAYER, so a blessing taken there has the road ahead to work on. It draws from its own
+## generator, so the rest of the map is as it would be without it.
+func _place_shrine() -> void:
+	if layers.size() < SHRINE_LAYER + 3:
+		return
+	var r := RandomNumberGenerator.new()
+	r.seed = run_seed * 89 + 5
+	var layer: Array = layers[SHRINE_LAYER]
+	var nd: Dictionary = layer[r.randi() % layer.size()]
+	nd.type = "shrine"
+	nd.rarity = 0
 
 
 func _nearest(layer: Array, x: float) -> int:
@@ -206,7 +226,7 @@ func _nearest(layer: Array, x: float) -> int:
 func _pick_type(layer_i: int) -> String:
 	var pool := []
 	for k in NODES:
-		if k == "boss" or (k in ["elite", "rest"] and layer_i < 2):
+		if k in ["boss", "shrine"] or (k in ["elite", "rest"] and layer_i < 2):
 			continue
 		pool.append(k)
 	var total := 0
@@ -357,6 +377,31 @@ func bonus(stat: String) -> float:
 
 static func boon_text(b: Dictionary) -> String:
 	return BOONS[b.key].about % roundi(BOONS[b.key].amount[b.rarity] * 100)
+
+
+# ---------- the shrine ----------
+
+## The Graces a shrine offers: different ones, fixed by the run's seed. Nothing once the run is blessed.
+func shrine_offers(p: Vector2i) -> Array:
+	if grace != "":
+		return []
+	var r := RandomNumberGenerator.new()
+	r.seed = run_seed * 61 + p.x * 13 + p.y
+	var keys: Array = Graces.LIST.map(func(g): return g.key)
+	for i in range(keys.size() - 1, 0, -1):
+		var j := r.randi() % (i + 1)
+		var tmp = keys[i]
+		keys[i] = keys[j]
+		keys[j] = tmp
+	return keys.slice(0, Graces.OFFERS)
+
+
+## Takes a Grace's blessing for the rest of the run: only one, and only one the shrine you stand at offers.
+func take_grace(key: String) -> bool:
+	if at.x < 0 or node(at).type != "shrine" or not key in shrine_offers(at):
+		return false
+	grace = key
+	return true
 
 
 # ---------- hero picks ----------

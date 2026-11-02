@@ -369,8 +369,17 @@ func _on_the_road() -> void:
 		top.move_child(home, top.get_child_count() - 1)
 	else:
 		body.add_child(_party_row())
-	if not run.boons.is_empty() or not run.picks.is_empty():
-		body.add_child(_boon_row())
+	if not run.boons.is_empty() or not run.picks.is_empty() or run.grace != "":
+		var row := _boon_row()
+		if Forge.wide():
+			# A wide screen is short: the row shares the road's line, beside its name, so the map keeps its height.
+			nm.size_flags_horizontal = SIZE_FILL
+			row.size_flags_horizontal = SIZE_EXPAND_FILL
+			row.size_flags_vertical = SIZE_SHRINK_CENTER
+			top.add_child(row)
+			top.move_child(row, 2)
+		else:
+			body.add_child(row)
 	_map = _road_map()
 	body.add_child(_map)
 	# Start with the next step in view.
@@ -383,6 +392,17 @@ func _boon_row() -> Control:
 	var row := HFlowContainer.new()
 	row.add_theme_constant_override("h_separation", 10)
 	row.add_theme_constant_override("v_separation", 10)
+	var g := Graces.by(app.run.grace)
+	if not g.is_empty():
+		# The Grace who blesses the run leads the row, in gold, with her blessing on hover.
+		var gp := PanelContainer.new()
+		gp.add_theme_stylebox_override("panel", Forge.flat(Color(Forge.PLAQUE, 0.9), Forge.GOLD_LIGHT, 2, Vector4(12, 4, 14, 4)))
+		gp.tooltip_text = g.blessing
+		var gh := Forge.hbox(8)
+		gp.add_child(gh)
+		gh.add_child(Forge.glyph("node_shrine", 20, Forge.ELEM.get(g.elem, Forge.GOLD_LIGHT)))
+		gh.add_child(Forge.sc("%s's blessing" % g.name, 18, Forge.GOLD_LIGHT))
+		row.add_child(gp)
 	for b in app.run.boons:
 		var col: Color = Forge.RARITY[b.rarity]
 		var p := PanelContainer.new()
@@ -510,6 +530,8 @@ func _go(p: Vector2i) -> void:
 			_boon_pick(p)
 		"wayside":
 			_wayside(p)
+		"shrine":
+			_shrine(p)
 	if not t in ["battle", "elite", "boss"]:
 		rebuild()
 		app.music(t)
@@ -531,8 +553,8 @@ func _summary() -> void:
 		"lose": "The squad was carried home. Half of what they gathered made it back."}[run.over]
 	v.add_child(_para(text))
 	v.add_child(_gain("gold", "%d gold to the caravan" % run.banked()))
-	if not run.boons.is_empty() or not run.picks.is_empty():
-		v.add_child(_note("Boons and hero picks fade when the road ends:"))
+	if not run.boons.is_empty() or not run.picks.is_empty() or run.grace != "":
+		v.add_child(_note("Blessings, boons and hero picks fade when the road ends:"))
 		v.add_child(_boon_row())
 	var go := Forge.studs("bank and go home", true, 84)
 	go.size_flags_horizontal = SIZE_SHRINK_CENTER
