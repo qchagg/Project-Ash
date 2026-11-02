@@ -17,16 +17,12 @@ func setup(a: App) -> TravelLog:
 
 
 func _ready() -> void:
-	var glow := Painted.new().setup("dream")
-	add_child(glow)
-	glow.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	_fill()
 
 
 func _fill() -> void:
 	for c in get_children():
-		if not c is Painted:
-			c.queue_free()
+		c.queue_free()
 	var m := Forge.margins(MarginContainer.new(), 56, 30, 56, 30)
 	add_child(m)
 	m.set_anchors_and_offsets_preset(PRESET_FULL_RECT)

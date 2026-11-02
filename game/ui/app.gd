@@ -4,13 +4,16 @@ extends Control
 ## The nav (the row of places along the foot) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
-const VERSION := "v0.71"
+const VERSION := "v0.72"
 ## Moving between screens: how long the new one takes to come in, and how far it rises as it does.
 const FADE := 0.2
 const RISE := 18.0
 ## How long the stroke of ink takes to cross when moving between places.
 const WIPE := 0.5
 const INK_WIPE: Shader = preload("res://ui/ink_wipe.gdshader")
+## How dark the scene sits behind a place, against home's full light, and how slowly one road's scene gives way to the next.
+const SCENE_DIM := 0.6
+const SCENE_FADE := 1.8
 
 var col := Collection.new()
 ## The town between expeditions; kept for the session while you move between tabs.
@@ -21,12 +24,17 @@ var run: Expedition
 var filter := ""
 ## The road home last sent you to, for the road choice to open on ("" for none).
 var road_pick := ""
+## The road home has on show, or the road you're on. Its painting and air stand behind every place, and off the road
+## its music plays everywhere, so moving between places never changes the scene.
+var scene_road := ""
 ## Each hero's zoom on the character view (0 full body, 1 face), kept between visits.
 var zoom := {}
 var nav: Control
 var _frame: BoxContainer
 var _content: Control
 var _screen: Control
+var _scene: Control
+var _scene_dim: ColorRect
 
 
 func _ready() -> void:
@@ -41,6 +49,16 @@ func _ready() -> void:
 	bg.set_anchors_preset(PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
+	_scene = Control.new()
+	_scene.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_scene)
+	_scene.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_scene_dim = ColorRect.new()
+	_scene_dim.color = Color(Forge.INK, 0.0)
+	_scene_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_scene_dim)
+	_scene_dim.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	set_scene(Expedition.ROADS.keys().pick_random())
 	_frame = Forge.vbox(0)
 	_frame.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(_frame)
@@ -97,8 +115,12 @@ func _deep_link() -> void:
 
 
 ## The music for a slot ("map" or a kind of stop): the road's while a run is on, the shared default otherwise.
+## Off the road, the scene's road plays its own theme in every place.
 func music(slot := "map") -> void:
 	var on_road := run != null and run.over == ""
+	if not on_road and scene_road != "":
+		Music.play(Expedition.music_for(scene_road, "map"))
+		return
 	Music.play(Expedition.music_for(run.road if on_road else "", "menu" if slot == "map" and not on_road else slot))
 
 
@@ -189,6 +211,10 @@ func _open(screen: Control) -> void:
 		var settle := screen.position
 		screen.position.y += RISE
 		rise.tween_property(screen, "position:y", settle.y, FADE * 1.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	if run and run.over == "" and run.road != scene_road:
+		set_scene(run.road)
+	# Home shows the scene in full light; every other place dims it so what stands on it reads.
+	create_tween().tween_property(_scene_dim, "color:a", 0.0 if screen is MainMenu else SCENE_DIM, SCENE_FADE * 0.5)
 	var fight := screen is BattleScreen and run != null and run.over == ""
 	music(run.stop_kind() if fight else _menu_slot(screen))
 	if nav:
@@ -203,6 +229,32 @@ func _open(screen: Control) -> void:
 	if tab != "":
 		nav = NavBar.make(self, screen)
 		_frame.add_child(nav)
+
+
+## Puts a road's painting and air behind every place, slowly coming in over the last, and its theme on.
+func set_scene(road: String) -> void:
+	var changed := road != scene_road
+	scene_road = road
+	if not changed and _scene.get_child_count() > 0:
+		return
+	for old in _scene.get_children():
+		var out := old.create_tween()
+		out.tween_property(old, "modulate:a", 0.0, SCENE_FADE)
+		out.tween_callback(old.queue_free)
+	var art: String = Expedition.ROADS[road].art
+	var layer := Control.new()
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scene.add_child(layer)
+	layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	layer.add_child(Painted.new().setup(art, BattleScreen.SCENE))
+	var air := Weather.over(art)
+	if air:
+		layer.add_child(air)
+	if _scene.get_child_count() > 1:
+		layer.modulate.a = 0.0
+		layer.create_tween().tween_property(layer, "modulate:a", 1.0, SCENE_FADE).set_trans(Tween.TRANS_SINE)
+	if _screen:
+		music()
 
 
 ## A stroke of ink across the screen, over the change from one place to the next.

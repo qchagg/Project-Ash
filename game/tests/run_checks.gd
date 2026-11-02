@@ -88,7 +88,8 @@ func _init() -> void:
 		["Intents · each foe's preview is the action and area it then uses when nothing changes first", _b_intents],
 		["Crops · a crop set for one view wins there, and every other view keeps the eye-line rule", _b_crop_override],
 		["Forecast · the face is the battle tile's close crop, in a tile's shape", _b_forecast_crop],
-		["Home · the roads take turns between runs, every one with a painting and words; on the road it holds on yours", _h_slides],
+		["Home · every road can be featured between runs, with a painting and words; on the road it holds on yours", _h_slides],
+		["Scene · the places stand on home's road, with no painting of their own, and each road has a theme to play there", _h_scene],
 		["Wide board · the floor fits above the skills, the two grids stay apart, and it closes up toward the far lane", _b_wide_floor],
 		["Expedition · every road is connected start to warden, with a camp before the warden", _x_map],
 		["Expedition · fights send the road's home foe, more and tougher further down the road", _x_foes],
@@ -1514,6 +1515,16 @@ func _h_slides() -> Array:
 		var r: Dictionary = Expedition.ROADS[key]
 		ok = ok and r.about != "" and Weather.AIR.has(r.art) and Data.REGIONS.has(r.region)
 	return [ok, "%d roads" % all.size()]
+
+
+func _h_scene() -> Array:
+	var own := []
+	for s in [TownScreen.new(), CodexScreen.new(), SquadScreen.new(), ExpeditionScreen.new()]:
+		if s.backdrop != "" or s.ground != "":
+			own.append(s.title)
+		s.free()
+	var silent: Array = Expedition.ROADS.keys().filter(func(k): return Expedition.music_for(k, "map") != Expedition.ROADS[k].music.map)
+	return [own.is_empty() and silent.is_empty(), "own paintings %s · roads without their theme %s" % [own, silent]]
 
 
 func _b_wide_floor() -> Array:

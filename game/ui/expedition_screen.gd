@@ -57,8 +57,7 @@ func _build() -> void:
 # ---------- between runs: choose a road ----------
 
 func _landing() -> void:
-	if app.road_pick != "":
-		_road = app.road_pick
+	_road = app.road_pick if app.road_pick != "" else app.scene_road
 	var wide := Forge.wide()
 	_land = Control.new()
 	_land.clip_contents = true

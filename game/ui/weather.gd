@@ -5,14 +5,17 @@ extends Control
 ## so the loop has no join, and three depths give it distance: far motes are small, slow and dim, near ones large and quick.
 
 ## `kind` is how a mote is drawn. `color` tints it, `vel` is pixels a second at the nearest depth (and how the rest
-## drift), `size` is its radius there, `count` how many, `sway` how far it wanders sideways. `mist` adds slow banks of haze.
+## drift), `size` is its radius there, `count` how many, `sway` how far it wanders sideways. `mist` adds slow banks of haze,
+## and `extra` a second air of its own kind over the first.
 const AIR := {
 	"ice": {"kind": "snow", "color": Color("#e8f4ff"), "vel": Vector2(-30, 96), "size": 7.0, "count": 150, "sway": 30.0},
 	"city": {"kind": "dust", "color": Color("#ffd591"), "vel": Vector2(18, -10), "size": 4.4, "count": 90, "sway": 18.0},
-	"saltglass-1": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 130, "sway": 8.0},
-	"saltglass-2": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 130, "sway": 8.0},
-	"lotus-1": {"kind": "petal", "color": Color("#f590b0"), "vel": Vector2(-26, 30), "size": 24.0, "count": 80, "sway": 34.0},
-	"lotus-2": {"kind": "petal", "color": Color("#f590b0"), "vel": Vector2(-26, 30), "size": 24.0, "count": 80, "sway": 34.0},
+	"saltglass-1": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 110, "sway": 8.0,
+		"extra": {"kind": "glint", "color": Color("#fff8e6"), "vel": Vector2(4, 0), "size": 7.0, "count": 26, "sway": 0.0}},
+	"saltglass-2": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 110, "sway": 8.0,
+		"extra": {"kind": "glint", "color": Color("#fff8e6"), "vel": Vector2(4, 0), "size": 7.0, "count": 26, "sway": 0.0}},
+	"lotus-1": {"kind": "petal", "color": Color("#f590b0"), "vel": Vector2(-26, 30), "size": 24.0, "count": 48, "sway": 34.0},
+	"lotus-2": {"kind": "petal", "color": Color("#f590b0"), "vel": Vector2(-26, 30), "size": 24.0, "count": 48, "sway": 34.0},
 	"imperial": {"kind": "dust", "color": Color("#f4ecd8"), "vel": Vector2(12, -6), "size": 3.6, "count": 70, "sway": 16.0},
 	"plains-1": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(34, -12), "size": 4.2, "count": 90, "sway": 26.0},
 	"plains-2": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(34, -12), "size": 4.2, "count": 90, "sway": 26.0},
@@ -21,9 +24,12 @@ const AIR := {
 	"silk-highlands": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(10, -46), "size": 4.2, "count": 90, "sway": 24.0},
 	"silk-street": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(10, -46), "size": 3.6, "count": 70, "sway": 24.0},
 	"steppe": {"kind": "dust", "color": Color("#f4e2a8"), "vel": Vector2(46, -8), "size": 3.8, "count": 90, "sway": 18.0},
-	"standing-stones": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(60, -10), "size": 3.8, "count": 80, "sway": 22.0},
-	"empty-pavilions-1": {"kind": "dust", "color": Color("#ff8fb0"), "vel": Vector2(6, -22), "size": 4.4, "count": 60, "sway": 22.0},
-	"empty-pavilions-2": {"kind": "dust", "color": Color("#ff8fb0"), "vel": Vector2(6, -22), "size": 4.4, "count": 60, "sway": 22.0},
+	"standing-stones": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(60, -10), "size": 3.8, "count": 60, "sway": 22.0,
+		"extra": {"kind": "streak", "color": Color("#ffffff"), "vel": Vector2(320, -18), "size": 4.0, "count": 22, "sway": 6.0}},
+	"empty-pavilions-1": {"kind": "dust", "color": Color("#ff8fb0"), "vel": Vector2(6, -22), "size": 4.4, "count": 50, "sway": 22.0,
+		"extra": {"kind": "lantern", "color": Color("#ff8a52"), "vel": Vector2(5, -16), "size": 20.0, "count": 9, "sway": 20.0}},
+	"empty-pavilions-2": {"kind": "dust", "color": Color("#ff8fb0"), "vel": Vector2(6, -22), "size": 4.4, "count": 50, "sway": 22.0,
+		"extra": {"kind": "lantern", "color": Color("#ff8a52"), "vel": Vector2(5, -16), "size": 20.0, "count": 9, "sway": 20.0}},
 	"walking-wood": {"kind": "leaf", "color": Color("#9ccf7e"), "vel": Vector2(-30, 28), "size": 17.0, "count": 60, "sway": 36.0,
 		"mist": Color("#cfe8c8")},
 	"serpent-archive": {"kind": "leaf", "color": Color("#b7d9b0"), "vel": Vector2(-24, 30), "size": 15.0, "count": 40, "sway": 32.0,
@@ -39,8 +45,12 @@ const AIR := {
 ## The shapes of what tumbles, as outlines around their middle, one unit long.
 const PETAL := [Vector2(0, -1), Vector2(0.42, -0.62), Vector2(0.56, 0.05), Vector2(0.3, 0.7), Vector2(0, 1), Vector2(-0.3, 0.7), Vector2(-0.56, 0.05), Vector2(-0.42, -0.62)]
 const LEAF := [Vector2(0, -1.2), Vector2(0.3, -0.7), Vector2(0.42, -0.1), Vector2(0.26, 0.55), Vector2(0, 1.2), Vector2(-0.26, 0.55), Vector2(-0.42, -0.1), Vector2(-0.3, -0.7)]
+## A paper lantern's outline, tall and rounded.
+const LANTERN := [Vector2(-0.42, -0.85), Vector2(0.42, -0.85), Vector2(0.62, -0.4), Vector2(0.66, 0.2), Vector2(0.46, 0.85), Vector2(-0.46, 0.85), Vector2(-0.66, 0.2), Vector2(-0.62, -0.4)]
 ## The wind's strongest gust against its calm, and how slowly gusts come and go.
 const GUST := 2.4
+## What is light enough to ride the gusts.
+const RIDES := ["petal", "leaf", "streak"]
 const GUST_RATE := 0.21
 ## How far away each depth feels: its share of the motes, then its speed, size and strength against the nearest.
 ## How strongly a light shines at the top of its flicker.
@@ -106,10 +116,11 @@ func fill() -> void:
 	_rng.seed = hash(art)
 	_motes.clear()
 	_banks.clear()
-	for d in DEPTHS:
-		for i in roundi(air.count * d[0]):
-			_motes.append({"p": Vector2(_rng.randf(), _rng.randf()), "k": _rng.randf_range(0.8, 1.2), "ph": _rng.randf() * TAU,
-				"speed": d[1], "size": d[2], "alpha": d[3]})
+	for each in airs():
+		for d in DEPTHS:
+			for i in roundi(each.count * d[0]):
+				_motes.append({"air": each, "p": Vector2(_rng.randf(), _rng.randf()), "k": _rng.randf_range(0.8, 1.2), "ph": _rng.randf() * TAU,
+					"speed": d[1], "size": d[2], "alpha": d[3]})
 	if air.has("mist") and not clear:
 		for i in MIST_BANKS:
 			_banks.append({"p": Vector2(_rng.randf(), _rng.randf_range(0.2, 0.85)), "k": _rng.randf_range(0.7, 1.3), "ph": _rng.randf() * TAU})
@@ -142,10 +153,9 @@ func lamps() -> Array:
 func step(delta: float) -> void:
 	_t += delta
 	var s := size if size.x > 0.0 and size.y > 0.0 else Vector2(720, 1560)
-	var vel: Vector2 = AIR[art].vel
 	for m in _motes:
-		var move: Vector2 = vel * m.speed * m.k * delta / s
-		if AIR[art].kind in ["petal", "leaf"]:
+		var move: Vector2 = m.air.vel * m.speed * m.k * delta / s
+		if m.air.kind in RIDES:
 			move.x *= gust()
 		m.p = Vector2(fposmod(m.p.x + move.x, 1.0), fposmod(m.p.y + move.y, 1.0))
 	for b in _banks:
@@ -162,6 +172,12 @@ func motes() -> Array:
 	return _motes
 
 
+## The painting's air, then its extra air if it has one.
+func airs() -> Array:
+	var air: Dictionary = AIR[art]
+	return [air, air.extra] if air.has("extra") else [air]
+
+
 func _draw() -> void:
 	var air: Dictionary = AIR[art]
 	for b in _banks:
@@ -172,6 +188,7 @@ func _draw() -> void:
 			var c := Vector2((b.p.x + shift) * size.x, b.p.y * size.y)
 			draw_texture_rect(_soft, Rect2(c - r, r * 2), false, col)
 	for m in _motes:
+		air = m.air
 		var r: float = air.size * m.size * m.k
 		var at := Vector2(m.p.x * size.x + sin(_t * 0.7 + m.ph) * air.sway * m.size, m.p.y * size.y)
 		var twinkle := 0.75 + 0.25 * sin(_t * 1.1 + m.ph)
@@ -190,6 +207,30 @@ func _draw() -> void:
 				if air.kind == "leaf":
 					draw_line(Vector2(0, -1.1), Vector2(0, 1.1), Color(face.darkened(0.3), 0.7 * m.alpha), 0.09)
 				draw_set_transform(Vector2.ZERO)
+			"streak":
+				# A thread of wind: thin, long along the way it blows, brightest in the middle.
+				var along: Vector2 = air.vel.normalized() * r * 14.0 * gust()
+				var thread := Color(air.color, 0.0)
+				draw_polyline_colors(PackedVector2Array([at - along, at, at + along]),
+					PackedColorArray([thread, Color(air.color, 0.9 * m.alpha), thread]), maxf(1.5, r * 0.5), true)
+			"glint":
+				# Light catching the glass: mostly dark, then a sharp four-pointed flash.
+				var flash := pow(maxf(0.0, sin(_t * 0.9 * m.k + m.ph * 3.0)), 14.0)
+				if flash > 0.02:
+					var g := Color(air.color, flash * m.alpha)
+					_soft_dot(at, r * 1.6, Color(air.color, 0.45 * flash * m.alpha))
+					draw_line(at - Vector2(r * 1.8, 0), at + Vector2(r * 1.8, 0), g, maxf(1.0, r * 0.18), true)
+					draw_line(at - Vector2(0, r * 1.8), at + Vector2(0, r * 1.8), g, maxf(1.0, r * 0.18), true)
+			"lantern":
+				# A paper lantern left behind, rising slowly with its flame flickering.
+				var burn := 0.8 + 0.12 * sin(_t * 3.1 + m.ph) + 0.08 * sin(_t * 7.3 + m.ph * 2.0)
+				_soft_dot(at, r * 3.4, Color(air.color, 0.4 * burn * m.alpha))
+				draw_set_transform(at, sin(_t * 0.6 + m.ph) * 0.12, Vector2(r, r))
+				draw_colored_polygon(PackedVector2Array(LANTERN), Color(air.color.lightened(0.15), 0.95 * burn * m.alpha))
+				draw_line(Vector2(-0.42, -0.8), Vector2(0.42, -0.8), Color(Forge.INK, 0.6 * m.alpha), 0.14)
+				draw_line(Vector2(-0.42, 0.8), Vector2(0.42, 0.8), Color(Forge.INK, 0.6 * m.alpha), 0.14)
+				draw_set_transform(Vector2.ZERO)
+				_soft_dot(at + Vector2(0, r * 0.25), r * 0.75, Color(1, 0.96, 0.82, 0.95 * burn * m.alpha))
 
 
 func _soft_dot(at: Vector2, r: float, col: Color) -> void:

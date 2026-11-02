@@ -17,7 +17,6 @@ var _lit := false
 func _init() -> void:
 	tab = "town"
 	title = "caravan"
-	backdrop = "caravan"
 
 
 func _build() -> void:
