@@ -1,121 +1,51 @@
 class_name NavBar
 extends RefCounted
-## Heroes · Expedition · Caravan: three places, one job each. Expedition, the thing you do most, sits raised in the middle
-## on a medallion whose ring is always turning; Heroes is who you have, Town is what you build (the Archive, the
-## Infirmary and the rest are inside it). On a wide screen the bar stands up as a slim rail down the left edge: icons
-## alone, so the screens get the width, with each name on hover.
+## The places of the game as a row of plain links along the foot, the same on every screen and in both layouts. The place
+## you are in is lit, with a small diamond under it. Home sets the row on its painting; the app gives every other screen a
+## quiet strip for it.
 
-const TABS := [["heroes", "tab_roster"], ["expedition", "tab_expedition"], ["town", "tab_town"], ["menu", "crown"]]
-const BAR_H := 136.0
-const RAIL_W := 84.0
-## How far the medallion reaches from its centre, on the rail and on the bar.
-const DISC_RAIL := 34.0
-const DISC_BAR := 58.0
+## The places: the link's words and their App.show_tab key.
+const PLACES := [["home", "menu"], ["road", "expedition"], ["heroes", "heroes"], ["party", "party"], ["caravan", "town"], ["archive", "archive"], ["travel log", "log"]]
+const LINK_H := 44.0
+const GAP_WIDE := 40
+const GAP_PHONE := 26
 
 
-static func make(app: App, active: String) -> Control:
+## The strip the app puts under a screen.
+static func make(app: App, screen: Control) -> Control:
 	var wide := Forge.wide()
 	var bar := PanelContainer.new()
-	var s := Forge.flat(Forge.PLAQUE_DEEP)
-	if wide:
-		s.border_width_right = 2
-	else:
-		s.border_width_top = 2
-	s.border_color = Color(Forge.GOLD_DEEP, 0.7)
-	bar.add_theme_stylebox_override("panel", s)
-	if wide:
-		bar.custom_minimum_size.x = RAIL_W
-	else:
-		bar.custom_minimum_size.y = BAR_H
-	var box: BoxContainer = Forge.vbox(0) if wide else Forge.hbox(0)
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar.add_child(box)
-	for t in TABS:
-		box.add_child(_tab(app, t[0], t[1], t[0] == active, wide))
+	bar.add_theme_stylebox_override("panel", Forge.flat(Forge.INK, Color.TRANSPARENT, 0, Vector4(56 if wide else 30, 8, 40 if wide else 30, 8)))
+	bar.add_child(links(app, place_of(screen)))
 	return bar
 
 
-static func _tab(app: App, key: String, glyph_name: String, on: bool, wide: bool) -> Control:
-	var b := Button.new()
-	b.flat = true
-	b.focus_mode = Control.FOCUS_NONE
-	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	var label := "caravan" if key == "town" else key
-	b.tooltip_text = label.capitalize()
-	if wide:
-		b.custom_minimum_size = Vector2(NavBar.RAIL_W, 110)
-	else:
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.pressed.connect(func(): app.show_tab(key))
-	Forge.press_weight(b, 0.95)
-	var v := Forge.vbox(10)
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	b.add_child(v)
-	var col: Color = Forge.GOLD_LIGHT if on else Color(Forge.DIM, 0.8)
-	if key == "expedition":
-		# The medallion: a disc that rises out of the bar, its ring turning, brighter when you are on the road.
-		var m := Control.new()
-		var disc := DISC_RAIL if wide else DISC_BAR
-		m.custom_minimum_size = Vector2(disc, disc) * 2.0 if wide else Vector2(112, 72)
-		m.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		m.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var lift := 0.0 if wide else -26.0
-		m.draw.connect(func():
-			var c := Vector2(m.size.x / 2, m.size.y / 2 + lift)
-			var k := disc / DISC_BAR
-			m.draw_circle(c, disc, Forge.INK)
-			m.draw_circle(c, 54 * k, Forge.PLAQUE_DEEP)
-			var half := Vector2(30, 30) * k
-			m.draw_texture_rect(Forge.icon("tab_expedition"), Rect2(c - half, half * 2), false, Forge.GOLD_LIGHT if on else Forge.GOLD))
-		v.add_child(m)
-		var ring := Ring.new()
-		ring.on = on
-		ring.lift = lift
-		ring.scale_by = disc / DISC_BAR
-		ring.set_anchors_preset(Control.PRESET_FULL_RECT)
-		m.add_child(ring)
-	else:
-		var g := Forge.glyph(glyph_name, 42, col)
-		g.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		v.add_child(g)
-	if not wide:
-		var l := Forge.sc(label, 20, Forge.GOLD if key == "expedition" else col, key == "expedition" or on)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		v.add_child(l)
-	if on and key != "expedition":
-		# The current tab: a gold bar along the edge the bar meets the screen on.
-		b.draw.connect(func():
-			if wide:
-				b.draw_rect(Rect2(b.size.x - 4, b.size.y * 0.3, 4, b.size.y * 0.4), Forge.GOLD)
-			else:
-				b.draw_rect(Rect2(b.size.x * 0.3, 0, b.size.x * 0.4, 4), Forge.GOLD))
-	return b
+## The row itself. `here` is the App.show_tab key of the place you are in.
+static func links(app: App, here: String) -> Control:
+	var wide := Forge.wide()
+	var row := HFlowContainer.new()
+	row.alignment = FlowContainer.ALIGNMENT_BEGIN if wide else FlowContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("h_separation", GAP_WIDE if wide else GAP_PHONE)
+	for place in PLACES:
+		var b := Forge.link(place[0], "", 20)
+		b.custom_minimum_size.y = LINK_H
+		if place[1] == here:
+			for k in ["font_color", "font_hover_color"]:
+				b.add_theme_color_override(k, Forge.GOLD_LIGHT)
+			b.draw.connect(func(): Forge.diamond(b, Vector2(b.size.x / 2.0, b.size.y - 2.0), 4, Forge.GOLD))
+		else:
+			b.add_theme_color_override("font_color", Forge.PARCHMENT)
+			b.pressed.connect(app.show_tab.bind(place[1]))
+		row.add_child(b)
+	return row
 
 
-## The medallion's ring: a gold circle with a bright comet running round it, quicker on the current tab.
-class Ring extends Control:
-	var on := false
-	var lift := 0.0
-	var scale_by := 1.0
-	var _t := 0.0
-
-	func _ready() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _process(delta: float) -> void:
-		_t += delta
-		queue_redraw()
-
-	func _draw() -> void:
-		var c := Vector2(size.x / 2, size.y / 2 + lift)
-		var rad := 55.0 * scale_by
-		draw_arc(c, rad, 0, TAU, 64, Color(Forge.GOLD_DEEP, 0.9 if on else 0.55), 2.5, true)
-		var head := fposmod(_t * (0.45 if on else 0.2), 1.0) * TAU
-		for i in 18:
-			var k := i / 17.0
-			draw_arc(c, rad, head - 1.1 * (1.0 - k) - 0.07, head - 1.1 * (1.0 - k), 4, Color(Forge.GOLD_LIGHT, k * (0.95 if on else 0.6)), 3.5, true)
-		draw_circle(c + Vector2(cos(head), sin(head)) * rad, 3.5, Forge.GOLD_LIGHT)
-		draw_arc(c, 47.0 * scale_by, 0, TAU, 48, Color(Forge.GOLD, 0.3), 1.5, true)
+## Which place a screen belongs to. Some sit inside another's tab, but each has its own link.
+static func place_of(screen: Control) -> String:
+	if screen is SquadScreen:
+		return "party"
+	if screen is CodexScreen:
+		return "archive"
+	if screen is TravelLog:
+		return "log"
+	return screen.get("tab")

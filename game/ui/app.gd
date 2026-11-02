@@ -1,7 +1,7 @@
 class_name App
 extends Control
 ## The game's root: owns the collection, the town and the expedition on the road, and switches between screens.
-## The nav (Heroes · Expedition · Town) belongs to the app, not the screens: a bar along the foot, or a rail down the
+## The nav (the row of places along the foot) belongs to the app, not the screens: a bar along the foot, or a rail down the
 ## left on a wide screen. Screens fill the space beside it; a screen with no `tab` (a hero's pages) takes it all.
 
 const VERSION := "v0.50"
@@ -38,7 +38,7 @@ func _ready() -> void:
 	bg.set_anchors_preset(PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
-	_frame = Forge.hbox(0) if Forge.wide() else Forge.vbox(0)
+	_frame = Forge.vbox(0)
 	_frame.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(_frame)
 	_content = Control.new()
@@ -195,10 +195,8 @@ func _open(screen: Control) -> void:
 		screen.offset_left = side
 		screen.offset_right = -side
 	if tab != "":
-		nav = NavBar.make(self, tab)
+		nav = NavBar.make(self, screen)
 		_frame.add_child(nav)
-		if Forge.wide():
-			_frame.move_child(nav, 0)
 
 
 ## Hide the nav while a fight is on: nothing in it is needed mid-battle.

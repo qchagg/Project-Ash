@@ -25,6 +25,7 @@ var elem_filter := ""
 func _init() -> void:
 	tab = "town"
 	title = "archive"
+	backdrop = "serpent-archive"
 
 
 func _build() -> void:
@@ -43,8 +44,14 @@ func _build() -> void:
 
 func _world() -> void:
 	body.add_child(_intro("Eleven regions, drawn from cultures around the world. Tap one for where it comes from and who lives there."))
+	# A wide screen sets the regions two across, so each keeps the shape it has on a phone.
+	var grid := GridContainer.new()
+	grid.columns = 2 if Forge.wide() else 1
+	grid.add_theme_constant_override("h_separation", 24)
+	grid.add_theme_constant_override("v_separation", 34)
+	body.add_child(grid)
 	for key in Data.REGIONS:
-		body.add_child(_region_plate(key))
+		grid.add_child(_region_plate(key))
 
 
 ## A region as a plate: its colorway, its sigil riding the edge, its name and a line about it.
@@ -55,10 +62,11 @@ func _region_plate(key: String) -> Control:
 	v.mouse_filter = MOUSE_FILTER_IGNORE
 	b.add_child(v)
 	var top := Control.new()
-	top.custom_minimum_size = Vector2(632, 120)
+	var w := 728.0 if Forge.wide() else 632.0
+	top.custom_minimum_size = Vector2(w, 120)
 	top.mouse_filter = MOUSE_FILTER_IGNORE
 	v.add_child(top)
-	top.add_child(Forge.region_swatch(key, Vector2(632, 84)))
+	top.add_child(Forge.region_swatch(key, Vector2(w, 84)))
 	var badge := Forge.region_badge(key, 88)
 	badge.position = Vector2(28, 36)
 	top.add_child(badge)
@@ -73,7 +81,7 @@ func _region_plate(key: String) -> Control:
 	t.mouse_filter = MOUSE_FILTER_IGNORE
 	text.add_child(t)
 	t.add_child(Forge.sc(r.name, 30, Forge.GOLD, true, 0.14))
-	t.add_child(_para(r.desc, 22, Forge.PARCHMENT, 576))
+	t.add_child(_para(r.desc, 22, Forge.PARCHMENT, w - 56.0))
 	_tap(b, func(lines: VBoxContainer):
 		var head := Forge.hbox(16)
 		lines.add_child(head)
