@@ -58,6 +58,7 @@ func _init() -> void:
 		["Roads · every road shows a painting the game carries", _road_art],
 		["Skills · every skill has its own icon", _skill_icons],
 		["Graces · each has a figure, carried beside the page", _graces],
+		["Regions · every home's sigil can light up on the map", _region_glow],
 		["Stands · a hero's standing art has its file, travels with the sheets, and their profile crop stays on the art", _hero_stands],
 		["Travel Log · a milestone locks until enough wardens fall and pays once", _travel_log],
 		["Voices · every voice has an actor, every clip has its file, and the web build fetches them", _voices],
@@ -930,6 +931,14 @@ func _skill_icons() -> Array:
 	var kept: bool = grown.name != "Foxfire Lance" and Forge.skill_art(grown) == "res://art/skills/foxfire-lance.webp"
 	var lit: bool = Data.ELEMS.keys().all(func(e): return Forge.SKILL_SHINE.has(e) and Forge.ELEM.has(e))
 	return [bad.is_empty() and kept and lit, "%d skills · missing %s · augmented keeps its icon: %s" % [kits.size(), bad, kept]]
+
+
+func _region_glow() -> Array:
+	var bad := Data.REGIONS.keys().filter(func(k): return not ResourceLoader.exists("res://art/icons/ui/region_%s.svg" % k) or not Data.REGIONS[k].has("light"))
+	var g := Forge.region_glow(Data.REGIONS.keys()[0], 64)
+	var lit: bool = (g.material as ShaderMaterial).get_shader_parameter("light") == Data.REGIONS[Data.REGIONS.keys()[0]].light
+	g.free()
+	return [bad.is_empty() and lit, "%d regions · missing %s" % [Data.REGIONS.size(), bad]]
 
 
 func _graces() -> Array:

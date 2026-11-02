@@ -160,19 +160,24 @@ func _show_road() -> void:
 		air.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	for c in _info.get_children():
 		c.queue_free()
-	var head := Forge.hbox(16)
+	# As on a map: the region lit beside its name, small and spaced, and the road named large below it.
+	var head := Forge.hbox(12)
 	_info.add_child(head)
-	var badge := Forge.region_badge(r.region, 64)
-	badge.size_flags_vertical = SIZE_SHRINK_CENTER
-	head.add_child(badge)
+	var glow := Forge.region_glow(r.region, 96)
+	glow.size_flags_vertical = SIZE_SHRINK_CENTER
+	head.add_child(glow)
+	var land := Forge.sc(region.name, 20, Forge.GOLD, false, 0.4)
+	land.add_theme_color_override("font_shadow_color", Color.BLACK)
+	land.size_flags_vertical = SIZE_SHRINK_CENTER
+	head.add_child(land)
 	var name := Forge.sc(r.name, 46 if Forge.wide() else 36, Forge.PARCHMENT, true, 0.08)
 	name.add_theme_color_override("font_shadow_color", Color.BLACK)
-	head.add_child(name)
+	_info.add_child(name)
 	var where := Forge.hbox(10)
 	_info.add_child(where)
 	where.add_child(_danger(r.danger))
 	where.add_child(Forge.glyph("elem_" + r.elem, 20, Forge.ELEM[r.elem]))
-	where.add_child(Forge.sc("%s · %d stops" % [region.name, r.depth], 18, Forge.LABEL))
+	where.add_child(Forge.sc("%d stops" % r.depth, 18, Forge.LABEL))
 	var about := Forge.label(r.about, 20, Forge.MUTED, Forge.SANS_ITALIC)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	about.custom_minimum_size.x = 440 if Forge.wide() else 600
