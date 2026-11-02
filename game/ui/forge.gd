@@ -106,6 +106,60 @@ static func region_badge(key: String, px: int) -> Control:
 	return c
 
 
+## A region's sigil lit like a province on a map (after Gladius): a pale core in the region's light, and a soft halo
+## around its edge that breathes. The sigil fills the middle; the rest of the square is room for the halo.
+const REGION_GLOW := """
+shader_type canvas_item;
+uniform vec4 light;
+uniform float phase = 0.0;
+const float FILL = 0.64;
+const vec3 RINGS = vec3(0.05, 0.11, 0.19);
+const vec3 WEIGHTS = vec3(1.0, 0.7, 0.4);
+vec2 inset(vec2 uv) {
+	return (uv - 0.5) / FILL + 0.5;
+}
+float inside(vec2 p) {
+	return step(0.0, p.x) * step(0.0, p.y) * step(p.x, 1.0) * step(p.y, 1.0);
+}
+void fragment() {
+	vec2 c = inset(UV);
+	float core = texture(TEXTURE, c).a * inside(c);
+	float halo = 0.0;
+	for (int i = 0; i < 16; i++) {
+		float a = float(i) * 0.3927;
+		for (int k = 0; k < 3; k++) {
+			vec2 p = inset(UV + vec2(cos(a), sin(a)) * RINGS[k]);
+			halo += texture(TEXTURE, p).a * inside(p) * WEIGHTS[k];
+		}
+	}
+	halo = clamp(halo / 9.0, 0.0, 1.0) * (1.0 - core);
+	float breath = 0.65 + 0.35 * sin(TIME * 1.7 + phase * 6.28);
+	vec3 lit = mix(light.rgb, vec3(1.0), 0.3);
+	COLOR = vec4(mix(light.rgb, lit, core), max(core, halo * breath) * COLOR.a);
+}
+"""
+static var _region_glow: Shader
+
+
+static func region_glow(key: String, px: int) -> TextureRect:
+	if _region_glow == null:
+		_region_glow = Shader.new()
+		_region_glow.code = REGION_GLOW
+	var t := TextureRect.new()
+	t.texture = icon("region_" + key)
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_SCALE
+	t.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	t.custom_minimum_size = Vector2(px, px)
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = _region_glow
+	mat.set_shader_parameter("light", Data.REGIONS[key].light)
+	mat.set_shader_parameter("phase", float(key.hash() % 100) / 100.0)
+	t.material = mat
+	return t
+
+
 ## A region's colorway as a panel: the dark, cut by a diagonal of the light rising to the top-right corner.
 static func region_swatch(key: String, size: Vector2) -> Control:
 	var r: Dictionary = Data.REGIONS[key]

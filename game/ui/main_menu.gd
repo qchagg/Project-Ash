@@ -12,6 +12,8 @@ const HERO_EVERY := 2
 const WORDS_FADE := 0.4
 ## How tall a starred hero stands on home, against the screen's height.
 const HERO_TALL := Vector2(0.9, 0.62)
+## The region's lit sigil beside its name; most of the square is its halo.
+const GLOW_PX := 84
 
 var app: App
 var tab := "menu"
@@ -211,22 +213,36 @@ func _show() -> void:
 		out.tween_callback(c.queue_free)
 	var wide := Forge.wide()
 	var lines := []
+	var region := ""
 	if slide.has("road"):
 		var r: Dictionary = Expedition.ROADS[slide.road]
 		app.set_scene(slide.road, "", false)
-		lines = [Forge.sc("on the road" if app.run else Data.REGIONS[r.region].name, 16, Forge.GOLD),
+		region = r.region
+		lines = [Forge.sc("on the road" if app.run else Data.REGIONS[r.region].name, 16, Forge.GOLD, false, 0.4),
 			Forge.sc(r.name, 30 if wide else 28, Forge.PARCHMENT, true, 0.06)]
 	else:
 		var h := Data.hero(slide.hero)
 		var road := home_road(h.home)
 		app.set_scene(road if road != "" else app.scene_road, Backdrop.ART[h.home][0], false)
 		_stand(slide.hero)
-		lines = [Forge.sc("starred · " + Data.REGIONS[h.home].name, 16, Forge.GOLD),
+		region = h.home
+		lines = [Forge.sc("starred · " + Data.REGIONS[h.home].name, 16, Forge.GOLD, false, 0.4),
 			Forge.sc(h.name, 30 if wide else 28, Forge.PARCHMENT, true, 0.06)]
 	for l in lines:
 		_readable(l)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if wide else HORIZONTAL_ALIGNMENT_CENTER
 		_words.add_child(l)
+	# The region lights up beside its name, like a province on a map; it fades through with the words.
+	var head := Forge.hbox(10)
+	head.alignment = BoxContainer.ALIGNMENT_BEGIN if wide else BoxContainer.ALIGNMENT_CENTER
+	head.mouse_filter = MOUSE_FILTER_IGNORE
+	var glow := Forge.region_glow(region, GLOW_PX)
+	glow.size_flags_vertical = SIZE_SHRINK_CENTER
+	_words.remove_child(lines[0])
+	head.add_child(glow)
+	head.add_child(lines[0])
+	_words.add_child(head)
+	_words.move_child(head, 0)
 
 
 ## A starred hero standing big on their home: to the right of the menu on a wide screen, behind it on a phone.
