@@ -825,7 +825,7 @@ func _act_button(u: Dictionary, key: String, h: int) -> Button:
 func _orb(u: Dictionary, key: String) -> Button:
 	var a := b.act(u, key)
 	var bt := Forge.orb(ORB, Forge.ELEM[u.elem] if a.is_skill else Forge.BRONZE)
-	var pic: Control = Forge.skill_icon(a, u.elem, ORB - 16) if a.is_skill else Forge.glyph("type_" + Forge.skill_type(a), 30, Forge.PARCHMENT)
+	var pic: Control = Forge.skill_icon(a, u.elem, ORB - 12, false) if a.is_skill else Forge.glyph("type_" + Forge.skill_type(a), 30, Forge.PARCHMENT)
 	bt.add_child(pic)
 	pic.position = (Vector2(ORB, ORB) - pic.custom_minimum_size) / 2
 	var is_queued: bool = b.queued(u.id).get("key", "") == key

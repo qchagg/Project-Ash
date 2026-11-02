@@ -55,6 +55,7 @@ func _init() -> void:
 		["Sound · every cue the game plays has a sound file, and a cue with none is silent rather than an error", _sounds],
 		["Sound · the button click and page turn stay silent", _muted_cues],
 		["Roads · every road shows a painting the game carries", _road_art],
+		["Skills · every skill has its own icon", _skill_icons],
 		["Stands · a hero's standing art has its file, travels with the sheets, and their profile crop stays on the art", _hero_stands],
 		["Travel Log · a milestone locks until enough wardens fall and pays once", _travel_log],
 		["Voices · every voice has an actor, every clip has its file, and the web build fetches them", _voices],
@@ -889,6 +890,20 @@ func _muted_cues() -> Array:
 	var quiet := not Sfx._last.has("tap") and not Sfx._last.has("page")
 	Sfx._on = 1 if was else 0
 	return [quiet, "silent: %s" % quiet]
+
+
+func _skill_icons() -> Array:
+	var kits := {}
+	for u in Data.HEROES + Battle.FOES:
+		for s in u.skills:
+			kits[Forge.skill_art(s)] = kits.get(Forge.skill_art(s), {})
+			kits[Forge.skill_art(s)][s.name] = true
+	var bad := kits.keys().filter(func(art): return not ResourceLoader.exists(art) or kits[art].size() > 1)
+	# An augmented skill keeps its icon, and every element has its shine.
+	var grown: Dictionary = Data.apply_augs(Data.hero("kaede").skills, [{"aug": "keen", "skill": 0}])[0]
+	var kept: bool = grown.name != "Foxfire Lance" and Forge.skill_art(grown) == "res://art/skills/foxfire-lance.webp"
+	var lit: bool = Data.ELEMS.keys().all(func(e): return Forge.SKILL_SHINE.has(e) and Forge.ELEM.has(e))
+	return [bad.is_empty() and kept and lit, "%d skills · missing %s · augmented keeps its icon: %s" % [kits.size(), bad, kept]]
 
 
 func _road_art() -> Array:

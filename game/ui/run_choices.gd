@@ -211,7 +211,8 @@ func _boon_pick(p: Vector2i) -> void:
 
 
 ## One choice in an event: a glyph, a name and what it does. Rare ones turn a comet round the edge.
-func _offer_card(glyph_name: String, col: Color, heading: String, text: String, rarity: int) -> Button:
+## `pic` stands in for the glyph badge when the offer is about something with its own icon.
+func _offer_card(glyph_name: String, col: Color, heading: String, text: String, rarity: int, pic: Control = null) -> Button:
 	var card := Button.new()
 	card.focus_mode = Control.FOCUS_NONE
 	card.custom_minimum_size = Vector2(0, 124 if Forge.wide() else 104)
@@ -227,7 +228,7 @@ func _offer_card(glyph_name: String, col: Color, heading: String, text: String, 
 	var h := Forge.hbox(16)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(h)
-	h.add_child(_offer_badge(glyph_name, col))
+	h.add_child(pic if pic else _offer_badge(glyph_name, col))
 	var tv := Forge.vbox(2)
 	tv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tv.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -283,7 +284,7 @@ func _hero_pick() -> void:
 		top.add_child(line)
 		for o in run.pick_now.options:
 			var col: Color = Forge.RARITY[o.rarity]
-			var card := _offer_card("elem_" + Data.AUGS[o.aug].fam, col, run.pick_preview(o).name, _pick_text(o), o.rarity)
+			var card := _offer_card("elem_" + Data.AUGS[o.aug].fam, col, run.pick_preview(o).name, _pick_text(o), o.rarity, Forge.skill_icon(run.pick_preview(o), hero.elem, 84))
 			card.pressed.connect(func():
 				if run.picks_full(uid):
 					_close_event(v)
@@ -341,7 +342,7 @@ func _replace_pick(o: Dictionary) -> void:
 		var held: Array = run.picks[uid]
 		for i in held.size():
 			var aug: Dictionary = Data.AUGS[held[i].aug]
-			var card := _offer_card("swap", Forge.ELEM[aug.fam], "%s · %s" % [skills[held[i].skill].name, aug.name], aug.desc.split(".")[0] + ".", 0)
+			var card := _offer_card("swap", Forge.ELEM[aug.fam], "%s · %s" % [skills[held[i].skill].name, aug.name], aug.desc.split(".")[0] + ".", 0, Forge.skill_icon(skills[held[i].skill], Data.hero(c.hero).elem, 84))
 			card.pressed.connect(func():
 				run.take_pick(o, i)
 				Sfx.play("confirm")
