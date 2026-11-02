@@ -11,29 +11,29 @@ const AIR := {
 	"city": {"kind": "dust", "color": Color("#ffd591"), "vel": Vector2(18, -10), "size": 4.4, "count": 90, "sway": 18.0},
 	"saltglass-1": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 130, "sway": 8.0},
 	"saltglass-2": {"kind": "dust", "color": Color("#ffe2ad"), "vel": Vector2(150, -6), "size": 3.0, "count": 130, "sway": 8.0},
-	"lotus-1": {"kind": "petal", "color": Color("#f7a8c0"), "vel": Vector2(-26, 30), "size": 12.0, "count": 34, "sway": 34.0},
-	"lotus-2": {"kind": "petal", "color": Color("#f7a8c0"), "vel": Vector2(-26, 30), "size": 12.0, "count": 34, "sway": 34.0},
+	"lotus-1": {"kind": "petal", "color": Color("#f590b0"), "vel": Vector2(-26, 30), "size": 24.0, "count": 80, "sway": 34.0},
+	"lotus-2": {"kind": "petal", "color": Color("#f590b0"), "vel": Vector2(-26, 30), "size": 24.0, "count": 80, "sway": 34.0},
 	"imperial": {"kind": "dust", "color": Color("#f4ecd8"), "vel": Vector2(12, -6), "size": 3.6, "count": 70, "sway": 16.0},
 	"plains-1": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(34, -12), "size": 4.2, "count": 90, "sway": 26.0},
 	"plains-2": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(34, -12), "size": 4.2, "count": 90, "sway": 26.0},
 	"basalt-steps": {"kind": "dust", "color": Color("#ff9a4a"), "vel": Vector2(14, -74), "size": 4.4, "count": 90, "sway": 22.0},
-	"lantern-village": {"kind": "petal", "color": Color("#ffb7cf"), "vel": Vector2(-34, 26), "size": 12.0, "count": 40, "sway": 34.0},
+	"lantern-village": {"kind": "petal", "color": Color("#ff9cc0"), "vel": Vector2(-34, 26), "size": 24.0, "count": 90, "sway": 34.0},
 	"silk-highlands": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(10, -46), "size": 4.2, "count": 90, "sway": 24.0},
 	"silk-street": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(10, -46), "size": 3.6, "count": 70, "sway": 24.0},
 	"steppe": {"kind": "dust", "color": Color("#f4e2a8"), "vel": Vector2(46, -8), "size": 3.8, "count": 90, "sway": 18.0},
 	"standing-stones": {"kind": "dust", "color": Color("#eaf2a2"), "vel": Vector2(60, -10), "size": 3.8, "count": 80, "sway": 22.0},
 	"empty-pavilions-1": {"kind": "dust", "color": Color("#ff8fb0"), "vel": Vector2(6, -22), "size": 4.4, "count": 60, "sway": 22.0},
 	"empty-pavilions-2": {"kind": "dust", "color": Color("#ff8fb0"), "vel": Vector2(6, -22), "size": 4.4, "count": 60, "sway": 22.0},
-	"walking-wood": {"kind": "leaf", "color": Color("#9ccf7e"), "vel": Vector2(-30, 28), "size": 7.0, "count": 26, "sway": 36.0,
+	"walking-wood": {"kind": "leaf", "color": Color("#9ccf7e"), "vel": Vector2(-30, 28), "size": 17.0, "count": 60, "sway": 36.0,
 		"mist": Color("#cfe8c8")},
-	"serpent-archive": {"kind": "leaf", "color": Color("#b7d9b0"), "vel": Vector2(-24, 30), "size": 6.0, "count": 18, "sway": 32.0,
+	"serpent-archive": {"kind": "leaf", "color": Color("#b7d9b0"), "vel": Vector2(-24, 30), "size": 15.0, "count": 40, "sway": 32.0,
 		"mist": Color("#d8f0ea")},
 	"coast": {"kind": "dust", "color": Color("#fff0c8"), "vel": Vector2(26, -8), "size": 3.8, "count": 70, "sway": 18.0},
 	"whale-cathedral": {"kind": "snow", "color": Color("#e8f4ff"), "vel": Vector2(-20, 70), "size": 6.0, "count": 110, "sway": 26.0},
 	"basalt-city": {"kind": "dust", "color": Color("#8ff0d0"), "vel": Vector2(6, -34), "size": 4.2, "count": 70, "sway": 20.0, "mist": Color("#bfeee0")},
 	"avenue": {"kind": "dust", "color": Color("#ffd9b0"), "vel": Vector2(14, -8), "size": 3.8, "count": 70, "sway": 16.0},
 	"undercroft": {"kind": "dust", "color": Color("#ff7a45"), "vel": Vector2(6, -58), "size": 4.0, "count": 70, "sway": 20.0},
-	"jade": {"kind": "leaf", "color": Color("#b7d9b0"), "vel": Vector2(-40, 34), "size": 8.0, "count": 26, "sway": 36.0,
+	"jade": {"kind": "leaf", "color": Color("#b7d9b0"), "vel": Vector2(-40, 34), "size": 18.0, "count": 60, "sway": 36.0,
 		"mist": Color("#d8f0ea")},
 }
 ## The shapes of what tumbles, as outlines around their middle, one unit long.
@@ -47,6 +47,8 @@ const GUST_RATE := 0.21
 const LAMP := 0.3
 ## How strongly all of it shows, so it sits in a dimmed painting and never outshines it.
 const STRENGTH := 0.6
+## Petals and leaves are things, not haze, so they show more strongly.
+const TUMBLE_STRENGTH := 0.85
 const DEPTHS := [[0.5, 0.38, 0.5, 0.4], [0.32, 0.65, 0.75, 0.65], [0.18, 1.0, 1.0, 0.95]]
 const MIST_BANKS := 5
 
@@ -74,7 +76,7 @@ static func over(of_art: String) -> Weather:
 
 
 func _ready() -> void:
-	modulate.a = STRENGTH
+	modulate.a = TUMBLE_STRENGTH if AIR[art].kind in ["petal", "leaf"] else STRENGTH
 	var g := Gradient.new()
 	g.set_color(0, Color.WHITE)
 	g.set_color(1, Color(1, 1, 1, 0))
@@ -182,7 +184,7 @@ func _draw() -> void:
 			"leaf", "petal":
 				# It spins as it falls and flips over, its face catching the light and its back in shade.
 				var flip := sin(_t * 1.6 * m.k + m.ph)
-				var face: Color = air.color.lightened(0.18) if flip > 0.0 else air.color.darkened(0.22)
+				var face: Color = air.color.lightened(0.06) if flip > 0.0 else air.color.darkened(0.22)
 				draw_set_transform(at, m.ph + _t * 0.8 * m.k, Vector2(r, r) * Vector2(1.0, 0.25 + 0.75 * absf(flip)))
 				draw_colored_polygon(PackedVector2Array(LEAF if air.kind == "leaf" else PETAL), Color(face, 0.82 * m.alpha))
 				if air.kind == "leaf":
