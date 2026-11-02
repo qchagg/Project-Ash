@@ -16,8 +16,8 @@ void fragment() {
 	COLOR = vec4(c.rgb * (1.0 + band * 0.9) * COLOR.rgb, c.a * COLOR.a);
 }
 """
-## How the ones not chosen stand back.
-const DIMMED := Color(0.34, 0.34, 0.34, 0.8)
+## How the ones not chosen stand back: dim, but still gold against home's painting behind every place.
+const DIMMED := Color(0.55, 0.55, 0.55, 0.9)
 ## Heights in the row, as a share of the stage: the chosen one, then the rest.
 const TALL := 0.94
 const SHORT := 0.7
@@ -54,6 +54,8 @@ func _ready() -> void:
 	if _shader == null:
 		_shader = Shader.new()
 		_shader.code = SHINE
+	# Ink rising from the foot, so the row stands clear of the painting, and a pool of light behind the chosen one.
+	add_child(Forge.wash(Color(Forge.INK, 0.7), Vector2(0.5, 1.0), Vector2(0.5, 0.35)))
 	_pool = Forge.wash(Color(Forge.GOLD_DEEP, 0.16), Vector2(0.5, 0.55), Vector2(0.5, 0.0), true)
 	add_child(_pool)
 	var m := Forge.margins(MarginContainer.new(), 56, 30, 56, 20) if Forge.wide() else Forge.margins(MarginContainer.new(), 28, 30, 28, 24)
@@ -108,8 +110,10 @@ func _words() -> Control:
 	v.custom_minimum_size.x = 420 if Forge.wide() else 0
 	if Forge.wide():
 		v.add_child(_header())
+		# The words sit in what room the place links leave, so the gap gives way rather than pushing them under the links.
 		var gap := Control.new()
-		gap.custom_minimum_size.y = 90
+		gap.custom_minimum_size.y = 16
+		gap.size_flags_vertical = SIZE_EXPAND_FILL
 		v.add_child(gap)
 	_name = Forge.sc("", 64 if Forge.wide() else 54, Forge.GOLD_LIGHT, true, 0.06)
 	v.add_child(_name)
